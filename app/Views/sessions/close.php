@@ -1,5 +1,5 @@
 <div class="card" style="max-width: 760px"><div class="card-body">
-  <?php if ($force): ?><div class="alert alert-warning">Force-closing <?= e($session['username']) ?>'s session. Count the drawer yourself.</div>
+  <?php if ($force): ?><div class="alert alert-warning">Closing <?= e($session['username']) ?>'s session as administrator. Count the drawer yourself.</div>
   <?php else: ?><p>Count the cash in the drawer <strong>before</strong> you see the expected amount. Enter how many of each note.</p><?php endif; ?>
   <form method="post" action="<?= url('sessions/close') ?>">
     <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $session['id'] ?>">

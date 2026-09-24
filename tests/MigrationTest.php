@@ -19,7 +19,7 @@ return [
 
     'a fresh install records every migration and a second run applies nothing' => function (): void {
         $applied = Database::pdo()->query('SELECT filename FROM migrations ORDER BY filename')->fetchAll(PDO::FETCH_COLUMN);
-        assert_same(['001_foundation.sql', '002_catalog.sql', '003_operations.sql'], $applied);
+        assert_same(['001_foundation.sql', '002_catalog.sql', '003_operations.sql', '004_admin_closes_sessions.sql'], $applied);
         assert_same([], Installer::migrate());
     },
 
@@ -40,7 +40,7 @@ return [
              WHERE r.name = 'Cashier' ORDER BY rp.perm_key"
         )->fetchAll(PDO::FETCH_COLUMN);
         assert_same(['debt.collect', 'pos.use', 'return.create', 'sale.create', 'sale.credit',
-                     'sale.reprint', 'session.close_own', 'session.open_own'], $cashier);
+                     'sale.reprint', 'session.open_own'], $cashier, '004 removed session.close_own: the admin closes');
         assert_same(90000, (int) $pdo->query('SELECT lbp_per_usd FROM exchange_rates ORDER BY id DESC LIMIT 1')->fetchColumn());
         assert_same(7, (int) $pdo->query('SELECT COUNT(*) FROM counters')->fetchColumn(), '6 foundation counters + product (002)');
         assert_same('5000', $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'lbp_rounding_step'")->fetchColumn());

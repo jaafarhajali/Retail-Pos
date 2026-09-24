@@ -15,7 +15,7 @@
         <td><code><?= e($s['session_no']) ?></code><?= $s['z_no'] ? ' <code>' . e($s['z_no']) . '</code>' : '' ?></td>
         <td dir="auto"><?= e($s['register_name']) ?></td><td><?= e($s['username']) ?></td>
         <td><?= e(date('d/m H:i', strtotime($s['opened_at']))) ?></td><td><?= $s['counted_at'] ? e(date('d/m H:i', strtotime($s['counted_at']))) : '—' ?></td>
-        <td><span class="badge <?= ['open' => 'text-bg-success', 'counted' => 'text-bg-warning', 'reviewed' => 'text-bg-secondary'][$s['status']] ?>"><?= e($s['status']) ?></span><?= (int) $s['force_closed'] ? ' <span class="badge text-bg-danger">forced</span>' : '' ?></td>
+        <td><span class="badge <?= ['open' => 'text-bg-success', 'counted' => 'text-bg-warning', 'reviewed' => 'text-bg-secondary'][$s['status']] ?>"><?= e($s['status']) ?></span><?= (int) $s['force_closed'] ? ' <span class="badge text-bg-info">closed by admin</span>' : '' ?></td>
         <td class="text-end <?= $s['diff_usd'] !== null && (float) $s['diff_usd'] != 0 ? 'text-danger' : '' ?>"><?= $s['diff_usd'] === null ? '—' : usd($s['diff_usd']) ?></td>
         <td class="text-end <?= $s['diff_lbp'] !== null && (int) $s['diff_lbp'] != 0 ? 'text-danger' : '' ?>"><?= $s['diff_lbp'] === null ? '—' : lbp($s['diff_lbp']) ?></td>
         <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('sessions/view', ['id' => $s['id']]) ?>">Open</a></td>

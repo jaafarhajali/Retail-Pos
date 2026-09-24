@@ -13,9 +13,16 @@ final class RegisterController extends Controller
 {
     public function index(): void
     {
+        $registers = (new Register())->all();
+        $sessions = new \App\Models\CashSession();
+        $inUse = [];
+        foreach ($registers as $r) {
+            $inUse[(int) $r['id']] = $sessions->openForRegister((int) $r['id']);
+        }
         $this->render('registers/index', [
-            'registers' => (new Register())->all(),
+            'registers' => $registers,
             'current'   => RegisterDevice::current(),
+            'inUse'     => $inUse,
         ], 'Registers');
     }
 

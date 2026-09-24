@@ -6,7 +6,7 @@
         <dt>Register</dt><dd dir="auto"><?= e($s['register_name']) ?></dd>
         <dt>Cashier</dt><dd><?= e($s['full_name']) ?></dd>
         <dt>Opened</dt><dd><?= e(date('d/m/Y H:i', strtotime($s['opened_at']))) ?></dd>
-        <dt>Status</dt><dd><?= e($s['status']) ?><?= (int) $s['force_closed'] ? ' (force-closed)' : '' ?><?= $s['z_no'] ? ' · ' . e($s['z_no']) : '' ?></dd>
+        <dt>Status</dt><dd><?= e($s['status']) ?><?= (int) $s['force_closed'] ? ' (closed by admin)' : '' ?><?= $s['z_no'] ? ' · ' . e($s['z_no']) : '' ?></dd>
         <?php if (!$open): ?>
           <dt>Counted</dt><dd><?= e(date('d/m/Y H:i', strtotime($s['counted_at']))) ?></dd>
           <dt>USD</dt><dd>expected <?= usd($s['expected_usd']) ?> · counted <?= usd($s['counted_usd']) ?> · <strong class="<?= (float) $s['diff_usd'] != 0 ? 'text-danger' : 'text-success' ?>"><?= (float) $s['diff_usd'] == 0 ? 'balanced' : ((float) $s['diff_usd'] > 0 ? 'surplus ' : 'shortage ') . usd(abs((float) $s['diff_usd'])) ?></strong></dd>
@@ -18,7 +18,7 @@
       </dl>
       <div class="d-flex flex-wrap gap-2">
         <a class="btn btn-outline-primary" href="<?= url('sessions/print', ['id' => $s['id']]) ?>" target="_blank"><i class="bi bi-printer"></i> <?= $open ? 'X report' : 'Z report' ?></a>
-        <?php if ($open && ($isMine || $canForce)): ?><a class="btn btn-primary" href="<?= url('sessions/close', ['id' => $s['id']]) ?>"><?= $isMine ? 'Close session' : 'Force-close' ?></a><?php endif; ?>
+        <?php if ($open && ($isMine || $canForce)): ?><a class="btn btn-primary" href="<?= url('sessions/close', ['id' => $s['id']]) ?>"><?= $isMine ? 'Count and close' : 'Count and close (admin)' ?></a><?php endif; ?>
         <?php if ($open && $isMine): ?><a class="btn btn-outline-secondary" href="<?= url('pos') ?>">Till</a><?php endif; ?>
       </div>
     </div></div>

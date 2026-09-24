@@ -6,7 +6,7 @@
       <td><?= e(date('d/m H:i', strtotime($s['opened_at']))) ?></td><td><?= $s['counted_at'] ? e(date('d/m H:i', strtotime($s['counted_at']))) : '—' ?></td>
       <td class="text-end"><?= $s['expected_usd'] === null ? '—' : usd($s['expected_usd']) ?></td><td class="text-end"><?= $s['counted_usd'] === null ? '—' : usd($s['counted_usd']) ?></td>
       <td class="text-end <?= $s['diff_usd'] !== null && (float) $s['diff_usd'] != 0 ? 'text-danger' : '' ?>"><?= $s['diff_usd'] === null ? '—' : usd($s['diff_usd']) ?></td>
-      <td class="text-end <?= $s['diff_lbp'] !== null && (int) $s['diff_lbp'] != 0 ? 'text-danger' : '' ?>"><?= $s['diff_lbp'] === null ? '—' : lbp($s['diff_lbp']) ?></td><td><?= e($s['status']) ?><?= (int) $s['force_closed'] ? ' (forced)' : '' ?></td></tr>
+      <td class="text-end <?= $s['diff_lbp'] !== null && (int) $s['diff_lbp'] != 0 ? 'text-danger' : '' ?>"><?= $s['diff_lbp'] === null ? '—' : lbp($s['diff_lbp']) ?></td><td><?= e($s['status']) ?><?= (int) $s['force_closed'] ? ' (by admin)' : '' ?></td></tr>
   <?php endforeach; ?>
   <?php if ($rows === []): ?><tr><td colspan="11" class="empty">No sessions in this period.</td></tr><?php endif; ?></tbody>
 </table></div></div>

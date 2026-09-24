@@ -159,4 +159,5 @@ Newest decisions go at the bottom. Never delete an entry; add a new one that ove
 | 2026-09-24 | POS screen | Grid left (category tabs, product tiles, scan/search box), cart right (lines, USD + LBP totals, Pay). **Hold / park a sale: yes**, resumed by name. |
 | 2026-09-24 | Prices | A price of **0 means "not sold at this level"** (same as empty). |
 | 2026-09-24 | Units | A unit's **factor locks once the product has stock movements**; add a new unit instead. |
+| 2026-09-24 | Cash closing | **Only the admin closes sessions** (migration 004 removes `session.close_own` from the Cashier role). The cashier signs out; the admin counts the drawer and closes from Cash sessions. The Registers page shows who is using each register. |
 | 2026-09-24 | UI | Redesign: clean light admin (warm neutral palette, one accent, system font stack, roomy cards) and a high-contrast dark touch POS with 56 px targets. |

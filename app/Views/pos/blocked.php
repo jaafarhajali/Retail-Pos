@@ -21,7 +21,7 @@
     <a class="btn btn-primary" href="<?= url('sessions/open') ?>">Open a session</a>
   <?php elseif ($mine === null || (int) $mine['id'] !== (int) $session['id']): ?>
     <h2 class="h5">Another cashier's session is open here</h2>
-    <p>Session <?= e($session['session_no']) ?> belongs to <?= e($session['username']) ?>. They must close it (or an administrator force-closes it) before you can sell on this register.</p>
+    <p>Session <?= e($session['session_no']) ?> belongs to <?= e($session['username']) ?>. An administrator must count and close it (Cash sessions) before you can sell on this register.</p>
     <a class="btn btn-outline-primary" href="<?= url('sessions') ?>">Cash sessions</a>
   <?php endif; ?>
 </div></div>
