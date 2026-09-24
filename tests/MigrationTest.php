@@ -17,9 +17,9 @@ return [
         assert_same(["INSERT INTO t VALUES ('a;b')"], Migrator::splitStatements("INSERT INTO t VALUES ('a;b');\n"));
     },
 
-    'a fresh install records 001 and a second run applies nothing' => function (): void {
-        $applied = Database::pdo()->query('SELECT filename FROM migrations')->fetchAll(PDO::FETCH_COLUMN);
-        assert_same(['001_foundation.sql'], $applied);
+    'a fresh install records every migration and a second run applies nothing' => function (): void {
+        $applied = Database::pdo()->query('SELECT filename FROM migrations ORDER BY filename')->fetchAll(PDO::FETCH_COLUMN);
+        assert_same(['001_foundation.sql', '002_catalog.sql'], $applied);
         assert_same([], Installer::migrate());
     },
 
@@ -42,7 +42,7 @@ return [
         assert_same(['debt.collect', 'pos.use', 'return.create', 'sale.create', 'sale.credit',
                      'sale.reprint', 'session.close_own', 'session.open_own'], $cashier);
         assert_same(90000, (int) $pdo->query('SELECT lbp_per_usd FROM exchange_rates ORDER BY id DESC LIMIT 1')->fetchColumn());
-        assert_same(6, (int) $pdo->query('SELECT COUNT(*) FROM counters')->fetchColumn());
+        assert_same(7, (int) $pdo->query('SELECT COUNT(*) FROM counters')->fetchColumn(), '6 foundation counters + product (002)');
         assert_same('5000', $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'lbp_rounding_step'")->fetchColumn());
     },
 

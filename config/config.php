@@ -35,3 +35,7 @@ define('SESSION_IDLE_SECONDS', 8 * 3600);
 define('BASE_PATH', dirname(__DIR__));
 define('APP_PATH', BASE_PATH . '/app');
 define('STORAGE_PATH', BASE_PATH . '/storage');
+
+/** Product images and other user files the browser must reach directly (git-ignored, backed up). Tests use their own subfolder. */
+define('UPLOADS_URL', 'uploads' . (APP_ENV === 'test' ? '/test' : ''));
+define('UPLOADS_PATH', BASE_PATH . '/public/' . UPLOADS_URL);

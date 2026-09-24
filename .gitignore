@@ -6,3 +6,8 @@
 *.log
 /storage/sessions/*
 !/storage/sessions/.gitkeep
+/public/uploads/*
+!/public/uploads/.htaccess
+!/public/uploads/products/
+/public/uploads/products/*
+!/public/uploads/products/.gitkeep
