@@ -20,4 +20,15 @@ function test_db_reset(): void
     \App\Core\Installer::ensureAdmin(TEST_ADMIN_PASSWORD);
     \App\Core\Settings::flush();
     $_SESSION = [];
+    \App\Core\Auth::forget();
+    \App\Core\Gate::forget();
+}
+
+/** The admin created by test_db_reset() (first row of a fresh users table). */
+const TEST_ADMIN_ID = 1;
+
+/** Create an active user directly (no forced password change) and return its id. */
+function make_user(string $username, int $roleId = \App\Models\Role::CASHIER_ID, string $password = 'password123'): int
+{
+    return (new \App\Models\User())->create($username, $password, ucfirst($username), $roleId, false);
 }
