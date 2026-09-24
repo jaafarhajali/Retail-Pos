@@ -14,14 +14,14 @@ built, what comes next, and what was decided (and why) during the design convers
 |---|---|---|---|
 | 1 | Foundation — login, users, roles & permissions, registers, settings, exchange rate, audit log | **Done** 2026-09-24 (browser-checked by the owner; 115 tests) | [plans/2026-09-24-phase1-foundation.md](plans/2026-09-24-phase1-foundation.md) |
 | 2 | Catalog — categories, products, units, barcodes, prices | **Implemented** 2026-09-24 (8 tasks + review fixes, 180 tests) | [plans/2026-09-24-phase2-catalog.md](plans/2026-09-24-phase2-catalog.md) |
-| 3 | Stock — movements, purchases, suppliers, cost | Waiting | — |
-| 4 | POS + cash sessions — touch sale screen, payments, change, opening a session | Waiting | — |
-| 5 | Printing — receipts, reprints, X/Z printouts | Waiting | — |
-| 6 | Returns — normal + waste, voids, debt collection | Waiting | — |
-| 7 | Expenses — expenses, cash in/out, supplier payments | Waiting | — |
-| 8 | Reports — sales, payments, profit, stock, credit, stock table print | Waiting | — |
-| 9 | Stocktaking — count, differences, adjustments, history | Waiting | — |
-| 10 | Hardware testing, backups, LAN deployment | Waiting | — |
+| 3 | Stock — movements, purchases, suppliers, cost | **Implemented** 2026-09-24 (continuous build) | — |
+| 4 | POS + cash sessions — touch sale screen, payments, change, opening a session | **Implemented** 2026-09-24 | — |
+| 5 | Printing — receipts, reprints, X/Z printouts | **Implemented** 2026-09-24 (HTML receipts, Chrome kiosk printing) | — |
+| 6 | Returns — normal + waste, voids, debt collection | **Implemented** 2026-09-24 | — |
+| 7 | Expenses — expenses, cash in/out, supplier payments | **Implemented** 2026-09-24 | — |
+| 8 | Reports — sales, payments, profit, stock, credit, stock table print | **Implemented** 2026-09-24 | — |
+| 9 | Stocktaking — count, differences, adjustments, history | **Implemented** 2026-09-24 | — |
+| 10 | Hardware testing, backups, LAN deployment | Backup page + `bin/backup.php` done; hardware/LAN test is the owner's | — |
 
 **Workflow for every phase:** Claude asks the phase's "Decide before the plan" questions
 and writes the plan from the spec and the existing code → the owner reviews it →
