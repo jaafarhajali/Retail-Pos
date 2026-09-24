@@ -17,4 +17,10 @@
       <?php endif; ?>
     </div></div>
   </div>
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-muted small">Exchange rate</div>
+      <div class="fs-4">1 USD = <?= e(number_format($rate)) ?> LBP</div>
+    </div></div>
+  </div>
 </div>

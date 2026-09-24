@@ -5,6 +5,8 @@ $navItems = [
     ['users', 'people', 'Users', 'user.manage'],
     ['roles', 'shield-lock', 'Roles & permissions', 'role.manage'],
     ['registers', 'display', 'Registers', 'register.manage'],
+    ['rates', 'currency-exchange', 'Exchange rate', 'rate.manage'],
+    ['settings', 'gear', 'Settings', 'settings.manage'],
 ];
 $currentSection = explode('/', is_string($_GET['r'] ?? null) ? $_GET['r'] : 'dashboard')[0];
 ?>

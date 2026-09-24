@@ -8,8 +8,10 @@ declare(strict_types=1);
 
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
+use App\Controllers\ExchangeRateController;
 use App\Controllers\RegisterController;
 use App\Controllers\RoleController;
+use App\Controllers\SettingController;
 use App\Controllers\UserController;
 use App\Core\Router;
 
@@ -36,4 +38,8 @@ return [
     ['POST', 'registers/store',      [RegisterController::class, 'store'],      'register.manage'],
     ['POST', 'registers/bind',       [RegisterController::class, 'bind'],       'register.manage'],
     ['POST', 'registers/deactivate', [RegisterController::class, 'deactivate'], 'register.manage'],
+    ['GET',  'settings',      [SettingController::class, 'index'],      'settings.manage'],
+    ['POST', 'settings/save', [SettingController::class, 'save'],       'settings.manage'],
+    ['GET',  'rates',         [ExchangeRateController::class, 'index'], 'rate.manage'],
+    ['POST', 'rates/store',   [ExchangeRateController::class, 'store'], 'rate.manage'],
 ];

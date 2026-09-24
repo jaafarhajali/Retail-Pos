@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\RegisterDevice;
+use App\Models\ExchangeRate;
 
 final class DashboardController extends Controller
 {
@@ -14,6 +15,7 @@ final class DashboardController extends Controller
         $this->render('dashboard/index', [
             'user'     => Auth::user(),
             'register' => RegisterDevice::current(),
+            'rate'     => (new ExchangeRate())->current(),
         ], 'Dashboard');
     }
 }
