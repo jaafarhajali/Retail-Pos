@@ -197,8 +197,11 @@ $dis = $readonly ? 'disabled' : '';
         <h2 class="h5">Units and prices</h2>
         <p class="text-muted small">Factor = how many <?= e($baseUnit) ?> in one unit (kg = 1000 g, Dozen = 12 piece). An empty price means "not sold in this unit at that level".</p>
         <div class="table-responsive">
-          <table class="table align-middle m-0">
-            <thead><tr><th>Unit</th><th>Factor (<?= e($baseUnit) ?>)</th><th>Fraction</th><th>Display</th><th></th><th>Retail</th><th>Wholesale</th><th></th><th>Default sale</th><th>Default buy</th><th></th></tr></thead>
+          <table class="table align-middle m-0 units-table">
+            <thead>
+              <tr class="thead-groups"><th colspan="5">Unit</th><th colspan="3" class="grp">Prices (USD)</th><th colspan="2" class="grp">Default unit for</th><th></th></tr>
+              <tr><th>Name</th><th>Factor (<?= e($baseUnit) ?>)</th><th>Fractions</th><th>Display</th><th></th><th class="grp">Retail</th><th>Wholesale</th><th></th><th class="grp">Sale</th><th>Purchase</th><th></th></tr>
+            </thead>
             <tbody>
             <?php foreach ($units as $u): $uid = (int) $u['id']; ?>
               <tr>
@@ -206,22 +209,22 @@ $dis = $readonly ? 'disabled' : '';
                 <td><input class="form-control form-control-sm" form="unit-<?= $uid ?>" name="unit_factor" inputmode="numeric" value="<?= (int) $u['factor'] ?>" required <?= $dis ?>></td>
                 <td><input class="form-check-input" form="unit-<?= $uid ?>" type="checkbox" name="allows_fraction" value="1" <?= (int) $u['allows_fraction'] ? 'checked' : '' ?> <?= $dis ?>></td>
                 <td><input class="form-check-input" form="unit-<?= $uid ?>" type="checkbox" name="is_display" value="1" <?= (int) $u['is_display'] ? 'checked' : '' ?> <?= $dis ?>></td>
-                <td><?php if ($canManage): ?><button class="btn btn-sm btn-outline-primary" form="unit-<?= $uid ?>" type="submit">Save</button><?php endif; ?></td>
+                <td><?php if ($canManage): ?><button class="btn btn-sm btn-outline-primary" form="unit-<?= $uid ?>" type="submit">Save unit</button><?php endif; ?></td>
 
-                <td><input class="form-control form-control-sm" form="prices-<?= $uid ?>" name="retail_price" inputmode="decimal" value="<?= e($u['retail_price'] ?? '') ?>" placeholder="—" <?= $canPrice ? '' : 'disabled' ?>></td>
+                <td class="grp"><input class="form-control form-control-sm" form="prices-<?= $uid ?>" name="retail_price" inputmode="decimal" value="<?= e($u['retail_price'] ?? '') ?>" placeholder="—" <?= $canPrice ? '' : 'disabled' ?>></td>
                 <td><input class="form-control form-control-sm" form="prices-<?= $uid ?>" name="wholesale_price" inputmode="decimal" value="<?= e($u['wholesale_price'] ?? '') ?>" placeholder="—" <?= $canPrice ? '' : 'disabled' ?>></td>
                 <td><?php if ($canPrice): ?><button class="btn btn-sm btn-outline-primary" form="prices-<?= $uid ?>" type="submit">Save prices</button><?php endif; ?></td>
 
                 <?php foreach (['sale' => 'is_default_sale', 'purchase' => 'is_default_purchase'] as $kind => $column): ?>
-                  <td>
-                    <?php if ((int) $u[$column]): ?><span class="badge text-bg-success">yes</span>
+                  <td class="<?= $kind === 'sale' ? 'grp' : '' ?>">
+                    <?php if ((int) $u[$column]): ?><span class="badge text-bg-success"><i class="bi bi-check2"></i> Default</span>
                     <?php elseif ($canManage): ?>
                       <form method="post" action="<?= url('products/unit-default') ?>" class="d-inline">
                         <?= csrf_field() ?>
                         <input type="hidden" name="product_id" value="<?= $pid ?>">
                         <input type="hidden" name="unit_id" value="<?= $uid ?>">
                         <input type="hidden" name="kind" value="<?= $kind ?>">
-                        <button class="btn btn-sm btn-link p-0" type="submit">make default</button>
+                        <button class="btn btn-sm btn-link px-0" type="submit">Make default</button>
                       </form>
                     <?php endif; ?>
                   </td>
@@ -258,27 +261,29 @@ $dis = $readonly ? 'disabled' : '';
           </form>
         <?php endforeach; ?>
         <?php if ($canManage): ?>
-          <form method="post" action="<?= url('products/unit-store') ?>" class="row g-2 align-items-end mt-2">
+          <form method="post" action="<?= url('products/unit-store') ?>" class="add-row">
             <?= csrf_field() ?>
             <input type="hidden" name="product_id" value="<?= $pid ?>">
-            <div class="col-md-3">
+            <div class="add-row-field">
               <label class="form-label" for="new_unit_name">Add unit</label>
               <input class="form-control" id="new_unit_name" name="unit_name" list="unit-names" dir="auto" maxlength="30" required value="<?= old('unit_name') ?>" placeholder="Piece, Box, kg…">
               <datalist id="unit-names"><?php foreach ($unitNames as $n): ?><option value="<?= e($n) ?>"><?php endforeach; ?></datalist>
             </div>
-            <div class="col-md-3">
+            <div class="add-row-field">
               <label class="form-label" for="new_unit_factor">Factor (<?= e($baseUnit) ?> per unit)</label>
               <input class="form-control" id="new_unit_factor" name="unit_factor" inputmode="numeric" required value="<?= old('unit_factor') ?>" placeholder="1000">
             </div>
-            <div class="col-md-2 form-check ms-2">
-              <input class="form-check-input" type="checkbox" id="new_unit_fraction" name="allows_fraction" value="1">
-              <label class="form-check-label" for="new_unit_fraction">Sold in fractions (2.5 kg)</label>
+            <div class="add-row-checks">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="new_unit_fraction" name="allows_fraction" value="1">
+                <label class="form-check-label" for="new_unit_fraction">Sold in fractions (2.5 kg)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="new_unit_display" name="is_display" value="1">
+                <label class="form-check-label" for="new_unit_display">Use in stock display</label>
+              </div>
             </div>
-            <div class="col-md-2 form-check">
-              <input class="form-check-input" type="checkbox" id="new_unit_display" name="is_display" value="1">
-              <label class="form-check-label" for="new_unit_display">Use in stock display</label>
-            </div>
-            <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Add unit</button></div>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Add unit</button>
           </form>
         <?php endif; ?>
       </div></div>
@@ -288,16 +293,16 @@ $dis = $readonly ? 'disabled' : '';
       <div class="card"><div class="card-body">
         <h2 class="h5">Barcodes</h2>
         <?php if ($barcodes === []): ?><p class="text-muted">No barcodes. The product is still findable by its code <code><?= e($product['internal_code']) ?></code>.</p><?php endif; ?>
-        <ul class="list-inline mb-2">
+        <ul class="barcode-list">
           <?php foreach ($barcodes as $b): ?>
-            <li class="list-inline-item mb-2">
-              <span class="badge text-bg-light border fs-6"><code><?= e($b['barcode']) ?></code> → <?= e($b['unit_name']) ?></span>
+            <li class="barcode-chip">
+              <span class="barcode-code"><?= e($b['barcode']) ?></span><span class="barcode-unit" dir="auto"><?= e($b['unit_name']) ?></span>
               <?php if ($canManage): ?>
                 <form method="post" action="<?= url('products/barcode-delete') ?>" class="d-inline">
                   <?= csrf_field() ?>
                   <input type="hidden" name="product_id" value="<?= $pid ?>">
                   <input type="hidden" name="barcode_id" value="<?= (int) $b['id'] ?>">
-                  <button class="btn btn-sm btn-link text-danger p-0 align-baseline" type="submit" title="Remove"><i class="bi bi-x-circle"></i></button>
+                  <button class="barcode-remove" type="submit" title="Remove barcode" aria-label="Remove barcode <?= e($b['barcode']) ?>"><i class="bi bi-x-lg"></i></button>
                 </form>
               <?php endif; ?>
             </li>

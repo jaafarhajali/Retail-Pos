@@ -20,4 +20,15 @@
       button.disabled = true;
     });
   });
+
+  // Narrow screens: the sidebar folds behind a Menu button.
+  document.addEventListener('click', function (ev) {
+    var toggle = ev.target.closest('[data-nav-toggle]');
+    if (!toggle) {
+      return;
+    }
+    var side = toggle.closest('.app-side');
+    var open = side.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
 })();

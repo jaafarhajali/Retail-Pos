@@ -22,7 +22,7 @@
   function renderTabs() {
     var t = $('tabs'); t.innerHTML = '';
     [{ id: 0, name: 'All', color: '#4A5561' }].concat(data.categories).forEach(function (c) {
-      var b = document.createElement('button'); b.className = 'pos-tab' + (tab === c.id ? ' active' : ''); b.textContent = c.name; b.style.borderLeft = '5px solid ' + c.color;
+      var b = document.createElement('button'); b.className = 'pos-tab' + (tab === c.id ? ' active' : ''); b.textContent = c.name; b.dir = 'auto'; b.style.setProperty('--tab', c.color);
       b.addEventListener('click', function () { tab = c.id; renderTabs(); renderGrid(); }); t.appendChild(b);
     });
   }
@@ -34,14 +34,15 @@
       if (q !== '' && p.name.toLowerCase().indexOf(q) < 0 && p.code.toLowerCase().indexOf(q) < 0) return;
       var u = p.units.find(function (x) { return x.default; }) || p.units[0]; if (!u) return;
       var price = unitPrice(u);
-      var b = document.createElement('button'); b.className = 'tile'; b.style.setProperty('--tile', p.color || '#4A5561');
-      b.innerHTML = (p.img ? '<img src="' + p.img + '" alt="">' : '') + '<div class="name" dir="auto"></div><div class="price"></div>';
+      var b = document.createElement('button'); b.className = 'tile' + (price === null ? ' is-off' : ''); b.style.setProperty('--tile', p.color || '#4A5561');
+      b.innerHTML = (p.img ? '<img src="' + p.img + '" alt="">' : '') + '<div class="name" dir="auto"></div><div class="price"><b></b><span></span></div>';
       b.querySelector('.name').textContent = p.name;
-      b.querySelector('.price').textContent = (price === null ? 'not sold' : money(price) + '/' + u.name);
+      b.querySelector('.price b').textContent = price === null ? 'not sold' : money(price);
+      b.querySelector('.price span').textContent = price === null ? '' : ' / ' + u.name;
       b.addEventListener('click', function () { addLine(p, u); });
       g.appendChild(b);
     });
-    if (!g.children.length) g.innerHTML = '<div class="empty" style="grid-column:1/-1;color:#8B95A0">Nothing here.</div>';
+    if (!g.children.length) g.innerHTML = '<div class="empty" style="grid-column:1/-1">' + (q === '' ? 'No products in this category.' : 'No product matches. Press Enter to look up a barcode.') + '</div>';
   }
 
   // ---- cart
@@ -65,22 +66,24 @@
   }
   function renderCart() {
     var c = $('cart'); c.innerHTML = '';
-    if (!cart.length) { c.innerHTML = '<div class="empty" style="color:#8B95A0">Scan or tap a product to start.</div>'; selected = -1; }
+    if (!cart.length) { c.innerHTML = '<div class="empty"><i class="bi bi-upc-scan"></i>Scan or tap a product to start.</div>'; selected = -1; }
     cart.forEach(function (l, i) {
       var t = lineTotals(l);
       var d = document.createElement('div'); d.className = 'cart-line' + (i === selected ? ' active' : '');
-      d.innerHTML = '<div class="n" dir="auto"></div><div class="t"></div><div class="d"></div><div class="d" style="text-align:right"></div>';
-      d.children[0].textContent = t.p.name;
-      d.children[1].textContent = money(t.total);
-      d.children[2].textContent = (l.mode === 'amount' ? 'by amount · ' : '') + (+t.qty.toFixed(3)) + ' ' + t.u.name + ' × ' + money(t.price) + (l.price !== null ? ' (override)' : '');
-      d.children[3].textContent = l.discount ? '-' + money(l.discount) : '';
+      d.innerHTML = '<div class="q"><b></b><small dir="auto"></small></div><div class="n" dir="auto"></div><div class="t"></div><div class="d"></div><div class="x"></div>';
+      d.querySelector('.q b').textContent = +t.qty.toFixed(3);
+      d.querySelector('.q small').textContent = t.u.name;
+      d.querySelector('.n').textContent = t.p.name;
+      d.querySelector('.t').textContent = money(t.total);
+      d.querySelector('.d').textContent = '× ' + money(t.price) + (l.mode === 'amount' ? ', sold by amount' : '') + (l.price !== null ? ', price changed' : '');
+      d.querySelector('.x').textContent = l.discount ? '-' + money(l.discount) : '';
       d.addEventListener('click', function () { selected = i; renderCart(); });
       c.appendChild(d);
     });
     var t = totals();
     $('t-sub').textContent = money(t.sub); $('row-disc').hidden = t.disc <= 0; $('t-disc').textContent = '-' + money(t.disc);
     $('t-usd').textContent = money(t.total); $('t-lbp').textContent = lbp(roundLbp(t.total * P.rate));
-    $('btn-pay').disabled = !cart.length;
+    $('btn-pay').disabled = !cart.length; $('t-usd').classList.toggle('is-zero', !cart.length);
   }
 
   // ---- line editor
@@ -112,7 +115,7 @@
 
   // ---- price level and customer
   $('btn-level').addEventListener('click', function () {
-    level = level === 'retail' ? 'wholesale' : 'retail'; this.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+    level = level === 'retail' ? 'wholesale' : 'retail'; this.textContent = level.charAt(0).toUpperCase() + level.slice(1); this.classList.toggle('is-wholesale', level === 'wholesale');
     if (level === 'wholesale' && !P.can.wholesale) msg('Wholesale needs the Admin PIN at payment');
     renderGrid(); renderCart();
   });
@@ -130,7 +133,7 @@
   $('cust-q').addEventListener('input', function () { searchCustomers(this.value); });
   function setCustomer(c) {
     customer = c; $('customer-name').textContent = c ? c.name : 'Walk-in';
-    if (c && c.level !== level) { level = c.level; $('btn-level').textContent = level.charAt(0).toUpperCase() + level.slice(1); renderGrid(); renderCart(); }
+    if (c && c.level !== level) { level = c.level; $('btn-level').textContent = level.charAt(0).toUpperCase() + level.slice(1); $('btn-level').classList.toggle('is-wholesale', level === 'wholesale'); renderGrid(); renderCart(); }
     var box = $('debt-box'); if (box) { box.hidden = !(c && parseFloat(c.balance) > 0); if (c) { $('debt-name').textContent = c.name; $('debt-owes').textContent = money(c.balance); } }
     if (!c || !(parseFloat(c.balance) > 0)) modals['m-customer'].hide();
   }
@@ -145,12 +148,12 @@
   var payments = [];
   function payLine(method, currency, amount) { payments.push({ method: method, currency: currency, amount: amount }); renderPay(); }
   function renderPay() {
-    var t = totals(); $('pay-due').textContent = money(t.total) + ' / ' + lbp(roundLbp(t.total * P.rate));
+    var t = totals(); $('pay-due').textContent = money(t.total); $('pay-due-lbp').textContent = lbp(roundLbp(t.total * P.rate));
     var box = $('pay-lines'); box.innerHTML = '';
     payments.forEach(function (p, i) {
       var d = document.createElement('div'); d.className = 'pay-line';
-      d.innerHTML = '<select class="form-select"><option value="cash">Cash</option><option value="card">Card</option>' + (P.can.credit || true ? '<option value="credit">Credit</option>' : '') + '</select>' +
-        '<select class="form-select"><option>USD</option><option>LBP</option></select><input class="form-control" inputmode="decimal"><button class="btn btn-outline-light" type="button" style="min-height:56px">✕</button>';
+      d.innerHTML = '<select class="form-select" aria-label="Method"><option value="cash">Cash</option><option value="card">Card</option>' + (P.can.credit || true ? '<option value="credit">Credit</option>' : '') + '</select>' +
+        '<select class="form-select" aria-label="Currency"><option>USD</option><option>LBP</option></select><input class="form-control" inputmode="decimal" aria-label="Amount"><button class="btn btn-outline-light" type="button" aria-label="Remove payment"><i class="bi bi-x-lg"></i></button>';
       d.children[0].value = p.method; d.children[1].value = p.currency; d.children[1].disabled = p.method !== 'cash'; d.children[2].value = p.amount;
       d.children[0].addEventListener('change', function () { p.method = this.value; if (p.method !== 'cash') p.currency = 'USD'; renderPay(); });
       d.children[1].addEventListener('change', function () { p.currency = this.value; summary(); });
@@ -163,6 +166,7 @@
   function paidUsd() { var s = 0; payments.forEach(function (p) { var a = num(p.amount); s += p.currency === 'LBP' ? a / P.rate : a; }); return s; }
   function summary() {
     var t = totals(), paid = paidUsd(), diff = paid - t.total, el = $('pay-summary');
+    el.className = 'pay-result ' + (!payments.length ? 'is-idle' : diff < -0.004 ? 'is-due' : 'is-change');
     if (!payments.length) { el.textContent = 'Add a payment, or use the exact buttons.'; return; }
     if (diff < -0.004) el.textContent = 'Still due: ' + money(-diff) + ' (' + lbp(roundLbp(-diff * P.rate)) + ')';
     else if ($('pay-change').value === 'USD') { var w = Math.floor(diff), r = diff - w; el.textContent = 'Change: ' + money(w) + (r > 0.004 ? ' + ' + lbp(roundLbp(r * P.rate)) : ''); }
@@ -184,7 +188,8 @@
       modals['m-pay'].hide();
       $('done-no').textContent = j.invoice_no;
       var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
-      $('done-change').textContent = ch.length ? 'Change ' + ch.join(' + ') : 'Paid ' + money(j.total_usd);
+      $('done-label').textContent = ch.length ? 'Change to give' : 'Paid ' + money(j.total_usd) + ' exactly';
+      $('done-change').textContent = ch.length ? ch.join('\n+ ') : 'No change';
       $('done-warn').textContent = (j.warnings || []).join(' ');
       $('done-print').href = j.receipt + '&auto=1';
       modals['m-done'].show();
@@ -204,12 +209,34 @@
         a.addEventListener('click', function () { api(P.urls.resume, { id: h.id }).then(function (r) { cart = cart.concat(r.cart); selected = cart.length - 1; renderCart(); modals['m-hold'].hide(); }); });
         list.appendChild(a);
       });
-      if (!j.held.length) list.innerHTML = '<div class="empty" style="color:#8B95A0">No held sales.</div>';
+      if (!j.held.length) list.innerHTML = '<div class="empty">No held sales.</div>';
       modals['m-hold'].show();
     });
   });
   $('hold-ok').addEventListener('click', function () {
     api(P.urls.hold, { name: $('hold-name').value, cart: cart }).then(function () { cart = []; selected = -1; renderCart(); modals['m-hold'].hide(); msg('Cart held'); $('hold-name').value = ''; }).catch(function (e) { msg(e.error || 'Failed', true); });
+  });
+
+  // ---- on-screen keypad: types into the last number field touched in its dialog, then
+  // fires the same 'input' event as typing, so the existing listeners do the rest.
+  document.querySelectorAll('[data-keypad]').forEach(function (pad) {
+    var modal = pad.closest('.modal'), field = null, fresh = true;
+    function fallback() { return modal.id === 'm-pay' ? modal.querySelector('#pay-lines .pay-line:last-child input') : $('line-qty'); }
+    modal.addEventListener('focusin', function (e) { if (e.target.matches('input[inputmode]')) { field = e.target; fresh = true; } });
+    modal.addEventListener('show.bs.modal', function () { field = null; fresh = true; });
+    pad.addEventListener('mousedown', function (e) { e.preventDefault(); });   // keep the focus (and selection) in the field
+    pad.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-key]'); if (!b) return;
+      var f = field;
+      if (!f || !document.body.contains(f) || f.disabled) { f = fallback(); fresh = true; }
+      if (!f || f.disabled) return;
+      var k = b.dataset.key, v = f.value, whole = f.selectionStart === 0 && f.selectionEnd === v.length && v.length > 0;
+      if (k === 'back') v = v.slice(0, -1);
+      else if (k === 'clear') v = '';
+      else { if (fresh || whole) v = ''; if (k === '.') { if (v.indexOf('.') < 0) v = (v || '0') + '.'; } else v += k; }
+      fresh = false; field = f; f.value = v;
+      f.dispatchEvent(new Event('input', { bubbles: true }));
+    });
   });
 
   // ---- scanner and search: a scanner types fast and ends with Enter

@@ -24,8 +24,8 @@
   <div class="rule"></div>
   <table>
     <?php if ((float) $s['discount_usd'] > 0): ?><tr><td>Subtotal</td><td class="r"><?= usd($s['subtotal_usd']) ?></td></tr><tr><td>Discount</td><td class="r">-<?= usd($s['discount_usd']) ?></td></tr><?php endif; ?>
-    <tr><td class="big">TOTAL</td><td class="r big"><?= usd($s['total_usd']) ?></td></tr>
-    <tr><td></td><td class="r"><?= lbp(\App\Services\Money::roundLbp(\App\Services\Money::usdToLbp($s['total_usd'], (int) $s['exchange_rate']))) ?></td></tr>
+    <tr class="total"><td>TOTAL</td><td class="r"><?= usd($s['total_usd']) ?></td></tr>
+    <tr class="total-lbp"><td></td><td class="r"><?= lbp(\App\Services\Money::roundLbp(\App\Services\Money::usdToLbp($s['total_usd'], (int) $s['exchange_rate']))) ?></td></tr>
     <?php foreach ($payments as $p): ?><tr><td>Paid <?= e($p['method']) ?> <?= e($p['currency']) ?></td><td class="r"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td></tr><?php endforeach; ?>
     <?php if ((float) $s['change_usd'] > 0): ?><tr><td>Change USD</td><td class="r"><?= usd($s['change_usd']) ?></td></tr><?php endif; ?>
     <?php if ((int) $s['change_lbp'] > 0): ?><tr><td>Change LBP</td><td class="r"><?= lbp($s['change_lbp']) ?></td></tr><?php endif; ?>

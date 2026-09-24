@@ -11,7 +11,7 @@
             <div class="input-group mb-2"><span class="input-group-text" style="min-width: 8rem"><?= $cur === 'USD' ? '$' . number_format($d) : number_format($d) . ' LBP' ?></span>
               <input class="form-control count" type="number" min="0" step="1" name="<?= $field ?>[<?= $d ?>]" data-value="<?= $d ?>" data-cur="<?= $cur ?>" placeholder="0"></div>
           <?php endforeach; ?>
-          <p class="text-end fw-semibold">Counted: <span id="sum-<?= $cur ?>">0</span></p>
+          <p class="count-sum">Counted <span id="sum-<?= $cur ?>">0</span></p>
         </div>
       <?php endforeach; ?>
     </div>

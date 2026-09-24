@@ -1,4 +1,13 @@
-<?php $authUser = \App\Core\Auth::user(); ?>
+<?php
+$authUser = \App\Core\Auth::user();
+try {
+    $headerRate = (new \App\Models\ExchangeRate())->current();
+} catch (\Throwable $rateError) {
+    $headerRate = null;
+}
+$userName = (string) ($authUser['full_name'] ?? '');
+$userInitial = $userName === '' ? '?' : mb_strtoupper(mb_substr($userName, 0, 1));
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,17 +23,33 @@
   <?php require APP_PATH . '/Views/partials/sidebar.php'; ?>
   <main class="app-main">
     <header class="app-top">
-      <h1><?= e($pageTitle ?? '') ?></h1>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
+      <h1 dir="auto"><?= e($pageTitle ?? '') ?></h1>
+      <div class="app-top-actions">
+        <?php if ($headerRate !== null): ?>
+          <?php if (\App\Core\Gate::allows('rate.manage')): ?>
+            <a class="rate-chip" href="<?= url('rates') ?>" title="Exchange rate"><i class="bi bi-currency-exchange"></i>1 USD = <?= e(number_format($headerRate)) ?> LBP</a>
+          <?php else: ?>
+            <span class="rate-chip" title="Exchange rate"><i class="bi bi-currency-exchange"></i>1 USD = <?= e(number_format($headerRate)) ?> LBP</span>
+          <?php endif; ?>
+        <?php endif; ?>
         <?php if (\App\Core\Gate::allows('pos.use')): ?>
           <a class="btn btn-outline-primary" href="<?= url('pos') ?>"><i class="bi bi-cart3"></i> Open the till</a>
         <?php endif; ?>
-        <span class="text-muted small"><span dir="auto"><?= e($authUser['full_name'] ?? '') ?></span> · <?= e($authUser['role_name'] ?? '') ?></span>
-        <a class="btn btn-sm btn-outline-secondary" href="<?= url('auth/password') ?>">Password</a>
-        <form method="post" action="<?= url('auth/logout') ?>" class="m-0">
-          <?= csrf_field() ?>
-          <button class="btn btn-sm btn-outline-secondary" type="submit">Sign out</button>
-        </form>
+        <div class="dropdown">
+          <button class="user-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="avatar" dir="auto"><?= e($userInitial) ?></span>
+            <span class="user-name" dir="auto"><?= e($userName) ?></span>
+            <i class="bi bi-chevron-down"></i>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end">
+            <div class="dropdown-header"><strong dir="auto"><?= e($userName) ?></strong><?= e($authUser['role_name'] ?? '') ?></div>
+            <a class="dropdown-item" href="<?= url('auth/password') ?>"><i class="bi bi-key"></i> Change password</a>
+            <form method="post" action="<?= url('auth/logout') ?>" class="m-0">
+              <?= csrf_field() ?>
+              <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right"></i> Sign out</button>
+            </form>
+          </div>
+        </div>
       </div>
     </header>
     <div class="app-content">

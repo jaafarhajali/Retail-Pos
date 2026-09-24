@@ -6,7 +6,7 @@
         <dt>Register</dt><dd dir="auto"><?= e($s['register_name']) ?></dd>
         <dt>Cashier</dt><dd><?= e($s['full_name']) ?></dd>
         <dt>Opened</dt><dd><?= e(date('d/m/Y H:i', strtotime($s['opened_at']))) ?></dd>
-        <dt>Status</dt><dd><?= e($s['status']) ?><?= (int) $s['force_closed'] ? ' (closed by admin)' : '' ?><?= $s['z_no'] ? ' · ' . e($s['z_no']) : '' ?></dd>
+        <dt>Status</dt><dd><span class="badge <?= ['open' => 'text-bg-success', 'counted' => 'text-bg-warning', 'reviewed' => 'text-bg-secondary'][$s['status']] ?? 'text-bg-secondary' ?>"><?= e($s['status']) ?></span><?= (int) $s['force_closed'] ? ' (closed by admin)' : '' ?><?= $s['z_no'] ? ' · ' . e($s['z_no']) : '' ?></dd>
         <?php if (!$open): ?>
           <dt>Counted</dt><dd><?= e(date('d/m/Y H:i', strtotime($s['counted_at']))) ?></dd>
           <dt>USD</dt><dd>expected <?= usd($s['expected_usd']) ?> · counted <?= usd($s['counted_usd']) ?> · <strong class="<?= (float) $s['diff_usd'] != 0 ? 'text-danger' : 'text-success' ?>"><?= (float) $s['diff_usd'] == 0 ? 'balanced' : ((float) $s['diff_usd'] > 0 ? 'surplus ' : 'shortage ') . usd(abs((float) $s['diff_usd'])) ?></strong></dd>

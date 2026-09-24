@@ -7,7 +7,7 @@
   <table><?php foreach ($items as $i): ?><tr><td dir="auto"><?= e($i['product_name']) ?> <?= e(rtrim(rtrim($i['qty'], '0'), '.')) ?> <?= e($i['unit_name']) ?></td><td class="r"><?= usd($i['refund_usd']) ?></td></tr><?php endforeach; ?></table>
   <div class="rule"></div>
   <table>
-    <tr><td class="big">REFUND</td><td class="r big"><?= usd($r['total_usd']) ?></td></tr>
+    <tr class="total"><td>REFUND</td><td class="r"><?= usd($r['total_usd']) ?></td></tr>
     <?php foreach ($refunds as $f): ?><tr><td><?= $f['method'] === 'cash' ? 'Cash ' . e($f['currency']) : 'Debt reduced' ?></td><td class="r"><?= $f['currency'] === 'USD' ? usd($f['amount']) : lbp($f['amount']) ?></td></tr><?php endforeach; ?>
   </table>
 </div>

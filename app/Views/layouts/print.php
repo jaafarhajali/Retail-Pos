@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="print-page">
-<div class="no-print d-flex justify-content-between align-items-center p-3 border-bottom bg-white">
+<div class="no-print print-bar d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-white">
   <strong><?= e($pageTitle ?? '') ?></strong>
   <div class="d-flex gap-2">
     <button class="btn btn-primary" type="button" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
