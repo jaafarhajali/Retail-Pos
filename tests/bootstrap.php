@@ -20,8 +20,10 @@ function test_db_reset(): void
     \App\Core\Installer::ensureAdmin(TEST_ADMIN_PASSWORD);
     \App\Core\Settings::flush();
     $_SESSION = [];
+    unset($_COOKIE[\App\Core\RegisterDevice::COOKIE]);
     \App\Core\Auth::forget();
     \App\Core\Gate::forget();
+    \App\Core\RegisterDevice::forget();
 }
 
 /** The admin created by test_db_reset() (first row of a fresh users table). */

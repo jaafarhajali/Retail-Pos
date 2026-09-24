@@ -26,7 +26,7 @@ final class Audit
             'cur' => $currency,
             'd'   => $details === [] ? null : json_encode($details, JSON_UNESCAPED_UNICODE),
             'ip'  => client_ip(),
-            'reg' => null,   // Task 7 replaces this with the current register
+            'reg' => RegisterDevice::currentId(),
         ]);
     }
 }

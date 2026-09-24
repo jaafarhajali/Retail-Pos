@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
+use App\Controllers\RegisterController;
 use App\Controllers\RoleController;
 use App\Controllers\UserController;
 use App\Core\Router;
@@ -31,4 +32,8 @@ return [
     ['GET',  'roles/edit',        [RoleController::class, 'edit'],        'role.manage'],
     ['POST', 'roles/permissions', [RoleController::class, 'permissions'], 'role.manage'],
     ['POST', 'roles/delete',      [RoleController::class, 'delete'],      'role.manage'],
+    ['GET',  'registers',            [RegisterController::class, 'index'],      'register.manage'],
+    ['POST', 'registers/store',      [RegisterController::class, 'store'],      'register.manage'],
+    ['POST', 'registers/bind',       [RegisterController::class, 'bind'],       'register.manage'],
+    ['POST', 'registers/deactivate', [RegisterController::class, 'deactivate'], 'register.manage'],
 ];
