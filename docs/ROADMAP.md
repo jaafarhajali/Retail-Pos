@@ -13,7 +13,7 @@ built, what comes next, and what was decided (and why) during the design convers
 | # | Phase | Status | Plan |
 |---|---|---|---|
 | 1 | Foundation — login, users, roles & permissions, registers, settings, exchange rate, audit log | **Done** 2026-09-24 (browser-checked by the owner; 115 tests) | [plans/2026-09-24-phase1-foundation.md](plans/2026-09-24-phase1-foundation.md) |
-| 2 | Catalog — categories, products, units, barcodes, prices | **Implemented** 2026-09-24 (8 tasks, 176 tests) — awaiting the owner's browser check | [plans/2026-09-24-phase2-catalog.md](plans/2026-09-24-phase2-catalog.md) |
+| 2 | Catalog — categories, products, units, barcodes, prices | **Implemented** 2026-09-24 (8 tasks + review fixes, 180 tests) | [plans/2026-09-24-phase2-catalog.md](plans/2026-09-24-phase2-catalog.md) |
 | 3 | Stock — movements, purchases, suppliers, cost | Waiting | — |
 | 4 | POS + cash sessions — touch sale screen, payments, change, opening a session | Waiting | — |
 | 5 | Printing — receipts, reprints, X/Z printouts | Waiting | — |
@@ -154,3 +154,9 @@ Newest decisions go at the bottom. Never delete an entry; add a new one that ove
 | 2026-09-24 | Phase 2: image storage & backup | Product images are **files** in `public/uploads/products/` (served directly by Apache, PHP execution denied there), not blobs in the database and not under `storage/` as first written. The daily backup (Phase 10) therefore zips the SQL dump **and** `public/uploads/`. |
 | 2026-09-24 | PHP config | `extension=gd` enabled in `C:\xampp\php\php.ini` (one line; was commented out) for product-image resizing. Apache must be restarted once for the web side. |
 | 2026-09-24 | Execution | Phase 2 plan approved; executed **Native** (same as Phase 1). |
+| 2026-09-24 | Process | Owner switched to **one continuous build of Phases 3–9**: no per-task test cycles, one full test run at the end, fewer tests (key business rules only), plus a UI redesign. Replaces the phase-by-phase workflow in CLAUDE.md for the rest of v1. |
+| 2026-09-24 | Printing | **Chrome `--kiosk-printing`**: receipts and X/Z reports are HTML pages printed silently to the Windows default printer; the drawer opens via the printer driver's "open drawer on print" setting. |
+| 2026-09-24 | POS screen | Grid left (category tabs, product tiles, scan/search box), cart right (lines, USD + LBP totals, Pay). **Hold / park a sale: yes**, resumed by name. |
+| 2026-09-24 | Prices | A price of **0 means "not sold at this level"** (same as empty). |
+| 2026-09-24 | Units | A unit's **factor locks once the product has stock movements**; add a new unit instead. |
+| 2026-09-24 | UI | Redesign: clean light admin (warm neutral palette, one accent, system font stack, roomy cards) and a high-contrast dark touch POS with 56 px targets. |
