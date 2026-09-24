@@ -16,10 +16,49 @@ $png = static function (int $w, int $h): array {
     return [$path, filesize($path)];
 };
 
+/** A JPEG whose EXIF says "rotate to display" (orientation 6 = 90° clockwise), like a portrait phone photo. */
+$jpegWithOrientation = static function (int $w, int $h, int $orientation): array {
+    $img = imagecreatetruecolor($w, $h);
+    imagefill($img, 0, 0, imagecolorallocate($img, 230, 126, 34));
+    ob_start();
+    imagejpeg($img, null, 90);
+    $jpeg = (string) ob_get_clean();
+    imagedestroy($img);
+    // Minimal EXIF APP1 segment: little-endian TIFF with one IFD0 entry, tag 0x0112 (Orientation), SHORT, count 1.
+    $tiff = "II\x2A\x00" . pack('V', 8) . pack('v', 1) . pack('vvV', 0x0112, 3, 1) . pack('v', $orientation) . "\x00\x00" . pack('V', 0);
+    $app1 = "Exif\x00\x00" . $tiff;
+    $segment = "\xFF\xE1" . pack('n', strlen($app1) + 2) . $app1;
+    $path = tempnam(sys_get_temp_dir(), 'rpos');
+    file_put_contents($path, substr($jpeg, 0, 2) . $segment . substr($jpeg, 2));
+
+    return [$path, filesize($path)];
+};
+
 return [
     '__before' => function (): void {
         test_db_reset();
         Auth::login(TEST_ADMIN_ID);
+    },
+
+    'a portrait phone JPEG (EXIF orientation 6) is saved upright' => function () use ($jpegWithOrientation): void {
+        $id = make_product('Hookah');
+        [$path, $size] = $jpegWithOrientation(100, 50, 6);
+        assert_same(6, (int) (@exif_read_data($path)['Orientation'] ?? 0), 'test file carries the tag');
+        $file = (new ProductImageService())->store($id, $path, $size);
+        $info = getimagesize(UPLOADS_PATH . '/products/' . $file);
+        assert_same([50, 100], [$info[0], $info[1]], 'rotated to portrait');
+        assert_same(false, @exif_read_data(UPLOADS_PATH . '/products/' . $file)['Orientation'] ?? false, 'no stale tag left');
+    },
+
+    'an image with absurd pixel dimensions is refused before it is decoded' => function (): void {
+        $id = make_product('Hose');
+        // A PNG signature + IHDR claiming 20,000 × 20,000 px: getimagesize reads the header only.
+        $ihdr = pack('NN', 20000, 20000) . "\x08\x02\x00\x00\x00";
+        $png = "\x89PNG\r\n\x1a\n" . pack('N', 13) . 'IHDR' . $ihdr . pack('N', crc32('IHDR' . $ihdr));
+        $path = tempnam(sys_get_temp_dir(), 'rpos');
+        file_put_contents($path, $png);
+        $e = assert_throws(DomainException::class, fn () => (new ProductImageService())->store($id, $path, strlen($png)));
+        assert_contains('megapixel', $e->getMessage());
     },
 
     'GD is enabled (Task 8 Step 1)' => function (): void {

@@ -10,12 +10,16 @@ namespace App\Services;
 final class Quantity
 {
     /**
-     * "2", "2.5", "2,5", " 1 250 " → canonical decimal string (max 3 dp, no trailing zeros).
+     * "2", "2.5", "2,5", " 1 250 ", "1,250" → canonical decimal string (max 3 dp, no trailing zeros).
+     * Same comma rule as Pricing::parse: groups of three digits are thousands, otherwise a decimal comma.
      * @throws \DomainException on garbage, negatives, or a fraction where the unit forbids it
      */
     public static function parse(string $qty, bool $allowsFraction): string
     {
-        $clean = str_replace([' ', ','], ['', '.'], trim($qty));
+        $clean = str_replace(' ', '', trim($qty));
+        $clean = preg_match('/^\d{1,3}(,\d{3})+(\.\d{1,3})?$/', $clean)
+            ? str_replace(',', '', $clean)
+            : str_replace(',', '.', $clean);
         if (!preg_match('/^\d{1,9}(\.\d{1,3})?$/', $clean)) {
             throw new \DomainException('Enter a quantity such as 2 or 2.5 (up to 3 decimals).');
         }

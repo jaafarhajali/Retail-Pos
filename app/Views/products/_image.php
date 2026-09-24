@@ -14,7 +14,7 @@
           <input type="hidden" name="product_id" value="<?= $pid ?>">
           <input class="form-control mb-2" type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required>
           <button class="btn btn-outline-primary" type="submit">Upload</button>
-          <div class="form-text">JPG, PNG or WEBP up to 5 MB; resized to 400 px.</div>
+          <div class="form-text">JPG, PNG, WEBP or GIF up to 5 MB and 50 megapixels; resized to 400 px.</div>
         </form>
         <?php if ($imageUrl !== null): ?>
           <form method="post" action="<?= url('products/image-delete') ?>" data-confirm="Remove the image?">

@@ -256,10 +256,21 @@ final class ProductController extends Controller
     private function formData(?array $product): array
     {
         $id = $product === null ? 0 : (int) $product['id'];
+        $categoryModel = new Category();
+        $categories = $categoryModel->all(true);
+        // A product may sit in a deactivated category (the recommended alternative to deleting one):
+        // keep offering it, or the next save would silently move the product to "none".
+        if ($product !== null && $product['category_id'] !== null
+            && !in_array((int) $product['category_id'], array_map('intval', array_column($categories, 'id')), true)) {
+            $current = $categoryModel->find((int) $product['category_id']);
+            if ($current !== null) {
+                $categories[] = $current;
+            }
+        }
 
         return [
             'product'    => $product,
-            'categories' => (new Category())->all(true),
+            'categories' => $categories,
             'units'      => $id > 0 ? (new ProductUnit())->forProduct($id) : [],
             'barcodes'   => $id > 0 ? (new Barcode())->forProduct($id) : [],
             'unitNames'  => ProductService::DEFAULT_UNIT_NAMES,

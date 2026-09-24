@@ -134,6 +134,21 @@ return [
         assert_same(200, $client->get('products', ['q' => ['x'], 'stock' => ['in']])->status);
     },
 
+    // Deactivating a category is the recommended alternative to deleting it; saving a product must not lose it.
+    'saving a product keeps its deactivated category' => function () use ($productForm): void {
+        $cat = make_category('Old charcoal');
+        $id = make_product('Coco', 'g', $cat);
+        (new \App\Services\CategoryService())->update($cat, 'Old charcoal', '', '', false);
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $edit = $client->get('products/edit', ['id' => $id])->body;
+        assert_contains('value="' . $cat . '" selected', $edit, 'the inactive category is still offered and selected');
+        assert_contains('(inactive)', $edit);
+        assert_same(302, $client->post('products/update', $productForm(['product_id' => $id, 'name' => 'Coco', 'category_id' => (string) $cat, 'is_active' => '1']))->status);
+        assert_same($cat, (int) Database::pdo()->query("SELECT category_id FROM products WHERE id = {$id}")->fetchColumn());
+        assert_same(302, $client->post('products/update', $productForm(['product_id' => $id, 'name' => 'Coco', 'category_id' => ['1'], 'is_active' => '1']))->status, 'tampered update');
+        assert_same(200, $client->get('products/edit', ['id' => $id])->status);
+    },
+
     'the list filters by category and stock status and paginates' => function (): void {
         $cat = make_category('Charcoal');
         $a = make_product('Coco charcoal', 'g', $cat);

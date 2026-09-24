@@ -33,6 +33,16 @@ return [
         }
     },
 
+    // Same rule as Pricing::parse: "1,250" is a thousands separator, "2,5" a decimal comma.
+    'a comma between groups of three digits is a thousands separator, otherwise a decimal point' => function (): void {
+        assert_same('1250', Quantity::parse('1,250', true));
+        assert_same('1250', Quantity::parse('1,250', false));
+        assert_same('12345678', Quantity::parse('12,345,678', false));
+        assert_same('1250.5', Quantity::parse('1,250.5', true));
+        assert_same('2.5', Quantity::parse('2,5', true));
+        assert_same('1.25', Quantity::parse('1,25', true));
+    },
+
     'toBase converts with the unit factor: 2.5 kg = 2,500 g, 1 Box = 20,000 g' => function (): void {
         assert_same(2500, Quantity::toBase('2.5', 1000, true));
         assert_same(20000, Quantity::toBase('1', 20000, false));

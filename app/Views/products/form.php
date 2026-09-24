@@ -48,7 +48,7 @@ $dis = $readonly ? 'disabled' : '';
             <select class="form-select" id="category_id" name="category_id" <?= $dis ?>>
               <option value="">— none —</option>
               <?php foreach ($categories as $c): ?>
-                <option value="<?= (int) $c['id'] ?>" <?= (int) $c['id'] === $selectedCategory ? 'selected' : '' ?> dir="auto"><?= e($c['name']) ?></option>
+                <option value="<?= (int) $c['id'] ?>" <?= (int) $c['id'] === $selectedCategory ? 'selected' : '' ?> dir="auto"><?= e($c['name']) ?><?= (int) $c['is_active'] ? '' : ' (inactive)' ?></option>
               <?php endforeach; ?>
             </select>
           </div>

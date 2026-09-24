@@ -15,6 +15,8 @@ final class ProductImageService
 {
     public const MAX_BYTES = 5 * 1024 * 1024;
     public const MAX_SIDE = 400;
+    /** Decoding needs ~4 bytes per pixel: 50 MP ≈ 200 MB, inside XAMPP's 512 MB memory_limit. */
+    public const MAX_PIXELS = 50_000_000;
 
     /** @return string the saved file name (e.g. "7-3f9a1c2e.jpg") */
     public function store(int $productId, string $tmpPath, int $size): string
@@ -28,15 +30,26 @@ final class ProductImageService
             throw new \DomainException('The image must be 5 MB or smaller.');
         }
         $info = @getimagesize($tmpPath);
-        $source = match ($info['mime'] ?? '') {
+        $mime = is_array($info) ? (string) ($info['mime'] ?? '') : '';
+        if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true)) {
+            throw new \DomainException('Choose a JPG, PNG, WEBP or GIF image.');
+        }
+        // The header is read before decoding: a huge photo would exhaust PHP's memory and 500.
+        if ((int) $info[0] * (int) $info[1] > self::MAX_PIXELS) {
+            throw new \DomainException('The image is too large (over ' . intdiv(self::MAX_PIXELS, 1_000_000) . ' megapixels). Resize it first.');
+        }
+        $source = match ($mime) {
             'image/jpeg' => @imagecreatefromjpeg($tmpPath),
             'image/png'  => @imagecreatefrompng($tmpPath),
             'image/webp' => @imagecreatefromwebp($tmpPath),
-            'image/gif'  => @imagecreatefromgif($tmpPath),
-            default      => false,
+            default      => @imagecreatefromgif($tmpPath),
         };
         if ($source === false) {
             throw new \DomainException('Choose a JPG, PNG, WEBP or GIF image.');
+        }
+        if ($mime === 'image/jpeg' && function_exists('exif_read_data')) {
+            // Phone photos carry an EXIF orientation; re-encoding drops the tag, so rotate the pixels first.
+            $source = self::upright($source, (int) (@exif_read_data($tmpPath)['Orientation'] ?? 1));
         }
 
         $w = imagesx($source);
@@ -82,6 +95,35 @@ final class ProductImageService
     public static function url(?string $file): ?string
     {
         return $file === null ? null : UPLOADS_URL . '/products/' . $file;
+    }
+
+    /** Apply an EXIF orientation (1–8) so the stored pixels are upright. imagerotate() turns counter-clockwise. */
+    private static function upright(\GdImage $img, int $orientation): \GdImage
+    {
+        switch ($orientation) {
+            case 2:
+                imageflip($img, IMG_FLIP_HORIZONTAL);
+                return $img;
+            case 3:
+                return imagerotate($img, 180, 0) ?: $img;
+            case 4:
+                imageflip($img, IMG_FLIP_VERTICAL);
+                return $img;
+            case 5:
+                $r = imagerotate($img, -90, 0) ?: $img;
+                imageflip($r, IMG_FLIP_HORIZONTAL);
+                return $r;
+            case 6:
+                return imagerotate($img, -90, 0) ?: $img;
+            case 7:
+                $r = imagerotate($img, 90, 0) ?: $img;
+                imageflip($r, IMG_FLIP_HORIZONTAL);
+                return $r;
+            case 8:
+                return imagerotate($img, 90, 0) ?: $img;
+            default:
+                return $img;
+        }
     }
 
     private function deleteFile(?string $file): void
