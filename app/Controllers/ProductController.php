@@ -7,6 +7,7 @@ use App\Core\Controller;
 use App\Core\Flash;
 use App\Core\Gate;
 use App\Core\HttpException;
+use App\Core\View;
 use App\Models\Barcode;
 use App\Models\Category;
 use App\Models\Product;
@@ -37,6 +38,23 @@ final class ProductController extends Controller
             'showCost'   => Gate::allows('product.view_cost'),
             'canManage'  => Gate::allows('product.manage'),
         ], 'Products');
+    }
+
+    /** Printable A4 table of every active product, grouped by category. */
+    public function print(): void
+    {
+        $products = (new Product())->forPrint();
+        $groups = [];
+        foreach ($products as $p) {
+            $groups[$p['category_name'] ?? 'Other'][] = $p;
+        }
+        View::render('products/print', [
+            'pageTitle' => 'Products and stock',
+            'products'  => $products,
+            'groups'    => $groups,
+            'unitsById' => (new ProductUnit())->forProducts(array_map('intval', array_column($products, 'id'))),
+            'showCost'  => Gate::allows('product.view_cost'),
+        ], 'layouts/print');
     }
 
     public function create(): void

@@ -48,6 +48,7 @@ use App\Services\Quantity;
         <label class="form-check-label" for="inactive">Show inactive products</label>
       </div>
       <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="<?= url('products/print') ?>" target="_blank"><i class="bi bi-printer"></i> Print table</a>
         <?php if ($canManage): ?>
           <a class="btn btn-primary" href="<?= url('products/create') ?>"><i class="bi bi-plus-lg"></i> Add product</a>
         <?php endif; ?>

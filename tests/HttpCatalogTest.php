@@ -153,4 +153,35 @@ return [
         $page2 = $client->get('products', ['page' => 2])->body;
         assert_contains('Page 2 of 2', $page2);
     },
+
+    'the printable table lists every active product by category, with values for the admin only' => function () use ($clerk): void {
+        $cat = make_category('Charcoal');
+        $a = make_product('Coco charcoal', 'g', $cat);
+        $b = make_product('Hose');
+        $inactive = make_product('Old item');
+        (new ProductService())->addUnit($a, 'kg', '1000', true, false);
+        (new ProductService())->setCost($a, '10', 1000);
+        Database::pdo()->exec("UPDATE products SET stock_base = 5000 WHERE id = {$a}");
+        Database::pdo()->exec("UPDATE products SET is_active = 0 WHERE id = {$inactive}");
+
+        $admin = login_as('admin', TEST_ADMIN_PASSWORD)->get('products/print');
+        assert_same(200, $admin->status);
+        assert_contains('Coco charcoal', $admin->body);
+        assert_contains('Hose', $admin->body);
+        assert_not_contains('Old item', $admin->body);
+        assert_contains('5 kg', $admin->body);
+        assert_contains('$50.00', $admin->body, 'stock value 5000 g × $0.01');
+        assert_contains('Total stock value', $admin->body);
+        assert_not_contains('app-side', $admin->body, 'no sidebar on the print layout');
+        assert_contains('window.print()', $admin->body);
+
+        $clerkPage = $clerk()->get('products/print');
+        assert_same(200, $clerkPage->status);
+        assert_not_contains('Stock value', $clerkPage->body);
+        assert_not_contains('$50.00', $clerkPage->body);
+    },
+
+    'the product list links to the printable table' => function (): void {
+        assert_contains('r=products/print', login_as('admin', TEST_ADMIN_PASSWORD)->get('products')->body);
+    },
 ];
