@@ -7,6 +7,7 @@ $navItems = [
     ['registers', 'display', 'Registers', 'register.manage'],
     ['rates', 'currency-exchange', 'Exchange rate', 'rate.manage'],
     ['settings', 'gear', 'Settings', 'settings.manage'],
+    ['audit', 'journal-text', 'Audit log', 'audit.view'],
 ];
 $currentSection = explode('/', is_string($_GET['r'] ?? null) ? $_GET['r'] : 'dashboard')[0];
 ?>

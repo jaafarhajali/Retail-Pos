@@ -6,6 +6,7 @@
  */
 declare(strict_types=1);
 
+use App\Controllers\AuditController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\ExchangeRateController;
@@ -42,4 +43,5 @@ return [
     ['POST', 'settings/save', [SettingController::class, 'save'],       'settings.manage'],
     ['GET',  'rates',         [ExchangeRateController::class, 'index'], 'rate.manage'],
     ['POST', 'rates/store',   [ExchangeRateController::class, 'store'], 'rate.manage'],
+    ['GET',  'audit',         [AuditController::class, 'index'],        'audit.view'],
 ];
