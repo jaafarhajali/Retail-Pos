@@ -11,6 +11,7 @@ use App\Controllers\AuthController;
 use App\Controllers\CategoryController;
 use App\Controllers\DashboardController;
 use App\Controllers\ExchangeRateController;
+use App\Controllers\ProductController;
 use App\Controllers\RegisterController;
 use App\Controllers\RoleController;
 use App\Controllers\SettingController;
@@ -50,4 +51,17 @@ return [
     ['GET',  'categories/edit',   [CategoryController::class, 'edit'],   'category.manage'],
     ['POST', 'categories/update', [CategoryController::class, 'update'], 'category.manage'],
     ['POST', 'categories/delete', [CategoryController::class, 'delete'], 'category.manage'],
+    ['GET',  'products',                [ProductController::class, 'index'],         'product.view'],
+    ['GET',  'products/edit',           [ProductController::class, 'edit'],          'product.view'],
+    ['GET',  'products/create',         [ProductController::class, 'create'],        'product.manage'],
+    ['POST', 'products/store',          [ProductController::class, 'store'],         'product.manage'],
+    ['POST', 'products/update',         [ProductController::class, 'update'],        'product.manage'],
+    ['POST', 'products/cost',           [ProductController::class, 'cost'],          'product.view_cost'],
+    ['POST', 'products/unit-store',     [ProductController::class, 'unitStore'],     'product.manage'],
+    ['POST', 'products/unit-update',    [ProductController::class, 'unitUpdate'],    'product.manage'],
+    ['POST', 'products/unit-delete',    [ProductController::class, 'unitDelete'],    'product.manage'],
+    ['POST', 'products/unit-default',   [ProductController::class, 'unitDefault'],   'product.manage'],
+    ['POST', 'products/prices',         [ProductController::class, 'prices'],        'price.manage'],
+    ['POST', 'products/barcode-store',  [ProductController::class, 'barcodeStore'],  'product.manage'],
+    ['POST', 'products/barcode-delete', [ProductController::class, 'barcodeDelete'], 'product.manage'],
 ];

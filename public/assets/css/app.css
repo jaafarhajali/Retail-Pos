@@ -21,3 +21,5 @@ body { background: #f4f6f9; font-size: 1.05rem; }
   .app-brand { width: 100%; }
 }
 .cat-swatch { display: inline-block; width: 1.1em; height: 1.1em; border-radius: .25rem; vertical-align: -.15em; border: 1px solid rgba(0,0,0,.15); }
+.table td .form-control-sm { min-height: 40px; min-width: 6rem; }
+.table td .form-check-input { margin: 0; }

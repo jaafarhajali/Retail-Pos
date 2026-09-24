@@ -2,6 +2,7 @@
 /** Sidebar: each item shows only when the user holds its permission (null = everyone). */
 $navItems = [
     ['dashboard', 'speedometer2', 'Dashboard', null],
+    ['products', 'box-seam', 'Products', 'product.view'],
     ['categories', 'tags', 'Categories', 'category.manage'],
     ['users', 'people', 'Users', 'user.manage'],
     ['roles', 'shield-lock', 'Roles & permissions', 'role.manage'],
