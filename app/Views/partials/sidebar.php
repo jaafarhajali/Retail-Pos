@@ -2,6 +2,8 @@
 /** Sidebar: each item shows only when the user holds its permission (null = everyone). */
 $navItems = [
     ['dashboard', 'speedometer2', 'Dashboard', null],
+    ['users', 'people', 'Users', 'user.manage'],
+    ['roles', 'shield-lock', 'Roles & permissions', 'role.manage'],
 ];
 $currentSection = explode('/', is_string($_GET['r'] ?? null) ? $_GET['r'] : 'dashboard')[0];
 ?>
