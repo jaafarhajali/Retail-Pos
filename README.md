@@ -6,7 +6,8 @@ Design: `docs/specs/2026-09-24-core-design.md`. Plans: `docs/plans/`.
 
 ## Requirements
 
-XAMPP with PHP 8.2 and MariaDB 10.4 (Apache + MySQL started). No internet needed.
+XAMPP with PHP 8.2 (with `extension=gd` enabled in `php.ini`, for product images) and MariaDB 10.4
+(Apache + MySQL started). No internet needed.
 
 ## Install (first time, or after pulling new code)
 
@@ -58,3 +59,4 @@ and start their own web server on port 8190. Your real data is never touched.
 | `app/Services/` | business rules |
 | `app/Models/` | SQL |
 | `database/migrations/` | numbered schema changes; add new files, never edit old ones |
+| `public/uploads/products/` | product images (git-ignored; include it in backups) |

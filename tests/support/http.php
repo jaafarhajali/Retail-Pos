@@ -110,10 +110,27 @@ final class HttpClient
         return $this->cookies[$name] ?? null;
     }
 
-    private function request(string $method, string $route, array $query, ?string $body): HttpResponse
+    /** POST a multipart form, e.g. an image upload. $files = ['image' => [filename, bytes, mime]]. */
+    public function postMultipart(string $route, array $fields, array $files): HttpResponse
+    {
+        $boundary = 'rpos' . bin2hex(random_bytes(8));
+        $body = '';
+        foreach ($fields + ['_token' => $this->token] as $name => $value) {
+            $body .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"{$name}\"\r\n\r\n{$value}\r\n";
+        }
+        foreach ($files as $name => [$filename, $bytes, $mime]) {
+            $body .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"{$name}\"; filename=\"{$filename}\"\r\n"
+                   . "Content-Type: {$mime}\r\n\r\n{$bytes}\r\n";
+        }
+        $body .= "--{$boundary}--\r\n";
+
+        return $this->request('POST', $route, [], $body, 'multipart/form-data; boundary=' . $boundary);
+    }
+
+    private function request(string $method, string $route, array $query, ?string $body, string $contentType = 'application/x-www-form-urlencoded'): HttpResponse
     {
         $url = TestServer::url() . '?' . http_build_query(['r' => $route] + $query);
-        $headers = ['Content-Type: application/x-www-form-urlencoded'];
+        $headers = ['Content-Type: ' . $contentType];
         if ($this->cookies !== []) {
             $pairs = [];
             foreach ($this->cookies as $name => $value) {

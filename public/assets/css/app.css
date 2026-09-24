@@ -29,3 +29,5 @@ body { background: #f4f6f9; font-size: 1.05rem; }
   .print-page main { padding: 0 !important; }
   a[href]::after { content: none; }
 }
+.prod-photo { width: 200px; height: 200px; object-fit: cover; border-radius: .5rem; border: 1px solid #e5e7eb; background: #fff; }
+.prod-photo-empty { display: grid; place-items: center; color: #9ca3af; font-size: 3rem; }

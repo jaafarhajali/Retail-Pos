@@ -184,4 +184,25 @@ return [
     'the product list links to the printable table' => function (): void {
         assert_contains('r=products/print', login_as('admin', TEST_ADMIN_PASSWORD)->get('products')->body);
     },
+
+    'an image is uploaded through the form, shown on the product page and served' => function (): void {
+        $id = make_product('Charcoal', 'g');
+        $img = imagecreatetruecolor(600, 600);
+        ob_start();
+        imagepng($img);
+        $bytes = (string) ob_get_clean();
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $edit = $client->get('products/edit', ['id' => $id]);
+        assert_contains('r=products/image-store', $edit->body);
+        $response = $client->postMultipart('products/image-store', ['product_id' => (string) $id], ['image' => ['coal.png', $bytes, 'image/png']]);
+        assert_same(302, $response->status);
+        $body = $client->get('products/edit', ['id' => $id])->body;
+        assert_contains('uploads/test/products/' . $id . '-', $body);
+        preg_match('~(uploads/test/products/[^"]+\.jpg)~', $body, $m);
+        $image = file_get_contents('http://127.0.0.1:' . TestServer::PORT . '/' . $m[1]);
+        assert_same([400, 400], array_slice(getimagesizefromstring((string) $image), 0, 2));
+        $client->get('products/edit', ['id' => $id]);
+        assert_same(302, $client->post('products/image-delete', ['product_id' => $id])->status);
+        assert_not_contains('uploads/test/products/', $client->get('products/edit', ['id' => $id])->body);
+    },
 ];

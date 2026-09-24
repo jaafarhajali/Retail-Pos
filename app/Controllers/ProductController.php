@@ -13,6 +13,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Services\Pricing;
+use App\Services\ProductImageService;
 use App\Services\ProductService;
 
 final class ProductController extends Controller
@@ -199,6 +200,40 @@ final class ProductController extends Controller
             $this->failBack('products/edit', ['id' => $id], ['barcode' => $e->getMessage()]);
         }
         Flash::set('success', 'Barcode removed.');
+        redirect('products/edit', ['id' => $id]);
+    }
+
+    public function imageStore(): void
+    {
+        $id = $this->inputInt('product_id');
+        $file = $_FILES['image'] ?? null;
+        try {
+            if (!is_array($file) || !is_int($file['error'] ?? null)) {
+                throw new \DomainException('Choose an image file.');
+            }
+            if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
+                throw new \DomainException('The image must be 5 MB or smaller.');
+            }
+            if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file((string) $file['tmp_name'])) {
+                throw new \DomainException('The upload failed. Try again.');
+            }
+            (new ProductImageService())->store($id, (string) $file['tmp_name'], (int) $file['size']);
+        } catch (\DomainException $e) {
+            $this->failBack('products/edit', ['id' => $id], ['image' => $e->getMessage()]);
+        }
+        Flash::set('success', 'Image saved.');
+        redirect('products/edit', ['id' => $id]);
+    }
+
+    public function imageDelete(): void
+    {
+        $id = $this->inputInt('product_id');
+        try {
+            (new ProductImageService())->remove($id);
+        } catch (\DomainException $e) {
+            $this->failBack('products/edit', ['id' => $id], ['image' => $e->getMessage()]);
+        }
+        Flash::set('success', 'Image removed.');
         redirect('products/edit', ['id' => $id]);
     }
 

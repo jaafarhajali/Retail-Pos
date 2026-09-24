@@ -65,4 +65,6 @@ return [
     ['POST', 'products/barcode-store',  [ProductController::class, 'barcodeStore'],  'product.manage'],
     ['POST', 'products/barcode-delete', [ProductController::class, 'barcodeDelete'], 'product.manage'],
     ['GET',  'products/print',          [ProductController::class, 'print'],         'product.view'],
+    ['POST', 'products/image-store',    [ProductController::class, 'imageStore'],    'product.manage'],
+    ['POST', 'products/image-delete',   [ProductController::class, 'imageDelete'],   'product.manage'],
 ];

@@ -24,6 +24,9 @@ function test_db_reset(): void
     \App\Core\Auth::forget();
     \App\Core\Gate::forget();
     \App\Core\RegisterDevice::forget();
+    foreach (glob(UPLOADS_PATH . '/products/*') ?: [] as $file) {   // test uploads only (UPLOADS_PATH ends in /test)
+        unlink($file);
+    }
 }
 
 /** The admin created by test_db_reset() (first row of a fresh users table). */
