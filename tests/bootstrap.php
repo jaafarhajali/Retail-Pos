@@ -18,5 +18,6 @@ function test_db_reset(): void
     \App\Core\Installer::createDatabase();
     \App\Core\Installer::migrate();
     \App\Core\Installer::ensureAdmin(TEST_ADMIN_PASSWORD);
+    \App\Core\Settings::flush();
     $_SESSION = [];
 }
