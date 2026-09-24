@@ -13,7 +13,7 @@ built, what comes next, and what was decided (and why) during the design convers
 | # | Phase | Status | Plan |
 |---|---|---|---|
 | 1 | Foundation — login, users, roles & permissions, registers, settings, exchange rate, audit log | **Done** 2026-09-24 (browser-checked by the owner; 115 tests) | [plans/2026-09-24-phase1-foundation.md](plans/2026-09-24-phase1-foundation.md) |
-| 2 | Catalog — categories, products, units, barcodes, prices | **Planning** (questions asked 2026-09-24) | — |
+| 2 | Catalog — categories, products, units, barcodes, prices | **In progress** (plan approved 2026-09-24, Native) | [plans/2026-09-24-phase2-catalog.md](plans/2026-09-24-phase2-catalog.md) |
 | 3 | Stock — movements, purchases, suppliers, cost | Waiting | — |
 | 4 | POS + cash sessions — touch sale screen, payments, change, opening a session | Waiting | — |
 | 5 | Printing — receipts, reprints, X/Z printouts | Waiting | — |
@@ -102,6 +102,8 @@ Section numbers (§) refer to the design spec.
 - Test with the real scanner, printer and cash drawer, two terminals on the LAN,
   automatic daily backup and restore, `config/app.ini` production mode, and the
   owner's manual test list.
+- **Backup = one zip of the SQL dump + the `public/uploads/` folder** (product images are
+  files, not database rows — decided 2026-09-24); restore = unzip + import the SQL.
 
 ---
 
@@ -149,3 +151,6 @@ Newest decisions go at the bottom. Never delete an entry; add a new one that ove
 | 2026-09-24 | Phase 2: images | **Yes, optional**: one photo per product (jpg/png, resized server-side, stored under `storage/`), shown on the POS tile and the product form. |
 | 2026-09-24 | Phase 2: units | Default unit names offered when adding a product: **Piece, Pack, Box, Carton, Dozen, kg, g, L, ml**. The admin may type any other name. Base unit is always piece, g or ml. |
 | 2026-09-24 | Phase 2: internal codes | **Auto-generated and editable**: `P-000001`… from the `counters` table (`product`); the admin may overwrite it (unique). Every product is findable by code at the POS. |
+| 2026-09-24 | Phase 2: image storage & backup | Product images are **files** in `public/uploads/products/` (served directly by Apache, PHP execution denied there), not blobs in the database and not under `storage/` as first written. The daily backup (Phase 10) therefore zips the SQL dump **and** `public/uploads/`. |
+| 2026-09-24 | PHP config | `extension=gd` enabled in `C:\xampp\php\php.ini` (one line; was commented out) for product-image resizing. Apache must be restarted once for the web side. |
+| 2026-09-24 | Execution | Phase 2 plan approved; executed **Native** (same as Phase 1). |
