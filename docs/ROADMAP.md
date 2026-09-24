@@ -12,8 +12,8 @@ built, what comes next, and what was decided (and why) during the design convers
 
 | # | Phase | Status | Plan |
 |---|---|---|---|
-| 1 | Foundation — login, users, roles & permissions, registers, settings, exchange rate, audit log | **Implemented** 2026-09-24 (9 tasks, 107 tests green) — awaiting the owner's browser check | [plans/2026-09-24-phase1-foundation.md](plans/2026-09-24-phase1-foundation.md) |
-| 2 | Catalog — categories, products, units, barcodes, prices | Waiting for Phase 1 | — |
+| 1 | Foundation — login, users, roles & permissions, registers, settings, exchange rate, audit log | **Done** 2026-09-24 (browser-checked by the owner; 115 tests) | [plans/2026-09-24-phase1-foundation.md](plans/2026-09-24-phase1-foundation.md) |
+| 2 | Catalog — categories, products, units, barcodes, prices | **Planning** (questions asked 2026-09-24) | — |
 | 3 | Stock — movements, purchases, suppliers, cost | Waiting | — |
 | 4 | POS + cash sessions — touch sale screen, payments, change, opening a session | Waiting | — |
 | 5 | Printing — receipts, reprints, X/Z printouts | Waiting | — |
