@@ -48,7 +48,7 @@ return [
     'correct credentials open the dashboard' => function (): void {
         $response = login_as('admin', TEST_ADMIN_PASSWORD)->get('dashboard');
         assert_same(200, $response->status);
-        assert_contains('Welcome', $response->body);
+        assert_contains('Signed in as', $response->body);
     },
 
     'a wrong password shows an error and stays signed out' => function (): void {

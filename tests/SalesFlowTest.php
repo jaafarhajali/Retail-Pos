@@ -113,7 +113,7 @@ return [
         assert_same('270.51', $ret['total_usd']);
         assert_same('USD', $ret['cash']['currency']);
         assert_same('270.51', $ret['cash']['amount']);
-        assert_same(200000 - 20000, (int) (new Product())->find($s['charcoal'])['stock_base'], 'waste: no sellable stock back');
+        assert_same(200000 - 1000 - 20000, (int) (new Product())->find($s['charcoal'])['stock_base'], 'the kg stays sold; the wasted box is not sellable stock');
         $waste = Database::pdo()->query("SELECT COUNT(*) FROM stock_movements WHERE type = 'waste' AND reason = 'returned-damaged'")->fetchColumn();
         assert_same(1, (int) $waste);
         assert_throws(DomainException::class, fn () => (new ReturnService())->create($r['id'], [['sale_item_id' => (int) $items[1]['id'], 'qty' => '1', 'condition' => 'restock']], 'USD', '', $s['session'], $s['register'], TEST_ADMIN_ID));

@@ -9,7 +9,7 @@ return [
 
     'the catalog migration is applied on a fresh install' => function (): void {
         $applied = Database::pdo()->query('SELECT filename FROM migrations ORDER BY filename')->fetchAll(PDO::FETCH_COLUMN);
-        assert_same(['001_foundation.sql', '002_catalog.sql'], $applied);
+        assert_same(['001_foundation.sql', '002_catalog.sql', '003_operations.sql'], $applied);
         $tables = Database::pdo()->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
         foreach (['categories', 'products', 'product_units', 'barcodes'] as $table) {
             assert_true(in_array($table, $tables, true), "missing table {$table}");
