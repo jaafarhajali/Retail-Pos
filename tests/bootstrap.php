@@ -29,6 +29,12 @@ function test_db_reset(): void
 /** The admin created by test_db_reset() (first row of a fresh users table). */
 const TEST_ADMIN_ID = 1;
 
+/** Create an active category directly and return its id. */
+function make_category(string $name, string $color = '#e67e22'): int
+{
+    return (new \App\Models\Category())->create($name, $color, 0);
+}
+
 /** Create an active user directly (no forced password change) and return its id. */
 function make_user(string $username, int $roleId = \App\Models\Role::CASHIER_ID, string $password = 'password123'): int
 {

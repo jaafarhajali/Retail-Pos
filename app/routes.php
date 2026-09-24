@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 use App\Controllers\AuditController;
 use App\Controllers\AuthController;
+use App\Controllers\CategoryController;
 use App\Controllers\DashboardController;
 use App\Controllers\ExchangeRateController;
 use App\Controllers\RegisterController;
@@ -44,4 +45,9 @@ return [
     ['GET',  'rates',         [ExchangeRateController::class, 'index'], 'rate.manage'],
     ['POST', 'rates/store',   [ExchangeRateController::class, 'store'], 'rate.manage'],
     ['GET',  'audit',         [AuditController::class, 'index'],        'audit.view'],
+    ['GET',  'categories',        [CategoryController::class, 'index'],  'category.manage'],
+    ['POST', 'categories/store',  [CategoryController::class, 'store'],  'category.manage'],
+    ['GET',  'categories/edit',   [CategoryController::class, 'edit'],   'category.manage'],
+    ['POST', 'categories/update', [CategoryController::class, 'update'], 'category.manage'],
+    ['POST', 'categories/delete', [CategoryController::class, 'delete'], 'category.manage'],
 ];
