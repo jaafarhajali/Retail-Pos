@@ -5,24 +5,30 @@ namespace App\Services;
 
 use App\Core\Audit;
 use App\Core\Database;
+use App\Models\Barcode;
 use App\Models\Category;
 use App\Models\Counter;
 use App\Models\Product;
+use App\Models\ProductUnit;
 
-/**
- * Product rules (spec §3.3, §5). Throws \DomainException carrying the message to show.
- * Task 5 adds the unit, price, barcode and minimum-stock methods.
- */
+/** Product, unit, price and barcode rules (spec §3.3, §5). Throws \DomainException carrying the message to show. */
 final class ProductService
 {
     public const BASE_UNITS = ['piece', 'g', 'ml'];
     public const CODE_PREFIX = 'P-';
 
+    /** Offered in the unit dropdown (owner decision 2026-09-24); any other name may be typed. */
+    public const DEFAULT_UNIT_NAMES = ['Piece', 'Pack', 'Box', 'Carton', 'Dozen', 'kg', 'g', 'L', 'ml'];
+
     private Product $products;
+    private ProductUnit $units;
+    private Barcode $barcodes;
 
     public function __construct()
     {
         $this->products = new Product();
+        $this->units = new ProductUnit();
+        $this->barcodes = new Barcode();
     }
 
     /** @param array<string, mixed> $in raw form values (booleans already cast by the controller) */
@@ -71,6 +77,158 @@ final class ProductService
         ]);
 
         return $new;
+    }
+
+    /** The first unit of a product becomes its default sale and purchase unit. */
+    public function addUnit(int $productId, string $name, string $factor, bool $allowsFraction, bool $isDisplay): int
+    {
+        $this->products->find($productId) ?? throw new \DomainException('Product not found.');
+        $name = $this->cleanUnitName($productId, $name, 0);
+        $factorInt = $this->cleanFactor($factor);
+        $first = $this->units->count($productId) === 0;
+        $id = $this->units->create($productId, $name, $factorInt, $allowsFraction, $isDisplay);
+        if ($first) {
+            $this->units->setDefault($productId, $id, 'sale');
+            $this->units->setDefault($productId, $id, 'purchase');
+        }
+        Audit::log('product.unit_added', 'product', $productId, ['unit' => $name, 'factor' => $factorInt]);
+
+        return $id;
+    }
+
+    public function updateUnit(int $unitId, string $name, string $factor, bool $allowsFraction, bool $isDisplay): void
+    {
+        $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
+        $name = $this->cleanUnitName((int) $unit['product_id'], $name, $unitId);
+        $factorInt = $this->cleanFactor($factor);
+        $this->units->update($unitId, $name, $factorInt, $allowsFraction, $isDisplay);
+        Audit::log('product.unit_updated', 'product', (int) $unit['product_id'], [
+            'unit' => $name, 'old_factor' => (int) $unit['factor'], 'factor' => $factorInt,
+        ]);
+    }
+
+    /** Its barcodes go with it; if it was a default, the smallest remaining unit takes over. */
+    public function deleteUnit(int $unitId): void
+    {
+        $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
+        $productId = (int) $unit['product_id'];
+        Database::transaction(function () use ($unit, $unitId, $productId): void {
+            $this->units->delete($unitId);
+            $remaining = $this->units->forProduct($productId);
+            if ($remaining !== []) {
+                if ((int) $unit['is_default_sale'] === 1) {
+                    $this->units->setDefault($productId, (int) $remaining[0]['id'], 'sale');
+                }
+                if ((int) $unit['is_default_purchase'] === 1) {
+                    $this->units->setDefault($productId, (int) $remaining[0]['id'], 'purchase');
+                }
+            }
+        });
+        Audit::log('product.unit_deleted', 'product', $productId, ['unit' => $unit['name'], 'factor' => (int) $unit['factor']]);
+    }
+
+    /** @param string $kind 'sale' or 'purchase' */
+    public function setDefaultUnit(int $unitId, string $kind): void
+    {
+        if (!in_array($kind, ['sale', 'purchase'], true)) {
+            throw new \DomainException('Unknown default kind.');
+        }
+        $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
+        $this->units->setDefault((int) $unit['product_id'], $unitId, $kind);
+        Audit::log('product.unit_updated', 'product', (int) $unit['product_id'], ['unit' => $unit['name'], 'default_' . $kind => true]);
+    }
+
+    /** Empty price = not sold in this unit at that level (spec §5). */
+    public function setPrices(int $unitId, string $retail, string $wholesale): void
+    {
+        $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
+        $newRetail = Pricing::parse($retail, true);
+        $newWholesale = Pricing::parse($wholesale, true);
+        $this->units->setPrices($unitId, $newRetail, $newWholesale);
+        $changes = [];
+        if ($unit['retail_price'] !== $newRetail) {
+            $changes['retail'] = ['old' => $unit['retail_price'], 'new' => $newRetail];
+        }
+        if ($unit['wholesale_price'] !== $newWholesale) {
+            $changes['wholesale'] = ['old' => $unit['wholesale_price'], 'new' => $newWholesale];
+        }
+        if ($changes !== []) {
+            Audit::log('product.price_changed', 'product', (int) $unit['product_id'], ['unit' => $unit['name']] + $changes);
+        }
+    }
+
+    /** Scanner input arrives with a trailing Enter; a barcode is unique across every product. */
+    public function addBarcode(int $unitId, string $barcode): int
+    {
+        $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
+        $barcode = trim($barcode);
+        if (!preg_match('/^[A-Za-z0-9-]{3,64}$/', $barcode)) {
+            throw new \DomainException('A barcode is 3–64 letters, digits or dashes.');
+        }
+        $taken = $this->barcodes->findByBarcode($barcode);
+        if ($taken !== null) {
+            throw new \DomainException("Barcode {$barcode} is already used by {$taken['product_name']} ({$taken['unit_name']}).");
+        }
+        $id = $this->barcodes->create($unitId, $barcode);
+        Audit::log('product.barcode_added', 'product', (int) $unit['product_id'], ['unit' => $unit['name'], 'barcode' => $barcode]);
+
+        return $id;
+    }
+
+    public function removeBarcode(int $barcodeId): void
+    {
+        $row = $this->barcodes->find($barcodeId) ?? throw new \DomainException('Barcode not found.');
+        $this->barcodes->delete($barcodeId);
+        Audit::log('product.barcode_removed', 'product', (int) $row['product_id'], ['unit' => $row['unit_name'], 'barcode' => $row['barcode']]);
+    }
+
+    /** "2 Box" → 40,000 g. $unitId 0 = the base unit itself. '' clears the minimum. */
+    public function setMinStock(int $productId, string $qty, int $unitId): void
+    {
+        $product = $this->products->find($productId) ?? throw new \DomainException('Product not found.');
+        if (trim($qty) === '') {
+            $this->products->setMinStock($productId, null);
+            Audit::log('product.updated', 'product', $productId, ['min_stock_base' => null]);
+
+            return;
+        }
+        $factor = 1;
+        $allowsFraction = false;
+        if ($unitId > 0) {
+            $unit = $this->units->find($unitId);
+            if ($unit === null || (int) $unit['product_id'] !== $productId) {
+                throw new \DomainException('Choose one of this product\'s units.');
+            }
+            $factor = (int) $unit['factor'];
+            $allowsFraction = (int) $unit['allows_fraction'] === 1;
+        }
+        $base = Quantity::toBase($qty, $factor, $allowsFraction);
+        $this->products->setMinStock($productId, $base);
+        Audit::log('product.updated', 'product', $productId, ['min_stock_base' => $base, 'base_unit' => $product['base_unit']]);
+    }
+
+    private function cleanUnitName(int $productId, string $name, int $exceptId): string
+    {
+        $name = trim($name);
+        if ($name === '' || mb_strlen($name) > 30) {
+            throw new \DomainException('Unit name must be 1–30 characters.');
+        }
+        if ($this->units->nameExists($productId, $name, $exceptId)) {
+            throw new \DomainException("This product already has a unit called {$name}.");
+        }
+
+        return $name;
+    }
+
+    /** Base units per 1 of this unit: a whole number from 1 to 999,999,999. */
+    private function cleanFactor(string $factor): int
+    {
+        $factor = str_replace([' ', ','], '', trim($factor));
+        if (!preg_match('/^\d{1,9}$/', $factor) || (int) $factor < 1) {
+            throw new \DomainException('Factor must be a whole number of base units, at least 1 (kg = 1000 g, Dozen = 12 piece).');
+        }
+
+        return (int) $factor;
     }
 
     /** P-000001, P-000002… skipping any number an admin typed by hand. */
