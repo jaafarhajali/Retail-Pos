@@ -4,3 +4,5 @@
 !/storage/backups/.gitkeep
 /config/app.ini
 *.log
+/storage/sessions/*
+!/storage/sessions/.gitkeep

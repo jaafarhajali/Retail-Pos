@@ -20,11 +20,29 @@ return [
         assert_same(64, strlen($client->token()));
     },
 
-    'posting without the CSRF token is refused with 419' => function (): void {
+    // A missing/stale token while signed out means the session ended (idle timeout, overnight
+    // login tab, sign-out in another tab): send the person back to sign in, never a 419 page.
+    'a guest posting without a valid CSRF token is sent back to sign in' => function (): void {
         $client = new HttpClient();
         $client->get('auth/login');
         $response = $client->post('auth/login', ['username' => 'admin', 'password' => TEST_ADMIN_PASSWORD], false);
-        assert_same(419, $response->status);
+        assert_same(302, $response->status);
+        assert_contains('r=auth/login', $response->location());
+        assert_contains('session ended', $client->get('auth/login')->body);
+        assert_same(302, $client->get('dashboard')->status, 'still signed out');
+    },
+
+    'a signed-in user posting a stale CSRF token is refused with 419' => function (): void {
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $client->get('dashboard');
+        assert_same(419, $client->post('auth/logout', ['_token' => 'stale'], false)->status);
+        assert_same(200, $client->get('dashboard')->status, 'still signed in');
+    },
+
+    'sessions are stored under storage/sessions, not the shared XAMPP temp folder' => function (): void {
+        array_map('unlink', glob(STORAGE_PATH . '/sessions/sess_*') ?: []);
+        (new HttpClient())->get('auth/login');
+        assert_true(count(glob(STORAGE_PATH . '/sessions/sess_*') ?: []) >= 1, 'a session file should exist under storage/sessions');
     },
 
     'correct credentials open the dashboard' => function (): void {

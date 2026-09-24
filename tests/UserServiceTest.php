@@ -7,6 +7,16 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\UserService;
 
+/** Sign in as a non-admin "Manager" who holds user.manage and role.manage; returns [roleId, userId]. */
+$asManager = static function (): array {
+    $roleId = (new \App\Models\Role())->create('Manager');
+    (new \App\Models\Permission())->setForRole($roleId, ['user.manage', 'role.manage']);
+    $uid = make_user('manager1', $roleId);
+    Auth::login($uid);
+
+    return [$roleId, $uid];
+};
+
 return [
     '__before' => function (): void {
         test_db_reset();
@@ -88,5 +98,29 @@ return [
         $row = Database::pdo()->query("SELECT * FROM audit_log WHERE action = 'user.created' ORDER BY id DESC LIMIT 1")->fetch();
         assert_same($id, (int) $row['entity_id']);
         assert_same(TEST_ADMIN_ID, (int) $row['user_id']);
+    },
+
+    // A non-admin role that holds user.manage (e.g. a supervisor) must not be able to become,
+    // or take over, an administrator.
+    'a user manager cannot assign the administrator role' => function () use ($asManager): void {
+        [, $uid] = $asManager();
+        $e = assert_throws(DomainException::class, fn () => (new UserService())->create('newadmin', 'X', Role::ADMIN_ID, 'temp-pass-1'));
+        assert_contains('administrator', $e->getMessage());
+        assert_throws(DomainException::class, fn () => (new UserService())->update($uid, 'Me', Role::ADMIN_ID, true));
+    },
+
+    'a user manager cannot edit, reset or set the PIN of an administrator' => function () use ($asManager): void {
+        $asManager();
+        assert_throws(DomainException::class, fn () => (new UserService())->update(TEST_ADMIN_ID, 'Owner', Role::ADMIN_ID, true));
+        assert_throws(DomainException::class, fn () => (new UserService())->resetPassword(TEST_ADMIN_ID, 'hijack-pass-1'));
+        assert_throws(DomainException::class, fn () => (new UserService())->setPin(TEST_ADMIN_ID, '1234'));
+        assert_same(null, (new User())->find(TEST_ADMIN_ID)['pin_hash']);
+    },
+
+    'a user manager cannot change their own role but can still edit their own name' => function () use ($asManager): void {
+        [$roleId, $uid] = $asManager();
+        assert_throws(DomainException::class, fn () => (new UserService())->update($uid, 'Me', Role::CASHIER_ID, true));
+        (new UserService())->update($uid, 'Renamed', $roleId, true);
+        assert_same('Renamed', (new User())->find($uid)['full_name']);
     },
 ];

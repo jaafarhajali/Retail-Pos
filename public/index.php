@@ -20,6 +20,11 @@ set_error_handler(static function (int $severity, string $message, string $file,
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 
+// Sessions live in the project, not XAMPP's shared tmp folder, and last as long as
+// SESSION_IDLE_SECONDS: php.ini's default 24-minute garbage collection would otherwise
+// sign a quiet till out at random.
+session_save_path(STORAGE_PATH . '/sessions');
+ini_set('session.gc_maxlifetime', (string) (SESSION_IDLE_SECONDS + 3600));
 session_name('rpos_session');
 session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
 ini_set('session.use_strict_mode', '1');

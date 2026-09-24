@@ -12,7 +12,7 @@ built, what comes next, and what was decided (and why) during the design convers
 
 | # | Phase | Status | Plan |
 |---|---|---|---|
-| 1 | Foundation — login, users, roles & permissions, registers, settings, exchange rate, audit log | Plan written, **not started** | [plans/2026-09-24-phase1-foundation.md](plans/2026-09-24-phase1-foundation.md) |
+| 1 | Foundation — login, users, roles & permissions, registers, settings, exchange rate, audit log | **Implemented** 2026-09-24 (9 tasks, 107 tests green) — awaiting the owner's browser check | [plans/2026-09-24-phase1-foundation.md](plans/2026-09-24-phase1-foundation.md) |
 | 2 | Catalog — categories, products, units, barcodes, prices | Waiting for Phase 1 | — |
 | 3 | Stock — movements, purchases, suppliers, cost | Waiting | — |
 | 4 | POS + cash sessions — touch sale screen, payments, change, opening a session | Waiting | — |
@@ -141,3 +141,8 @@ Newest decisions go at the bottom. Never delete an entry; add a new one that ove
 | 2026-09-24 | Printing | **Deferred to Phase 5**: Chrome kiosk printing vs the terminal app. Receipts are built as HTML templates so both work. |
 | 2026-09-24 | Spec | Core design spec approved by the owner. |
 | 2026-09-24 | Execution | Phase 1 plan written. Execution method not chosen yet: **Native** (recommended) or subagent-driven. |
+| 2026-09-24 | Execution | Owner chose **Native** (Claude executes the plan inline, one fresh-context review of the whole phase at the end). Phase 1 implemented the same day on `main` in the project folder (no worktree: Apache serves this exact path). |
+| 2026-09-24 | Permissions | `audit.view` (Admin group) added as the 39th permission key so the audit log viewer has its own key; spec §15 calls its list an "initial set". |
+| 2026-09-24 | Permissions (Phase 1 review) | A user who is **not** an Admin cannot give the Admin role, cannot edit / reset the password of / set the PIN of an Admin account, cannot change their own role, and cannot edit the permissions of their own role — even if their role holds `user.manage` / `role.manage`. Decided by Claude from the review finding; **owner to confirm**. |
+| 2026-09-24 | Sessions (Phase 1 review) | PHP sessions are stored in `storage/sessions/` (not XAMPP's shared `tmp`) and live 9 hours, so php.ini's 24-minute garbage collection cannot sign a quiet till out. A form posted after the session ended returns to the sign-in page with a message, never a 419 page; 419 is only for a signed-in user with a stale token. |
+| 2026-09-24 | Web root (Phase 1 review) | A root `.htaccess` denies everything except `index.php`; `public/.htaccess` grants. `.git/`, `docs/`, `storage/` and any future folder are never served over the LAN. The dev install's admin account has `must_change_password = 1`, so the placeholder password is replaced at first sign-in. |

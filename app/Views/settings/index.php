@@ -1,6 +1,7 @@
 <?php
 $field = static fn (string $key): string => old($key, $values[$key] ?? '');
-$step = (string) ($_SESSION['_old']['lbp_rounding_step'] ?? $values['lbp_rounding_step'] ?? '5000');
+$stashedStep = $_SESSION['_old']['lbp_rounding_step'] ?? null;   // may be a tampered array
+$step = is_string($stashedStep) ? $stashedStep : (string) ($values['lbp_rounding_step'] ?? '5000');
 ?>
 <form method="post" action="<?= url('settings/save') ?>" class="card" style="max-width: 820px">
   <div class="card-body">

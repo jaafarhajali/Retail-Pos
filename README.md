@@ -20,7 +20,8 @@ It creates the `retail_pos` database, applies the migrations and creates the
 must be changed at first sign-in. Running it again only applies new migrations.
 
 Open **http://localhost/Retail%20POS/**, or from another PC on the network
-`http://<server-ip>/Retail%20POS/`.
+`http://<server-ip>/Retail%20POS/`. Check once that
+`http://localhost/Retail%20POS/.git/HEAD` answers **403**: only `public/` may be served.
 
 Settings for another machine (database password, timezone, production mode)
 go in `config/app.ini` (never committed):

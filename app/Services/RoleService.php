@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Audit;
+use App\Core\Auth;
 use App\Core\Gate;
 use App\Models\Permission;
 use App\Models\Role;
@@ -41,6 +42,11 @@ final class RoleService
         $role = $this->roles->find($roleId) ?? throw new \DomainException('Role not found.');
         if ((int) $role['is_super'] === 1) {
             throw new \DomainException('The ' . $role['name'] . ' role always has every permission.');
+        }
+        // Otherwise anyone with role.manage could grant their own role everything.
+        $actor = Auth::user();
+        if ($actor !== null && (int) $actor['is_super'] !== 1 && (int) $actor['role_id'] === $roleId) {
+            throw new \DomainException('You cannot change the permissions of your own role.');
         }
         $wanted = array_filter($keys, 'is_string');
         $valid = array_values(array_intersect($this->permissions->keys(), $wanted));

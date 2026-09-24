@@ -1,0 +1,8 @@
+# Only public/ is web-reachable (public/.htaccess grants it), plus this folder's index.php,
+# which just redirects there. Every other file or folder here — .git/, docs/, storage/,
+# config/, anything added later — is denied, and folder listings are off.
+Options -Indexes
+Require all granted
+<FilesMatch "^(?!index\.php$).+">
+  Require all denied
+</FilesMatch>

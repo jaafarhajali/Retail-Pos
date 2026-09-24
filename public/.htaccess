@@ -1,0 +1,6 @@
+# The application's web root: the only folder Apache may serve. Files starting with a dot (.htaccess) stay hidden. The <FilesMatch> is needed
+# because the parent .htaccess denies by filename, and a per-file rule outranks a plain grant.
+Require all granted
+<FilesMatch "^[^.]">
+  Require all granted
+</FilesMatch>

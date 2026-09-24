@@ -46,6 +46,12 @@ final class Router
         $access = $route['access'];
 
         if ($method === 'POST' && !Csrf::verify($_POST['_token'] ?? null)) {
+            if (!Auth::check()) {
+                // The session ended (idle timeout, sign-out in another tab, a login page left
+                // open overnight) and took the token with it: back to sign-in, not an error page.
+                Flash::set('warning', 'Your session ended. Please sign in again.');
+                redirect('auth/login');
+            }
             throw new HttpException(419);
         }
 
@@ -54,6 +60,7 @@ final class Router
             if ($user === null) {
                 redirect('auth/login');
             }
+            RegisterDevice::current();   // also renews the device cookie (browsers cap cookies at 400 days)
             if ((int) $user['must_change_password'] === 1 && !in_array($path, self::PASSWORD_CHANGE_ROUTES, true)) {
                 redirect('auth/password');
             }

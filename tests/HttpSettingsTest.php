@@ -21,6 +21,19 @@ return [
         assert_contains('1 USD = 89,500 LBP', $client->get('dashboard')->body);
     },
 
+    // Review focus 3, on the settings form: a tampered array must not 500 the page that shows the error.
+    'a tampered array in the settings form does not crash the page' => function (): void {
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $client->get('settings');
+        $response = $client->post('settings/save', [
+            'shop_name' => 'X', 'shop_address' => '', 'shop_phone' => '', 'receipt_header' => '', 'receipt_footer' => '',
+            'lbp_rounding_step' => ['5000'], 'max_cashier_discount_pct' => ['0'],
+            'usd_denominations' => '100', 'lbp_denominations' => '1000',
+        ]);
+        assert_same(302, $response->status);
+        assert_same(200, $client->get('settings')->status);
+    },
+
     'an admin saves settings and the new shop name shows in the sidebar' => function (): void {
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         $client->get('settings');

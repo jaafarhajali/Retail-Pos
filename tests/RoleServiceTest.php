@@ -45,4 +45,16 @@ return [
         (new RoleService())->delete($id);
         assert_same(null, (new Role())->find($id));
     },
+
+    'a role manager cannot change the permissions of their own role' => function (): void {
+        $roleId = (new RoleService())->create('Manager');
+        (new RoleService())->setPermissions($roleId, ['role.manage']);
+        Auth::login(make_user('manager1', $roleId));
+        $e = assert_throws(DomainException::class, fn () => (new RoleService())->setPermissions($roleId, ['role.manage', 'user.manage']));
+        assert_contains('your own role', $e->getMessage());
+        assert_same(['role.manage'], (new Permission())->forRole($roleId));
+        $other = (new RoleService())->create('Other');
+        (new RoleService())->setPermissions($other, ['pos.use']);   // other roles are still editable
+        assert_same(['pos.use'], (new Permission())->forRole($other));
+    },
 ];

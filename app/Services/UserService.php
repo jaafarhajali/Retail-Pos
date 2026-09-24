@@ -30,7 +30,7 @@ final class UserService
             throw new \DomainException('That username is already taken.');
         }
         $fullName = $this->cleanName($fullName);
-        $this->findRole($roleId);
+        $this->assertMayAssign($this->findRole($roleId));
         $this->assertPassword($password);
 
         $id = $this->users->create($username, $password, $fullName, $roleId, true);
@@ -42,11 +42,16 @@ final class UserService
     public function update(int $id, string $fullName, int $roleId, bool $active): void
     {
         $user = $this->users->find($id) ?? throw new \DomainException('User not found.');
+        $this->assertMayTouch($user);
         $fullName = $this->cleanName($fullName);
         $role = $this->findRole($roleId);
+        $this->assertMayAssign($role);
 
         if ($id === Auth::id() && !$active) {
             throw new \DomainException('You cannot deactivate your own account.');
+        }
+        if ($id === Auth::id() && $roleId !== (int) $user['role_id'] && !$this->actorIsSuper()) {
+            throw new \DomainException('You cannot change your own role.');
         }
         $isActiveAdmin = (int) $user['is_super'] === 1 && (int) $user['is_active'] === 1;
         $staysActiveAdmin = $active && (int) $role['is_super'] === 1;
@@ -60,7 +65,7 @@ final class UserService
 
     public function resetPassword(int $id, string $password): void
     {
-        $this->users->find($id) ?? throw new \DomainException('User not found.');
+        $this->assertMayTouch($this->users->find($id) ?? throw new \DomainException('User not found.'));
         $this->assertPassword($password);
         $this->users->setPassword($id, $password, true);
         Audit::log('user.password_reset', 'user', $id);
@@ -69,7 +74,7 @@ final class UserService
     /** The approval PIN used at the POS. '' removes it. */
     public function setPin(int $id, string $pin): void
     {
-        $this->users->find($id) ?? throw new \DomainException('User not found.');
+        $this->assertMayTouch($this->users->find($id) ?? throw new \DomainException('User not found.'));
         if ($pin === '') {
             $this->users->setPin($id, null);
             Audit::log('user.pin_cleared', 'user', $id);
@@ -81,6 +86,30 @@ final class UserService
         }
         $this->users->setPin($id, $pin);
         Audit::log('user.pin_set', 'user', $id);
+    }
+
+    private function actorIsSuper(): bool
+    {
+        return (int) (Auth::user()['is_super'] ?? 0) === 1;
+    }
+
+    /**
+     * Someone who merely holds user.manage (a supervisor) must not be able to become an
+     * administrator or take over one: only administrators give the Admin role or touch
+     * Admin accounts (edit, password reset, approval PIN).
+     */
+    private function assertMayAssign(array $role): void
+    {
+        if ((int) $role['is_super'] === 1 && !$this->actorIsSuper()) {
+            throw new \DomainException('Only an administrator can give the ' . $role['name'] . ' role.');
+        }
+    }
+
+    private function assertMayTouch(array $user): void
+    {
+        if ((int) $user['is_super'] === 1 && !$this->actorIsSuper()) {
+            throw new \DomainException('Only an administrator can change an administrator account.');
+        }
     }
 
     private function cleanName(string $fullName): string
