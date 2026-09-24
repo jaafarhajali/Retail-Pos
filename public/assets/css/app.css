@@ -17,9 +17,9 @@ code { color: var(--ink-2); background: var(--line-2); padding: .05em .35em; bor
 
 /* Shell */
 .app { display: flex; min-height: 100vh; }
-.app-side { width: 232px; flex-shrink: 0; background: var(--slate); color: #C9D1D9; padding: 1.1rem .7rem; display: flex; flex-direction: column; gap: 2px; }
-.app-brand { color: #fff; font-weight: 600; font-size: 1.05rem; padding: .4rem .75rem 1.1rem; letter-spacing: -.01em; }
-.app-nav { display: flex; align-items: center; gap: .7rem; min-height: 42px; padding: 0 .75rem; border-radius: .4rem; color: #C9D1D9; }
+.app-side { width: 232px; flex-shrink: 0; background: var(--slate); color: #C9D1D9; padding: 1rem .6rem; display: flex; flex-direction: column; gap: 1px; position: sticky; top: 0; height: 100vh; overflow-y: auto; scrollbar-width: thin; }
+.app-brand { color: #fff; font-weight: 600; font-size: 1.05rem; padding: .3rem .75rem .9rem; letter-spacing: -.01em; }
+.app-nav { display: flex; align-items: center; gap: .65rem; min-height: 36px; padding: 0 .7rem; border-radius: .4rem; color: #C9D1D9; font-size: .95rem; }
 .app-nav i { font-size: 1rem; opacity: .8; width: 1.1rem; text-align: center; }
 .app-nav:hover { background: var(--slate-2); color: #fff; text-decoration: none; }
 .app-nav.active { background: var(--accent); color: #fff; }

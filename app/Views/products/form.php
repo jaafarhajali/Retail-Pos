@@ -29,7 +29,7 @@ $dis = $readonly ? 'disabled' : '';
   <div class="col-lg-6">
     <div class="card"><div class="card-body">
       <h2 class="h5 mb-3"><?= $isEdit ? 'Basics' : 'New product' ?></h2>
-      <form method="post" action="<?= url($isEdit ? 'products/update' : 'products/store') ?>">
+      <form method="post" action="<?= url($isEdit ? 'products/update' : 'products/store') ?>" id="product-form">
         <?= csrf_field() ?>
         <?php if ($isEdit): ?><input type="hidden" name="product_id" value="<?= $pid ?>"><?php endif; ?>
         <div class="mb-3">
@@ -105,13 +105,40 @@ $dis = $readonly ? 'disabled' : '';
             <label class="form-check-label" for="is_active">Active (sellable)</label>
           </div>
         <?php endif; ?>
-        <?php if (!$readonly): ?>
-          <button class="btn btn-primary" type="submit"><?= $isEdit ? 'Save product' : 'Create product' ?></button>
+        <?php if ($isEdit && !$readonly): ?>
+          <button class="btn btn-primary" type="submit">Save product</button>
         <?php endif; ?>
-        <a class="btn btn-link" href="<?= url('products') ?>">Back to products</a>
+        <?php if ($isEdit): ?><a class="btn btn-link" href="<?= url('products') ?>">Back to products</a><?php endif; ?>
       </form>
     </div></div>
   </div>
+
+  <?php if (!$isEdit): ?>
+    <div class="col-lg-6">
+      <div class="card"><div class="card-body">
+        <h2 class="h5 mb-1">First unit and prices</h2>
+        <p class="text-muted small">How the product is sold. More units (Box, Carton, kg…), barcodes and a photo can be added after saving.</p>
+        <div class="row g-2 mb-3">
+          <div class="col-7"><label class="form-label" for="unit_name">Unit</label>
+            <input class="form-control" form="product-form" id="unit_name" name="unit_name" list="unit-names" dir="auto" maxlength="30" value="<?= old('unit_name', 'Piece') ?>" placeholder="Piece, kg, Box…">
+            <datalist id="unit-names"><?php foreach ($unitNames as $n): ?><option value="<?= e($n) ?>"><?php endforeach; ?></datalist></div>
+          <div class="col-5"><label class="form-label" for="unit_factor">Base units per 1</label><input class="form-control" form="product-form" id="unit_factor" name="unit_factor" inputmode="numeric" value="<?= old('unit_factor', '1') ?>" placeholder="1000 for kg"></div>
+        </div>
+        <div class="form-check form-switch mb-3"><input class="form-check-input" form="product-form" type="checkbox" role="switch" id="allows_fraction" name="allows_fraction" value="1" <?= old('allows_fraction') ? 'checked' : '' ?>><label class="form-check-label" for="allows_fraction">Sold in fractions (2.5 kg)</label></div>
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label" for="retail_price">Retail price (USD)</label><input class="form-control" form="product-form" id="retail_price" name="retail_price" inputmode="decimal" value="<?= old('retail_price') ?>" <?= $canPrice ? '' : 'disabled' ?>></div>
+          <div class="col-6"><label class="form-label" for="wholesale_price">Wholesale price (USD)</label><input class="form-control" form="product-form" id="wholesale_price" name="wholesale_price" inputmode="decimal" value="<?= old('wholesale_price') ?>" placeholder="empty = not sold wholesale" <?= $canPrice ? '' : 'disabled' ?>></div>
+        </div>
+        <div class="row g-2 mb-3">
+          <?php if ($showCost): ?><div class="col-6"><label class="form-label" for="unit_cost">Cost per unit (USD)</label><input class="form-control" form="product-form" id="unit_cost" name="unit_cost" inputmode="decimal" value="<?= old('unit_cost') ?>"></div><?php endif; ?>
+          <div class="col-6"><label class="form-label" for="opening_qty">Opening stock (in this unit)</label><input class="form-control" form="product-form" id="opening_qty" name="opening_qty" inputmode="decimal" value="<?= old('opening_qty') ?>" placeholder="e.g. 24"></div>
+        </div>
+        <p class="text-muted small mb-3">Example charcoal: base unit g, unit <strong>kg</strong>, 1000 per 1, sold in fractions, retail $15. Then add the Box unit (20,000 g, $280) on the next page.</p>
+        <button class="btn btn-primary btn-lg" form="product-form" type="submit">Create product</button>
+        <a class="btn btn-link" href="<?= url('products') ?>">Cancel</a>
+      </div></div>
+    </div>
+  <?php endif; ?>
 
   <?php if ($isEdit): ?>
     <div class="col-lg-6">

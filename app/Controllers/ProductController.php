@@ -63,14 +63,34 @@ final class ProductController extends Controller
         $this->render('products/form', $this->formData(null), 'Add product');
     }
 
+    /** Creates the product and, in the same transaction, its first unit, prices, cost and opening stock. */
     public function store(): void
     {
         try {
-            $id = (new ProductService())->create($this->productInput());
+            $id = \App\Core\Database::transaction(function (): int {
+                $service = new ProductService();
+                $id = $service->create($this->productInput());
+                $unitName = $this->input('unit_name');
+                if ($unitName !== '') {
+                    $unitId = $service->addUnit($id, $unitName, $this->input('unit_factor') ?: '1', isset($_POST['allows_fraction']), false);
+                    if (Gate::allows('price.manage') && ($this->input('retail_price') !== '' || $this->input('wholesale_price') !== '')) {
+                        $service->setPrices($unitId, $this->input('retail_price'), $this->input('wholesale_price'));
+                    }
+                    if (Gate::allows('product.view_cost') && $this->input('unit_cost') !== '') {
+                        $unit = (new ProductUnit())->find($unitId);
+                        $service->setCost($id, $this->input('unit_cost'), (int) $unit['factor']);
+                    }
+                    if ($this->input('opening_qty') !== '' && Gate::allows('stock.adjust')) {
+                        (new \App\Services\StockService())->adjust($id, $unitId, $this->input('opening_qty'), 'opening', '', null, \App\Core\Auth::id());
+                    }
+                }
+
+                return $id;
+            });
         } catch (\DomainException $e) {
             $this->failBack('products/create', [], ['form' => $e->getMessage()]);
         }
-        Flash::set('success', 'Product created. Now add its units and prices.');
+        Flash::set('success', 'Product created. Add more units, barcodes or a photo here.');
         redirect('products/edit', ['id' => $id]);
     }
 
