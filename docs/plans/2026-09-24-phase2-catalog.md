@@ -404,7 +404,8 @@ return [
         assert_same('9 Box + 17.5 kg', Quantity::format(197500, $charcoal, 'g'));
         assert_same('0.5 kg', Quantity::format(500, $charcoal, 'g'));
         assert_same('0 kg', Quantity::format(0, $charcoal, 'g'));
-        assert_same('3 Carton + 4 Pack + 2 Piece', Quantity::format(98, $tobacco, 'piece'));
+        assert_same('3 Carton + 3 Pack + 4 Piece', Quantity::format(94, $tobacco, 'piece'));
+        assert_same('4 Carton + 2 Piece', Quantity::format(98, $tobacco, 'piece'));
         assert_same('2 Pack', Quantity::format(12, $tobacco, 'piece'));
     },
 
@@ -2386,9 +2387,9 @@ return [
         assert_true($id > 0, 'redirects to the edit page');
 
         $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'name' => 'kg', 'factor' => '1000', 'allows_fraction' => '1'])->status);
+        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => 'kg', 'unit_factor' => '1000', 'allows_fraction' => '1'])->status);
         $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'name' => 'Box', 'factor' => '20,000', 'is_display' => '1'])->status);
+        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => 'Box', 'unit_factor' => '20,000', 'is_display' => '1'])->status);
         $box = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id} AND name = 'Box'")->fetchColumn();
         $kg = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id} AND name = 'kg'")->fetchColumn();
 
@@ -2417,7 +2418,7 @@ return [
         $client->get('products/create');
         $id = $idFrom($client->post('products/store', $productForm(['name' => 'Al Fakher Apple', 'base_unit' => 'piece']))->location());
         $client->get('products/edit', ['id' => $id]);
-        $client->post('products/unit-store', ['product_id' => $id, 'name' => 'Piece', 'factor' => '1']);
+        $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => 'Piece', 'unit_factor' => '1']);
         $unit = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id}")->fetchColumn();
         $client->get('products/edit', ['id' => $id]);
         assert_same(302, $client->post('products/barcode-store', ['product_id' => $id, 'unit_id' => $unit, 'barcode' => "6291041500213\r\n"])->status);
@@ -2427,7 +2428,7 @@ return [
         $client->get('products/create');
         $other = $idFrom($client->post('products/store', $productForm(['name' => 'Other', 'base_unit' => 'piece']))->location());
         $client->get('products/edit', ['id' => $other]);
-        $client->post('products/unit-store', ['product_id' => $other, 'name' => 'Piece', 'factor' => '1']);
+        $client->post('products/unit-store', ['product_id' => $other, 'unit_name' => 'Piece', 'unit_factor' => '1']);
         $otherUnit = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$other}")->fetchColumn();
         $client->get('products/edit', ['id' => $other]);
         $client->post('products/barcode-store', ['product_id' => $other, 'unit_id' => $otherUnit, 'barcode' => '6291041500213']);
@@ -2442,7 +2443,7 @@ return [
         assert_same(200, $client->get('products/create')->status);
         $id = $idFrom($client->post('products/store', $productForm())->location());
         $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'name' => ['kg'], 'factor' => ['1000']])->status);
+        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => ['kg'], 'unit_factor' => ['1000']])->status);
         assert_same(200, $client->get('products/edit', ['id' => $id])->status);
         assert_same(200, $client->get('products', ['q' => ['x'], 'stock' => ['in']])->status);
     },
@@ -2585,7 +2586,7 @@ final class ProductController extends Controller
     {
         $id = $this->inputInt('product_id');
         try {
-            (new ProductService())->addUnit($id, $this->input('name'), $this->input('factor'), isset($_POST['allows_fraction']), isset($_POST['is_display']));
+            (new ProductService())->addUnit($id, $this->input('unit_name'), $this->input('unit_factor'), isset($_POST['allows_fraction']), isset($_POST['is_display']));
         } catch (\DomainException $e) {
             $this->failBack('products/edit', ['id' => $id], ['unit' => $e->getMessage()]);
         }
@@ -2597,7 +2598,7 @@ final class ProductController extends Controller
     {
         $id = $this->inputInt('product_id');
         try {
-            (new ProductService())->updateUnit($this->inputInt('unit_id'), $this->input('name'), $this->input('factor'), isset($_POST['allows_fraction']), isset($_POST['is_display']));
+            (new ProductService())->updateUnit($this->inputInt('unit_id'), $this->input('unit_name'), $this->input('unit_factor'), isset($_POST['allows_fraction']), isset($_POST['is_display']));
         } catch (\DomainException $e) {
             $this->failBack('products/edit', ['id' => $id], ['unit' => $e->getMessage()]);
         }
@@ -3001,22 +3002,12 @@ $dis = $readonly ? 'disabled' : '';
             <tbody>
             <?php foreach ($units as $u): $uid = (int) $u['id']; ?>
               <tr>
-                <form method="post" action="<?= url('products/unit-update') ?>" id="unit-<?= $uid ?>">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="product_id" value="<?= $pid ?>">
-                  <input type="hidden" name="unit_id" value="<?= $uid ?>">
-                </form>
-                <td><input class="form-control form-control-sm" form="unit-<?= $uid ?>" name="name" dir="auto" value="<?= e($u['name']) ?>" maxlength="30" required <?= $dis ?>></td>
-                <td><input class="form-control form-control-sm" form="unit-<?= $uid ?>" name="factor" inputmode="numeric" value="<?= (int) $u['factor'] ?>" required <?= $dis ?>></td>
+                <td><input class="form-control form-control-sm" form="unit-<?= $uid ?>" name="unit_name" dir="auto" value="<?= e($u['name']) ?>" maxlength="30" required <?= $dis ?>></td>
+                <td><input class="form-control form-control-sm" form="unit-<?= $uid ?>" name="unit_factor" inputmode="numeric" value="<?= (int) $u['factor'] ?>" required <?= $dis ?>></td>
                 <td><input class="form-check-input" form="unit-<?= $uid ?>" type="checkbox" name="allows_fraction" value="1" <?= (int) $u['allows_fraction'] ? 'checked' : '' ?> <?= $dis ?>></td>
                 <td><input class="form-check-input" form="unit-<?= $uid ?>" type="checkbox" name="is_display" value="1" <?= (int) $u['is_display'] ? 'checked' : '' ?> <?= $dis ?>></td>
                 <td><?php if ($canManage): ?><button class="btn btn-sm btn-outline-primary" form="unit-<?= $uid ?>" type="submit">Save</button><?php endif; ?></td>
 
-                <form method="post" action="<?= url('products/prices') ?>" id="prices-<?= $uid ?>">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="product_id" value="<?= $pid ?>">
-                  <input type="hidden" name="unit_id" value="<?= $uid ?>">
-                </form>
                 <td><input class="form-control form-control-sm" form="prices-<?= $uid ?>" name="retail_price" inputmode="decimal" value="<?= e($u['retail_price'] ?? '') ?>" placeholder="—" <?= $canPrice ? '' : 'disabled' ?>></td>
                 <td><input class="form-control form-control-sm" form="prices-<?= $uid ?>" name="wholesale_price" inputmode="decimal" value="<?= e($u['wholesale_price'] ?? '') ?>" placeholder="—" <?= $canPrice ? '' : 'disabled' ?>></td>
                 <td><?php if ($canPrice): ?><button class="btn btn-sm btn-outline-primary" form="prices-<?= $uid ?>" type="submit">Save prices</button><?php endif; ?></td>
@@ -3053,18 +3044,31 @@ $dis = $readonly ? 'disabled' : '';
             </tbody>
           </table>
         </div>
+        <?php /* The row inputs post through these forms via form="…": a <form> may not sit inside a <tr>. */ ?>
+        <?php foreach ($units as $u): $uid = (int) $u['id']; ?>
+          <form method="post" action="<?= url('products/unit-update') ?>" id="unit-<?= $uid ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="product_id" value="<?= $pid ?>">
+            <input type="hidden" name="unit_id" value="<?= $uid ?>">
+          </form>
+          <form method="post" action="<?= url('products/prices') ?>" id="prices-<?= $uid ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="product_id" value="<?= $pid ?>">
+            <input type="hidden" name="unit_id" value="<?= $uid ?>">
+          </form>
+        <?php endforeach; ?>
         <?php if ($canManage): ?>
           <form method="post" action="<?= url('products/unit-store') ?>" class="row g-2 align-items-end mt-2">
             <?= csrf_field() ?>
             <input type="hidden" name="product_id" value="<?= $pid ?>">
             <div class="col-md-3">
               <label class="form-label" for="new_unit_name">Add unit</label>
-              <input class="form-control" id="new_unit_name" name="name" list="unit-names" dir="auto" maxlength="30" required value="<?= old('name') ?>" placeholder="Piece, Box, kg…">
+              <input class="form-control" id="new_unit_name" name="unit_name" list="unit-names" dir="auto" maxlength="30" required value="<?= old('unit_name') ?>" placeholder="Piece, Box, kg…">
               <datalist id="unit-names"><?php foreach ($unitNames as $n): ?><option value="<?= e($n) ?>"><?php endforeach; ?></datalist>
             </div>
             <div class="col-md-3">
               <label class="form-label" for="new_unit_factor">Factor (<?= e($baseUnit) ?> per unit)</label>
-              <input class="form-control" id="new_unit_factor" name="factor" inputmode="numeric" required value="<?= old('factor') ?>" placeholder="1000">
+              <input class="form-control" id="new_unit_factor" name="unit_factor" inputmode="numeric" required value="<?= old('unit_factor') ?>" placeholder="1000">
             </div>
             <div class="col-md-2 form-check ms-2">
               <input class="form-check-input" type="checkbox" id="new_unit_fraction" name="allows_fraction" value="1">
@@ -3160,10 +3164,10 @@ Append to `public/assets/css/app.css`:
 - [ ] **Step 7: Run all tests to verify they pass**
 
 Run: `"$PHP" tests/run.php HttpCatalog`
-Expected: `8 passed, 0 failed`
+Expected: `7 passed, 0 failed`
 
 Run: `"$PHP" tests/run.php`
-Expected: `169 passed, 0 failed`
+Expected: `168 passed, 0 failed`
 
 - [ ] **Step 8: Commit**
 
@@ -3227,7 +3231,7 @@ Append to the array in `tests/HttpCatalogTest.php` (before the closing `];`):
 - [ ] **Step 2: Run them to verify they fail**
 
 Run: `"$PHP" tests/run.php HttpCatalog`
-Expected: the two new tests FAIL (`expected 200, got 404` and `expected to find 'r=products/print'`); the other 8 still pass.
+Expected: the two new tests FAIL (`expected 200, got 404` and `expected to find 'r=products/print'`); the other 7 still pass.
 
 - [ ] **Step 3: Write the print layout, the view, the action and the route**
 
@@ -3349,10 +3353,10 @@ Append to `public/assets/css/app.css`:
 - [ ] **Step 4: Run all tests to verify they pass**
 
 Run: `"$PHP" tests/run.php HttpCatalog`
-Expected: `10 passed, 0 failed`
+Expected: `9 passed, 0 failed`
 
 Run: `"$PHP" tests/run.php`
-Expected: `171 passed, 0 failed`
+Expected: `170 passed, 0 failed`
 
 - [ ] **Step 5: Commit**
 
@@ -3735,7 +3739,7 @@ Append to `public/assets/css/app.css`:
 - [ ] **Step 5: Run all tests to verify they pass**
 
 Run: `"$PHP" tests/run.php ProductImage` → Expected: `5 passed, 0 failed`
-Run: `"$PHP" tests/run.php` → Expected: `177 passed, 0 failed` (171 + 5 + 1)
+Run: `"$PHP" tests/run.php` → Expected: `176 passed, 0 failed` (170 + 5 + 1)
 
 - [ ] **Step 6: Docs and final verification**
 
@@ -3752,13 +3756,13 @@ and add to **Where things are**:
 | `public/uploads/products/` | product images (git-ignored; include it in backups) |
 ```
 
-In `docs/ROADMAP.md`: set Phase 2's status to `**Implemented** <date> (8 tasks, 177 tests) — awaiting the owner's browser check`, and add to the decisions log:
+In `docs/ROADMAP.md`: set Phase 2's status to `**Implemented** <date> (8 tasks, 176 tests) — awaiting the owner's browser check`, and add to the decisions log:
 
 ```markdown
 | <date> | Phase 2: image storage | Product images live in `public/uploads/products/` (served directly by Apache; PHP execution denied there), not under `storage/` as first written on 2026-09-24, because the POS grid needs them without a PHP round-trip. Tests use `public/uploads/test/`. |
 ```
 
-Run: `"$PHP" tests/run.php` → Expected: `177 passed, 0 failed`
+Run: `"$PHP" tests/run.php` → Expected: `176 passed, 0 failed`
 
 Run: `for f in $(git ls-files '*.php') $(git ls-files --others --exclude-standard '*.php'); do "$PHP" -l "$f" | grep -v '^No syntax errors'; done; echo lint done` → Expected: only `lint done`.
 
