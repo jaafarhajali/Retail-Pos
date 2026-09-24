@@ -8,13 +8,25 @@ declare(strict_types=1);
 
 use App\Controllers\AuditController;
 use App\Controllers\AuthController;
+use App\Controllers\BackupController;
 use App\Controllers\CategoryController;
+use App\Controllers\CountController;
+use App\Controllers\CustomerController;
 use App\Controllers\DashboardController;
 use App\Controllers\ExchangeRateController;
+use App\Controllers\ExpenseController;
+use App\Controllers\PosController;
 use App\Controllers\ProductController;
+use App\Controllers\PurchaseController;
 use App\Controllers\RegisterController;
+use App\Controllers\ReportController;
+use App\Controllers\ReturnController;
 use App\Controllers\RoleController;
+use App\Controllers\SaleController;
+use App\Controllers\SessionController;
 use App\Controllers\SettingController;
+use App\Controllers\StockController;
+use App\Controllers\SupplierController;
 use App\Controllers\UserController;
 use App\Core\Router;
 
@@ -67,4 +79,61 @@ return [
     ['GET',  'products/print',          [ProductController::class, 'print'],         'product.view'],
     ['POST', 'products/image-store',    [ProductController::class, 'imageStore'],    'product.manage'],
     ['POST', 'products/image-delete',   [ProductController::class, 'imageDelete'],   'product.manage'],
+    // Phase 3 — stock, purchases, suppliers
+    ['GET',  'suppliers',        [SupplierController::class, 'index'], 'supplier.manage'],
+    ['GET',  'suppliers/edit',   [SupplierController::class, 'edit'],  'supplier.manage'],
+    ['POST', 'suppliers/save',   [SupplierController::class, 'save'],  'supplier.manage'],
+    ['GET',  'purchases',        [PurchaseController::class, 'index'],  'purchase.manage'],
+    ['GET',  'purchases/create', [PurchaseController::class, 'create'], 'purchase.manage'],
+    ['POST', 'purchases/store',  [PurchaseController::class, 'store'],  'purchase.manage'],
+    ['GET',  'purchases/view',   [PurchaseController::class, 'view'],   'purchase.manage'],
+    ['GET',  'stock',            [StockController::class, 'index'],      'stock.view'],
+    ['GET',  'stock/adjust',     [StockController::class, 'adjustForm'], 'stock.adjust'],
+    ['POST', 'stock/adjust',     [StockController::class, 'adjust'],     'stock.adjust'],
+    // Phase 4 — customers, cash sessions, the till
+    ['GET',  'customers',        [CustomerController::class, 'index'],  'customer.manage'],
+    ['GET',  'customers/edit',   [CustomerController::class, 'edit'],   'customer.manage'],
+    ['POST', 'customers/save',   [CustomerController::class, 'save'],   'customer.manage'],
+    ['POST', 'customers/adjust', [CustomerController::class, 'adjust'], 'customer.manage'],
+    ['GET',  'sessions',         [SessionController::class, 'index'],     Router::AUTH],
+    ['GET',  'sessions/open',    [SessionController::class, 'openForm'],  'session.open_own'],
+    ['POST', 'sessions/open',    [SessionController::class, 'open'],      'session.open_own'],
+    ['GET',  'sessions/view',    [SessionController::class, 'view'],      Router::AUTH],
+    ['GET',  'sessions/print',   [SessionController::class, 'print'],     Router::AUTH],
+    ['GET',  'sessions/close',   [SessionController::class, 'closeForm'], 'session.close_own'],
+    ['POST', 'sessions/close',   [SessionController::class, 'close'],     'session.close_own'],
+    ['POST', 'sessions/review',  [SessionController::class, 'review'],    'session.review'],
+    ['POST', 'sessions/cash',    [SessionController::class, 'cash'],      'cash.in_out'],
+    ['GET',  'pos',              [PosController::class, 'index'],     'pos.use'],
+    ['GET',  'pos/data',         [PosController::class, 'data'],      'pos.use'],
+    ['GET',  'pos/customers',    [PosController::class, 'customers'], 'pos.use'],
+    ['POST', 'pos/complete',     [PosController::class, 'complete'],  'sale.create'],
+    ['POST', 'pos/hold',         [PosController::class, 'hold'],      'pos.use'],
+    ['GET',  'pos/held',         [PosController::class, 'held'],      'pos.use'],
+    ['POST', 'pos/resume',       [PosController::class, 'resume'],    'pos.use'],
+    ['POST', 'pos/debt',         [PosController::class, 'debt'],      'debt.collect'],
+    ['GET',  'sales',            [SaleController::class, 'index'],   Router::AUTH],
+    ['GET',  'sales/view',       [SaleController::class, 'view'],    Router::AUTH],
+    ['GET',  'sales/receipt',    [SaleController::class, 'receipt'], Router::AUTH],
+    ['POST', 'sales/void',       [SaleController::class, 'void'],    'pos.use'],
+    // Phase 6 — returns
+    ['GET',  'returns',          [ReturnController::class, 'index'],   'return.create'],
+    ['POST', 'returns/store',    [ReturnController::class, 'store'],   'return.create'],
+    ['GET',  'returns/view',     [ReturnController::class, 'view'],    'return.create'],
+    ['GET',  'returns/receipt',  [ReturnController::class, 'receipt'], 'return.create'],
+    // Phase 7 — expenses
+    ['GET',  'expenses',         [ExpenseController::class, 'index'], 'expense.manage'],
+    ['POST', 'expenses/store',   [ExpenseController::class, 'store'], 'expense.manage'],
+    // Phase 8 — reports (each type checks its own key in the controller)
+    ['GET',  'reports',          [ReportController::class, 'index'], Router::AUTH],
+    // Phase 9 — stocktaking
+    ['GET',  'counts',           [CountController::class, 'index'],   'stocktake.manage'],
+    ['POST', 'counts/start',     [CountController::class, 'start'],   'stocktake.manage'],
+    ['GET',  'counts/view',      [CountController::class, 'view'],    'stocktake.manage'],
+    ['POST', 'counts/enter',     [CountController::class, 'enter'],   'stocktake.manage'],
+    ['POST', 'counts/confirm',   [CountController::class, 'confirm'], 'stocktake.manage'],
+    ['POST', 'counts/cancel',    [CountController::class, 'cancel'],  'stocktake.manage'],
+    // Phase 10 — backups
+    ['GET',  'backup',           [BackupController::class, 'index'], 'backup.manage'],
+    ['POST', 'backup/run',       [BackupController::class, 'run'],   'backup.manage'],
 ];

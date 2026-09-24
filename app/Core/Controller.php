@@ -48,6 +48,24 @@ abstract class Controller
         return preg_match('/^-?\d+$/', $value) ? (int) $value : $default;
     }
 
+    /** JSON reply for the till's fetch() calls. */
+    protected function json(array $data, int $status = 200): never
+    {
+        http_response_code($status);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    /** The JSON body of a fetch() POST (empty array when absent or malformed). */
+    protected function jsonInput(): array
+    {
+        $raw = (string) file_get_contents('php://input');
+        $data = json_decode($raw, true);
+
+        return is_array($data) ? $data : [];
+    }
+
     /** Keep the form input (minus secrets) and errors, flash the first error, go back. */
     protected function failBack(string $route, array $params, array $errors): never
     {

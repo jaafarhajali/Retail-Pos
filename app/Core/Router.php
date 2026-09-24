@@ -45,7 +45,7 @@ final class Router
         $route = $this->match($method, $path);
         $access = $route['access'];
 
-        if ($method === 'POST' && !Csrf::verify($_POST['_token'] ?? null)) {
+        if ($method === 'POST' && !Csrf::verify($_POST['_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)) {
             if (!Auth::check()) {
                 // The session ended (idle timeout, sign-out in another tab, a login page left
                 // open overnight) and took the token with it: back to sign-in, not an error page.

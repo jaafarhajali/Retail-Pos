@@ -110,6 +110,12 @@ final class HttpClient
         return $this->cookies[$name] ?? null;
     }
 
+    /** POST a JSON body with the CSRF token in the header, like the till's fetch() calls. */
+    public function postJson(string $route, array $data): HttpResponse
+    {
+        return $this->request('POST', $route, [], (string) json_encode($data, JSON_UNESCAPED_UNICODE), 'application/json', ['X-CSRF-Token: ' . $this->token]);
+    }
+
     /** POST a multipart form, e.g. an image upload. $files = ['image' => [filename, bytes, mime]]. */
     public function postMultipart(string $route, array $fields, array $files): HttpResponse
     {
@@ -127,10 +133,10 @@ final class HttpClient
         return $this->request('POST', $route, [], $body, 'multipart/form-data; boundary=' . $boundary);
     }
 
-    private function request(string $method, string $route, array $query, ?string $body, string $contentType = 'application/x-www-form-urlencoded'): HttpResponse
+    private function request(string $method, string $route, array $query, ?string $body, string $contentType = 'application/x-www-form-urlencoded', array $extraHeaders = []): HttpResponse
     {
         $url = TestServer::url() . '?' . http_build_query(['r' => $route] + $query);
-        $headers = ['Content-Type: ' . $contentType];
+        $headers = array_merge(['Content-Type: ' . $contentType], $extraHeaders);
         if ($this->cookies !== []) {
             $pairs = [];
             foreach ($this->cookies as $name => $value) {

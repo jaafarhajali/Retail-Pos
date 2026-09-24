@@ -101,6 +101,9 @@ final class ProductService
         $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
         $name = $this->cleanUnitName((int) $unit['product_id'], $name, $unitId);
         $factorInt = $this->cleanFactor($factor);
+        if ($factorInt !== (int) $unit['factor'] && (new \App\Models\StockMovement())->hasMovements((int) $unit['product_id'])) {
+            throw new \DomainException('The factor is locked because the product already has stock movements. Add a new unit instead.');
+        }
         $this->units->update($unitId, $name, $factorInt, $allowsFraction, $isDisplay);
         Audit::log('product.unit_updated', 'product', (int) $unit['product_id'], [
             'unit' => $name, 'old_factor' => (int) $unit['factor'], 'factor' => $factorInt,
@@ -142,8 +145,11 @@ final class ProductService
     public function setPrices(int $unitId, string $retail, string $wholesale): void
     {
         $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
+        // 0 means "not sold at this level", the same as empty (owner decision 2026-09-24).
         $newRetail = Pricing::parse($retail, true);
         $newWholesale = Pricing::parse($wholesale, true);
+        $newRetail = $newRetail !== null && (float) $newRetail <= 0 ? null : $newRetail;
+        $newWholesale = $newWholesale !== null && (float) $newWholesale <= 0 ? null : $newWholesale;
         $this->units->setPrices($unitId, $newRetail, $newWholesale);
         $changes = [];
         if ($unit['retail_price'] !== $newRetail) {

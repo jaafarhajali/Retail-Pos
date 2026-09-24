@@ -14,19 +14,23 @@
   <?php require APP_PATH . '/Views/partials/sidebar.php'; ?>
   <main class="app-main">
     <header class="app-top">
-      <h1 class="h4 m-0"><?= e($pageTitle ?? '') ?></h1>
+      <h1><?= e($pageTitle ?? '') ?></h1>
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <span class="text-muted me-2"><i class="bi bi-person-circle"></i>
-          <span dir="auto"><?= e($authUser['full_name'] ?? '') ?></span> · <?= e($authUser['role_name'] ?? '') ?></span>
-        <a class="btn btn-outline-secondary" href="<?= url('auth/password') ?>">Change password</a>
+        <?php if (\App\Core\Gate::allows('pos.use')): ?>
+          <a class="btn btn-outline-primary" href="<?= url('pos') ?>"><i class="bi bi-cart3"></i> Open the till</a>
+        <?php endif; ?>
+        <span class="text-muted small"><span dir="auto"><?= e($authUser['full_name'] ?? '') ?></span> · <?= e($authUser['role_name'] ?? '') ?></span>
+        <a class="btn btn-sm btn-outline-secondary" href="<?= url('auth/password') ?>">Password</a>
         <form method="post" action="<?= url('auth/logout') ?>" class="m-0">
           <?= csrf_field() ?>
-          <button class="btn btn-outline-danger" type="submit">Sign out</button>
+          <button class="btn btn-sm btn-outline-secondary" type="submit">Sign out</button>
         </form>
       </div>
     </header>
-    <div class="px-4 pt-3"><?php require APP_PATH . '/Views/partials/flash.php'; ?></div>
-    <div class="app-content"><?= $content ?></div>
+    <div class="app-content">
+      <?php require APP_PATH . '/Views/partials/flash.php'; ?>
+      <?= $content ?>
+    </div>
   </main>
 </div>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
