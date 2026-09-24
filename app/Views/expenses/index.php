@@ -32,10 +32,10 @@
     <div class="card"><div class="table-responsive"><table class="table table-hover table-sm align-middle">
       <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Paid from</th><th class="text-end">Amount</th><th class="text-end">USD</th></tr></thead>
       <tbody><?php foreach ($pg['rows'] as $x): ?>
-        <tr><td><?= e(date('d/m/Y', strtotime($x['expense_date']))) ?></td><td dir="auto"><?= e($x['category']) ?><?= $x['supplier_name'] ? ' <span class="badge text-bg-info">supplier: ' . e($x['supplier_name']) . '</span>' : '' ?></td>
-          <td dir="auto"><?= e($x['description'] ?? '') ?></td><td><?= e($x['paid_from']) ?></td><td class="text-end"><?= $x['currency'] === 'USD' ? usd($x['amount']) : lbp($x['amount']) ?></td><td class="text-end"><?= usd($x['amount_usd']) ?></td></tr>
+        <tr><td class="text-nowrap"><?= e(date('d/m/Y', strtotime($x['expense_date']))) ?></td><td dir="auto"><?= e($x['category']) ?><?= $x['supplier_name'] ? '<span class="cell-sub"><i class="bi bi-building"></i> ' . e($x['supplier_name']) . '</span>' : '' ?></td>
+          <td dir="auto"><?= e($x['description'] ?? '') ?></td><td><?= $x['paid_from'] === 'drawer' ? 'Drawer' : 'Outside' ?></td><td class="text-end text-nowrap"><?= $x['currency'] === 'USD' ? usd($x['amount']) : lbp($x['amount']) ?></td><td class="text-end"><?= usd($x['amount_usd']) ?></td></tr>
       <?php endforeach; ?>
-      <?php if ($pg['rows'] === []): ?><tr><td colspan="6" class="empty">No expenses match.</td></tr><?php endif; ?></tbody>
+      <?php if ($pg['rows'] === []): ?><tr><td colspan="6" class="empty">No expenses match these filters.</td></tr><?php endif; ?></tbody>
     </table></div></div>
     <?php require APP_PATH . '/Views/partials/pagination.php'; ?>
   </div>

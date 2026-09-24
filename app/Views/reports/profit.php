@@ -1,5 +1,5 @@
 <?php $p = $profit; ?>
-<h2 class="h6 text-muted">Profit <?= e($from) ?> → <?= e($to) ?> (<?= (int) $p['invoices'] ?> invoices)</h2>
+<h2 class="h6 text-muted">Profit <?= e(date('d/m/Y', strtotime($from))) ?> – <?= e(date('d/m/Y', strtotime($to))) ?> (<?= (int) $p['invoices'] ?> invoices)</h2>
 <div class="card" style="max-width: 560px"><div class="table-responsive"><table class="table">
   <tbody>
     <tr><td>Gross sales</td><td class="text-end"><?= usd($p['gross_sales']) ?></td></tr>

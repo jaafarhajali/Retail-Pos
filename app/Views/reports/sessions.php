@@ -1,4 +1,4 @@
-<h2 class="h6 text-muted">Cash sessions opened <?= e($from) ?> → <?= e($to) ?></h2>
+<h2 class="h6 text-muted">Cash sessions opened <?= e(date('d/m/Y', strtotime($from))) ?> – <?= e(date('d/m/Y', strtotime($to))) ?></h2>
 <div class="card"><div class="table-responsive"><table class="table table-sm">
   <thead><tr><th>No</th><th>Z</th><th>Register</th><th>Cashier</th><th>Opened</th><th>Closed</th><th class="text-end">Expected USD</th><th class="text-end">Counted USD</th><th class="text-end">Diff USD</th><th class="text-end">Diff LBP</th><th>Status</th></tr></thead>
   <tbody><?php foreach ($rows as $s): ?>

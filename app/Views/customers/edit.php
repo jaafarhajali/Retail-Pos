@@ -23,14 +23,20 @@
     </div></div>
     <?php if ($customer !== null): ?>
       <div class="card mt-3"><div class="card-body">
-        <p class="mb-2">Balance: <strong class="<?= (float) $customer['balance_usd'] > 0 ? 'text-danger' : '' ?>"><?= usd($customer['balance_usd']) ?></strong> <span class="text-muted">(positive = owes the shop)</span></p>
-        <form method="post" action="<?= url('customers/adjust') ?>" class="row g-2">
+        <?php $owes = (float) $customer['balance_usd']; ?>
+        <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 mb-3">
+          <div><div class="balance-label"><?= $owes >= 0 ? 'Owes the shop' : 'The shop owes them' ?></div>
+            <div class="balance-value <?= $owes > 0 ? 'is-debt' : '' ?>"><?= usd(abs($owes)) ?></div></div>
+          <?php if ($customer['credit_limit_usd'] !== null): ?><div class="text-muted small">Credit limit <?= usd($customer['credit_limit_usd']) ?></div><?php endif; ?>
+        </div>
+        <h2 class="h6">Adjust the balance</h2>
+        <form method="post" action="<?= url('customers/adjust') ?>" class="row g-2 align-items-end">
           <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $customer['id'] ?>">
-          <div class="col-4"><input class="form-control" name="amount" inputmode="decimal" placeholder="+5 or -5" required></div>
-          <div class="col-5"><input class="form-control" name="note" dir="auto" placeholder="Reason" required></div>
+          <div class="col-4"><label class="form-label" for="adjust-amount">USD</label><input class="form-control" id="adjust-amount" name="amount" inputmode="decimal" placeholder="+5 or -5" required></div>
+          <div class="col-5"><label class="form-label" for="adjust-note">Reason</label><input class="form-control" id="adjust-note" name="note" dir="auto" placeholder="e.g. old debt" required></div>
           <div class="col-3"><button class="btn btn-outline-primary w-100" type="submit">Adjust</button></div>
         </form>
-        <div class="form-text">Debt is collected at the till (Customer → Collect debt), so it goes into the drawer.</div>
+        <div class="form-text mt-2">+ adds to what they owe, − reduces it. Cash they pay back is collected at the till (Customer → Collect debt), so it goes into the drawer.</div>
       </div></div>
     <?php endif; ?>
   </div>
@@ -41,11 +47,11 @@
           <thead><tr><th>Date</th><th>Type</th><th>Ref</th><th class="text-end">USD</th></tr></thead>
           <tbody>
           <?php foreach ($ledger as $l): ?>
-            <tr><td><?= e(date('d/m/Y H:i', strtotime($l['created_at']))) ?></td><td><?= e(str_replace('_', ' ', $l['type'])) ?></td>
+            <tr><td class="text-nowrap"><?= e(date('d/m/Y H:i', strtotime($l['created_at']))) ?></td><td class="text-nowrap"><?= e(ucfirst(str_replace('_', ' ', $l['type']))) ?></td>
               <td dir="auto"><?= e($l['invoice_no'] ?? $l['note'] ?? '') ?><?= $l['currency'] === 'LBP' ? ' (' . lbp($l['amount_original']) . ')' : '' ?></td>
               <td class="text-end <?= (float) $l['amount_usd'] < 0 ? 'text-success' : '' ?>"><?= usd($l['amount_usd']) ?></td></tr>
           <?php endforeach; ?>
-          <?php if ($ledger === []): ?><tr><td colspan="4" class="empty">No entries yet.</td></tr><?php endif; ?>
+          <?php if ($ledger === []): ?><tr><td colspan="4" class="empty">No entries yet. Credit sales, payments and adjustments show here.</td></tr><?php endif; ?>
           </tbody>
         </table></div>
       </div>

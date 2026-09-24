@@ -1,12 +1,12 @@
 <div class="card" style="max-width: 520px">
   <div class="card-body">
     <?php if ($forced): ?>
-      <div class="alert alert-warning">You must choose a new password before continuing.</div>
+      <div class="alert alert-warning"><strong>Choose your own password to continue.</strong> The one you signed in with was temporary; the rest of the app opens once it is changed.</div>
     <?php endif; ?>
     <form method="post" action="<?= url('auth/password') ?>">
       <?= csrf_field() ?>
       <div class="mb-3">
-        <label class="form-label" for="current_password">Current password</label>
+        <label class="form-label" for="current_password"><?= $forced ? 'Temporary password' : 'Current password' ?></label>
         <input class="form-control" id="current_password" name="current_password" type="password" autocomplete="current-password" required>
         <div class="text-danger small"><?= form_error('current_password') ?></div>
       </div>
@@ -21,7 +21,7 @@
         <input class="form-control" id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required>
         <div class="text-danger small"><?= form_error('confirm_password') ?></div>
       </div>
-      <button class="btn btn-primary" type="submit">Change password</button>
+      <button class="btn btn-primary btn-lg w-100" type="submit">Change password</button>
     </form>
   </div>
 </div>

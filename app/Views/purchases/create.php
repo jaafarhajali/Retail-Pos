@@ -21,16 +21,15 @@ foreach ($unitsById as $pid => $units) {
     <div class="table-responsive"><table class="table align-middle" id="lines">
       <thead><tr><th style="width:38%">Product</th><th style="width:16%">Unit</th><th style="width:14%">Quantity</th><th style="width:16%">Cost per unit (USD)</th><th class="text-end">Line total</th><th></th></tr></thead>
       <tbody></tbody>
-      <tfoot><tr><td colspan="4" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold" id="total">$0.00</td><td></td></tr></tfoot>
+      <tfoot class="totals"><tr class="grand"><td colspan="3"><button class="btn btn-outline-primary" type="button" id="add-line"><i class="bi bi-plus-lg"></i> Add line</button></td><td class="text-end align-middle">Total</td><td class="text-end align-middle" id="total">$0.00</td><td></td></tr></tfoot>
     </table></div>
-    <div class="card-body pt-0"><button class="btn btn-outline-primary" type="button" id="add-line"><i class="bi bi-plus-lg"></i> Add line</button></div>
   </div>
 
-  <div class="card mb-3"><div class="card-body row g-3 align-items-end">
+  <div class="card mb-3"><div class="card-body row g-3 align-items-start">
     <div class="col-md-3"><label class="form-label" for="paid_now">Paid now (USD)</label><input class="form-control" id="paid_now" name="paid_now" inputmode="decimal" placeholder="0.00" value="<?= old('paid_now') ?>"></div>
     <div class="col-md-3"><label class="form-label" for="paid_from">Paid from</label>
       <select class="form-select" id="paid_from" name="paid_from"><option value="drawer">the drawer (my open session)</option><option value="outside" <?= old('paid_from') === 'outside' ? 'selected' : '' ?>>outside (owner, bank)</option></select></div>
-    <div class="col-md-6 form-text">The rest stays as debt to the supplier. Cost prices update by moving average (5 @ $10 + 5 @ $15 → $12.50).</div>
+    <div class="col-md-6 form-text mt-md-4 pt-md-2">The rest stays as debt to the supplier. Cost prices update by moving average (5 @ $10 + 5 @ $15 → $12.50).</div>
   </div></div>
   <button class="btn btn-primary btn-lg" type="submit">Post purchase</button>
   <a class="btn btn-link" href="<?= url('purchases') ?>">Cancel</a>
@@ -43,7 +42,7 @@ foreach ($unitsById as $pid => $units) {
     <td><input class="form-control form-control-sm" name="lines[IDX][qty]" inputmode="decimal" required></td>
     <td><input class="form-control form-control-sm" name="lines[IDX][unit_cost]" inputmode="decimal" required></td>
     <td class="text-end num line-total">$0.00</td>
-    <td><button class="btn btn-sm btn-link text-danger remove" type="button" title="Remove"><i class="bi bi-x-circle"></i></button></td>
+    <td class="text-end"><button class="btn btn-sm btn-outline-danger remove" type="button" title="Remove this line" aria-label="Remove this line"><i class="bi bi-trash3"></i></button></td>
   </tr>
 </template>
 <script>

@@ -124,10 +124,15 @@
     api(P.urls.customers + '&q=' + encodeURIComponent(q)).then(function (j) {
       var list = $('cust-list'); list.innerHTML = '';
       j.customers.forEach(function (c) {
-        var a = document.createElement('button'); a.className = 'list-group-item list-group-item-action d-flex justify-content-between'; a.type = 'button';
-        a.innerHTML = '<span dir="auto"></span><span></span>'; a.children[0].textContent = c.name + (c.phone ? ' · ' + c.phone : ''); a.children[1].textContent = parseFloat(c.balance) > 0 ? 'owes ' + money(c.balance) : '';
+        // Name and phone in separate runs, so an Arabic name never reverses the phone number.
+        var a = document.createElement('button'); a.className = 'list-group-item list-group-item-action'; a.type = 'button';
+        a.innerHTML = '<span class="li-main"><b dir="auto"></b><small dir="ltr"></small></span><span class="li-meta"></span>';
+        a.querySelector('b').textContent = c.name; a.querySelector('small').textContent = c.phone || 'no phone';
+        var owes = parseFloat(c.balance) > 0, meta = a.querySelector('.li-meta');
+        meta.textContent = owes ? 'owes ' + money(c.balance) : (c.level === 'wholesale' ? 'Wholesale' : ''); meta.classList.toggle('is-owed', owes);
         a.addEventListener('click', function () { setCustomer(c); }); list.appendChild(a);
       });
+      if (!j.customers.length) list.innerHTML = '<div class="empty">' + (q ? 'No customer matches this name or phone.' : 'No customers yet. Add them on the Customers page.') + '</div>';
     });
   }
   $('cust-q').addEventListener('input', function () { searchCustomers(this.value); });
@@ -189,7 +194,7 @@
       $('done-no').textContent = j.invoice_no;
       var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
       $('done-label').textContent = ch.length ? 'Change to give' : 'Paid ' + money(j.total_usd) + ' exactly';
-      $('done-change').textContent = ch.length ? ch.join('\n+ ') : 'No change';
+      $('done-change').textContent = ch.length ? ch.join('\n+ ') : 'No change'; $('done-change').classList.toggle('is-none', !ch.length);
       $('done-warn').textContent = (j.warnings || []).join(' ');
       $('done-print').href = j.receipt + '&auto=1';
       modals['m-done'].show();
@@ -204,12 +209,14 @@
     api(P.urls.held).then(function (j) {
       var list = $('hold-list'); list.innerHTML = '';
       j.held.forEach(function (h) {
-        var a = document.createElement('button'); a.type = 'button'; a.className = 'list-group-item list-group-item-action d-flex justify-content-between';
-        a.innerHTML = '<span dir="auto"></span><span></span>'; a.children[0].textContent = h.name + ' · ' + h.by; a.children[1].textContent = h.cart.length + ' line(s) · ' + h.at.substr(11, 5);
+        var a = document.createElement('button'); a.type = 'button'; a.className = 'list-group-item list-group-item-action';
+        a.innerHTML = '<span class="li-main"><b dir="auto"></b><small></small></span><span class="li-meta"></span>';
+        a.querySelector('b').textContent = h.name || 'Unnamed cart'; a.querySelector('small').textContent = 'held by ' + h.by + ' at ' + h.at.substr(11, 5);
+        a.querySelector('.li-meta').textContent = h.cart.length + (h.cart.length === 1 ? ' line' : ' lines');
         a.addEventListener('click', function () { api(P.urls.resume, { id: h.id }).then(function (r) { cart = cart.concat(r.cart); selected = cart.length - 1; renderCart(); modals['m-hold'].hide(); }); });
         list.appendChild(a);
       });
-      if (!j.held.length) list.innerHTML = '<div class="empty">No held sales.</div>';
+      if (!j.held.length) list.innerHTML = '<div class="empty"><b>No held sales</b>Hold a cart to serve the next customer, then resume it here.</div>';
       modals['m-hold'].show();
     });
   });

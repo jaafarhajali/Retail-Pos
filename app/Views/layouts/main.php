@@ -7,6 +7,8 @@ try {
 }
 $userName = (string) ($authUser['full_name'] ?? '');
 $userInitial = $userName === '' ? '?' : mb_strtoupper(mb_substr($userName, 0, 1));
+// Until a forced password change is done every other page bounces back here, so the menu and shortcuts stay hidden.
+$navLocked = (int) ($authUser['must_change_password'] ?? 0) === 1;
 ?>
 <!doctype html>
 <html lang="en">
@@ -25,14 +27,14 @@ $userInitial = $userName === '' ? '?' : mb_strtoupper(mb_substr($userName, 0, 1)
     <header class="app-top">
       <h1 dir="auto"><?= e($pageTitle ?? '') ?></h1>
       <div class="app-top-actions">
-        <?php if ($headerRate !== null): ?>
+        <?php if ($headerRate !== null && !$navLocked): ?>
           <?php if (\App\Core\Gate::allows('rate.manage')): ?>
             <a class="rate-chip" href="<?= url('rates') ?>" title="Exchange rate"><i class="bi bi-currency-exchange"></i>1 USD = <?= e(number_format($headerRate)) ?> LBP</a>
           <?php else: ?>
             <span class="rate-chip" title="Exchange rate"><i class="bi bi-currency-exchange"></i>1 USD = <?= e(number_format($headerRate)) ?> LBP</span>
           <?php endif; ?>
         <?php endif; ?>
-        <?php if (\App\Core\Gate::allows('pos.use')): ?>
+        <?php if (!$navLocked && \App\Core\Gate::allows('pos.use')): ?>
           <a class="btn btn-outline-primary" href="<?= url('pos') ?>"><i class="bi bi-cart3"></i> Open the till</a>
         <?php endif; ?>
         <div class="dropdown">

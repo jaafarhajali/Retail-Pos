@@ -68,8 +68,8 @@
         <div class="col-6"><label class="form-label" for="line-price">Price (USD)</label><input class="form-control" id="line-price" inputmode="decimal"></div>
       </div>
       <div class="row g-2 mb-3">
-        <div class="col-6"><label class="form-label" for="line-amount">Or sell by amount (USD)</label><input class="form-control" id="line-amount" inputmode="decimal" placeholder="sell by amount"></div>
-        <div class="col-6"><label class="form-label" for="line-amount-lbp">Or by amount (LBP)</label><input class="form-control" id="line-amount-lbp" inputmode="numeric"></div>
+        <div class="col-6"><label class="form-label" for="line-amount">Or sell by amount (USD)</label><input class="form-control" id="line-amount" inputmode="decimal" placeholder="0.00"></div>
+        <div class="col-6"><label class="form-label" for="line-amount-lbp">Or by amount (LBP)</label><input class="form-control" id="line-amount-lbp" inputmode="numeric" placeholder="0"></div>
       </div>
       <div><label class="form-label" for="line-discount">Line discount (USD)</label><input class="form-control" id="line-discount" inputmode="decimal" placeholder="0"></div>
     </div>

@@ -11,10 +11,10 @@ $selected = (int) old('product_id', $productId);
     <div class="mb-3"><label class="form-label" for="product_id">Product</label>
       <select class="form-select" id="product_id" name="product_id" required><option value="">— choose —</option>
         <?php foreach ($products as $p): ?><option value="<?= (int) $p['id'] ?>" data-base="<?= e($p['base_unit']) ?>" <?= (int) $p['id'] === $selected ? 'selected' : '' ?> dir="auto"><?= e($p['name']) ?> (<?= e($p['internal_code']) ?>) — stock <?= number_format((int) $p['stock_base']) ?> <?= e($p['base_unit']) ?></option><?php endforeach; ?></select></div>
-    <div class="mb-3"><span class="form-label d-block">What happened</span>
+    <fieldset class="mb-3"><legend class="form-label">What happened</legend><div class="choices">
       <?php foreach (['opening' => 'Opening stock (first entry)', 'adjustment' => 'Correction (+ adds, − removes)', 'waste' => 'Waste / damaged (removes)'] as $t => $label): ?>
         <div class="form-check"><input class="form-check-input" type="radio" name="type" id="t_<?= $t ?>" value="<?= $t ?>" <?= old('type', 'adjustment') === $t ? 'checked' : '' ?>><label class="form-check-label" for="t_<?= $t ?>"><?= $label ?></label></div>
-      <?php endforeach; ?></div>
+      <?php endforeach; ?></div></fieldset>
     <div class="row g-2 mb-3">
       <div class="col-6"><label class="form-label" for="qty">Quantity</label><input class="form-control" id="qty" name="qty" inputmode="decimal" required placeholder="2 or -2.5" value="<?= old('qty') ?>"></div>
       <div class="col-6"><label class="form-label" for="unit_id">Unit</label><select class="form-select" id="unit_id" name="unit_id"></select></div>
@@ -26,7 +26,7 @@ $selected = (int) old('product_id', $productId);
       <div class="mb-3"><label class="form-label" for="unit_cost">Cost per unit (USD, optional)</label><input class="form-control" id="unit_cost" name="unit_cost" inputmode="decimal" value="<?= old('unit_cost') ?>" placeholder="for opening stock or found items">
         <div class="form-text">Given with added stock it updates the product's cost by moving average.</div></div>
     <?php endif; ?>
-    <button class="btn btn-primary" type="submit">Apply</button>
+    <button class="btn btn-primary" type="submit">Apply to stock</button>
     <a class="btn btn-link" href="<?= url('stock') ?>">Back to movements</a>
   </form>
 </div></div>

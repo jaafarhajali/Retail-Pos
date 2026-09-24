@@ -11,8 +11,8 @@
         </select>
         <?php if ($registers === []): ?><div class="form-text text-warning">No register exists yet — an administrator creates one on the Registers page.</div><?php endif; ?></div>
       <div class="row g-2 mb-3">
-        <div class="col-sm-6"><label class="form-label" for="admin_username">Administrator</label><input class="form-control" id="admin_username" name="admin_username" autocomplete="off" required></div>
-        <div class="col-sm-6"><label class="form-label" for="admin_password">Their password</label><input class="form-control" id="admin_password" name="admin_password" type="password" autocomplete="off" required></div>
+        <div class="col-sm-6"><label class="form-label" for="admin_username">Administrator username</label><input class="form-control" id="admin_username" name="admin_username" autocomplete="off" autocapitalize="off" spellcheck="false" required></div>
+        <div class="col-sm-6"><label class="form-label" for="admin_password">Administrator password</label><input class="form-control" id="admin_password" name="admin_password" type="password" autocomplete="off" required></div>
       </div>
       <button class="btn btn-primary btn-lg" type="submit" <?= $registers === [] ? 'disabled' : '' ?>>Link this device</button>
     </form>

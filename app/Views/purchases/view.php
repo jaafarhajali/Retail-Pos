@@ -1,5 +1,5 @@
 <div class="row g-3">
-  <div class="col-lg-4">
+  <div class="col-xl-4">
     <div class="card"><div class="card-body">
       <dl class="kv mb-0">
         <dt>Number</dt><dd><code><?= e($purchase['purchase_no']) ?></code></dd>
@@ -14,7 +14,7 @@
     </div></div>
     <a class="btn btn-link mt-2" href="<?= url('purchases') ?>">Back to purchases</a>
   </div>
-  <div class="col-lg-8">
+  <div class="col-xl-8">
     <div class="card"><div class="table-responsive"><table class="table">
       <thead><tr><th>Product</th><th class="text-end">Qty</th><th>Unit</th><th class="text-end">Cost / unit</th><th class="text-end">Line total</th><th class="text-end">Cost / <?= e($items[0]['base_unit'] ?? 'base') ?></th></tr></thead>
       <tbody>

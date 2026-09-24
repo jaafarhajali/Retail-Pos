@@ -1,4 +1,7 @@
-<?php $s = $session; $isZ = $s['status'] !== 'open'; ?>
+<?php
+$s = $session; $isZ = $s['status'] !== 'open';
+$minus = static fn ($amount, string $shown): string => (float) $amount != 0 ? '-' . $shown : $shown;   // no "-$0.00" on paper
+?>
 <div class="receipt <?= e($width) ?>">
   <div class="c big" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?></div>
   <div class="c big"><?= $isZ ? 'Z REPORT ' . e($s['z_no']) : 'X REPORT' ?></div>
@@ -12,7 +15,7 @@
     <tr><td>&nbsp;&nbsp;retail</td><td class="r"><?= usd($sales['retail'] ?? 0) ?></td></tr>
     <tr><td>&nbsp;&nbsp;wholesale</td><td class="r"><?= usd($sales['wholesale'] ?? 0) ?></td></tr>
     <tr><td>Rounding</td><td class="r"><?= usd($sales['rounding'] ?? 0) ?></td></tr>
-    <tr><td>Returns (<?= (int) $returns['n'] ?>)</td><td class="r">-<?= usd($returns['refund_usd']) ?></td></tr>
+    <tr><td>Returns (<?= (int) $returns['n'] ?>)</td><td class="r"><?= $minus($returns['refund_usd'], usd($returns['refund_usd'])) ?></td></tr>
   </table>
   <div class="rule"></div>
   <table>
@@ -20,7 +23,7 @@
     <?php foreach ($sales['payments'] ?? [] as $p): ?>
       <tr><td><?= e($p['method']) ?> <?= e($p['currency']) ?></td><td class="r"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td></tr>
     <?php endforeach; ?>
-    <tr><td>Change given</td><td class="r">-<?= usd($sales['change_usd'] ?? 0) ?> / -<?= lbp($sales['change_lbp'] ?? 0) ?></td></tr>
+    <tr><td>Change given</td><td class="r"><?= $minus($sales['change_usd'] ?? 0, usd($sales['change_usd'] ?? 0)) ?> / <?= $minus($sales['change_lbp'] ?? 0, lbp($sales['change_lbp'] ?? 0)) ?></td></tr>
   </table>
   <div class="rule"></div>
   <table>

@@ -1,5 +1,5 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <p class="text-muted m-0"><?= count($users) ?> user(s)</p>
+<div class="toolbar">
+  <p class="toolbar-note"><i class="bi bi-people"></i><?= count($users) ?> user(s)</p>
   <a class="btn btn-primary" href="<?= url('users/create') ?>"><i class="bi bi-person-plus"></i> Add user</a>
 </div>
 <div class="card"><div class="table-responsive">
@@ -13,7 +13,7 @@
         <td><?= e($u['role_name']) ?></td>
         <td><?= $u['pin_hash'] ? '<span class="badge text-bg-info">Set</span>' : '<span class="text-muted">—</span>' ?></td>
         <td><?= (int) $u['is_active'] ? '<span class="badge text-bg-success">Active</span>' : '<span class="badge text-bg-secondary">Inactive</span>' ?></td>
-        <td><?= $u['last_login_at'] ? e(date('d/m/Y H:i', strtotime((string) $u['last_login_at']))) : '—' ?></td>
+        <td class="text-nowrap"><?= $u['last_login_at'] ? e(date('d/m/Y H:i', strtotime((string) $u['last_login_at']))) : '—' ?></td>
         <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('users/edit', ['id' => $u['id']]) ?>">Edit</a></td>
       </tr>
     <?php endforeach; ?>

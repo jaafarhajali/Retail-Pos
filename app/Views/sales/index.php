@@ -8,20 +8,20 @@
   <?php endif; ?>
   <button class="btn btn-outline-primary" type="submit">Filter</button>
 </form>
-<?php if (!$all): ?><p class="text-muted">Showing the sales of your open session.</p><?php endif; ?>
+<?php if (!$all): ?><p class="toolbar-note mb-3"><i class="bi bi-info-circle"></i>Showing the sales of your open session.</p><?php endif; ?>
 <div class="card"><div class="table-responsive">
   <table class="table table-hover align-middle">
     <thead><tr><th>Invoice</th><th>When</th><th>Cashier</th><th>Customer</th><th>Level</th><th class="text-end">Total</th><th>Status</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($pg['rows'] as $s): ?>
       <tr class="<?= $s['status'] === 'voided' ? 'table-secondary' : '' ?>">
-        <td><code><?= e($s['invoice_no']) ?></code></td><td class="text-nowrap"><?= e(date('d/m/Y H:i', strtotime($s['created_at']))) ?></td><td><?= e($s['username']) ?></td>
-        <td dir="auto"><?= e($s['customer_name'] ?? 'Walk-in') ?></td><td><?= e($s['price_level']) ?></td><td class="text-end"><?= usd($s['total_usd']) ?></td>
+        <td class="text-nowrap"><code><?= e($s['invoice_no']) ?></code></td><td class="text-nowrap"><?= e(date('d/m/Y H:i', strtotime($s['created_at']))) ?></td><td><?= e($s['username']) ?></td>
+        <td dir="auto" class="<?= $s['customer_name'] === null ? 'is-walkin' : '' ?>"><?= e($s['customer_name'] ?? 'Walk-in') ?></td><td><?= $s['price_level'] === 'wholesale' ? '<span class="badge text-bg-info">Wholesale</span>' : 'Retail' ?></td><td class="text-end"><?= usd($s['total_usd']) ?></td>
         <td><?= $s['status'] === 'voided' ? '<span class="badge text-bg-danger">voided</span>' : '' ?></td>
         <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('sales/view', ['id' => $s['id']]) ?>">Open</a></td>
       </tr>
     <?php endforeach; ?>
-    <?php if ($pg['rows'] === []): ?><tr><td colspan="8" class="empty">No sales match.</td></tr><?php endif; ?>
+    <?php if ($pg['rows'] === []): ?><tr><td colspan="8" class="empty">No sales match these filters.</td></tr><?php endif; ?>
     </tbody>
   </table>
 </div></div>

@@ -1,5 +1,5 @@
 <?php $tot = 0.0; ?>
-<h2 class="h6 text-muted">Returns <?= e($from) ?> → <?= e($to) ?></h2>
+<h2 class="h6 text-muted">Returns <?= e(date('d/m/Y', strtotime($from))) ?> – <?= e(date('d/m/Y', strtotime($to))) ?></h2>
 <div class="card"><div class="table-responsive"><table class="table table-sm">
   <thead><tr><th>No</th><th>Invoice</th><th>When</th><th>By</th><th>Customer</th><th>Reason</th><th class="text-end">Refund</th></tr></thead>
   <tbody><?php foreach ($rows as $r): $tot += (float) $r['total_usd']; ?>

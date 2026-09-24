@@ -44,8 +44,9 @@ $shopName = (string) setting('shop_name', APP_NAME);
   <div class="app-brand">
     <span class="app-brand-mark" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($shopName, 0, 1))) ?></span>
     <span class="app-brand-name" dir="auto"><?= e($shopName) ?></span>
-    <button class="app-menu-btn" type="button" data-nav-toggle aria-expanded="false"><i class="bi bi-list"></i> Menu</button>
+    <?php if (empty($navLocked)): ?><button class="app-menu-btn" type="button" data-nav-toggle aria-expanded="false"><i class="bi bi-list"></i> Menu</button><?php endif; ?>
   </div>
+  <?php if (empty($navLocked)): ?>
   <div class="app-navs">
     <?php foreach ($navGroups as [$groupLabel, $folded, $groupItems]): ?>
       <?php
@@ -66,4 +67,5 @@ $shopName = (string) setting('shop_name', APP_NAME);
       <?php if ($folded): ?></details><?php endif; ?>
     <?php endforeach; ?>
   </div>
+  <?php endif; ?>
 </nav>
