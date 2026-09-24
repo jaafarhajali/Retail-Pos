@@ -1,7 +1,7 @@
 <div class="card" style="max-width: 760px"><div class="card-body">
   <?php if ($force): ?><div class="alert alert-warning">Closing <?= e($session['username']) ?>'s session as administrator. Count the drawer yourself.</div>
   <?php else: ?><p>Count the cash in the drawer <strong>before</strong> you see the expected amount. Enter how many of each note.</p><?php endif; ?>
-  <form method="post" action="<?= url('sessions/close') ?>">
+  <form method="post" action="<?= url('sessions/close') ?>" data-confirm="Close the session with these counts? Differences are recorded and cannot be edited.">
     <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $session['id'] ?>">
     <div class="row g-4">
       <?php foreach (['USD' => 'usd', 'LBP' => 'lbp'] as $cur => $field): ?>
@@ -15,7 +15,7 @@
         </div>
       <?php endforeach; ?>
     </div>
-    <button class="btn btn-primary btn-lg" type="submit" data-confirm="Close the session with these counts? Differences are recorded and cannot be edited.">Close session and print Z</button>
+    <button class="btn btn-primary btn-lg" type="submit">Close session and print Z</button>
     <a class="btn btn-link" href="<?= url('sessions/view', ['id' => $session['id']]) ?>">Cancel</a>
   </form>
 </div></div>
