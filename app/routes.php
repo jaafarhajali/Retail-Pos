@@ -53,6 +53,7 @@ return [
     ['POST', 'registers/store',      [RegisterController::class, 'store'],      'register.manage'],
     ['POST', 'registers/bind',       [RegisterController::class, 'bind'],       'register.manage'],
     ['POST', 'registers/deactivate', [RegisterController::class, 'deactivate'], 'register.manage'],
+    ['POST', 'registers/link',       [RegisterController::class, 'linkHere'],   'pos.use'],
     ['GET',  'settings',      [SettingController::class, 'index'],      'settings.manage'],
     ['POST', 'settings/save', [SettingController::class, 'save'],       'settings.manage'],
     ['GET',  'rates',         [ExchangeRateController::class, 'index'], 'rate.manage'],

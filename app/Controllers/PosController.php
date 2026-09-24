@@ -32,7 +32,8 @@ final class PosController extends Controller
         $session = $register === null ? null : (new CashSession())->openForRegister((int) $register['id']);
         $mine = (new CashSession())->openForUser(Auth::id());
         if ($register === null || $session === null || $mine === null || (int) $mine['id'] !== (int) $session['id']) {
-            $this->render('pos/blocked', ['register' => $register, 'session' => $session, 'mine' => $mine], 'Till');
+            $active = array_values(array_filter((new \App\Models\Register())->all(), static fn (array $r): bool => (int) $r['is_active'] === 1));
+            $this->render('pos/blocked', ['register' => $register, 'session' => $session, 'mine' => $mine, 'registers' => $active], 'Till');
 
             return;
         }
