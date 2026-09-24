@@ -1,0 +1,6 @@
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/backups/*
+!/storage/backups/.gitkeep
+/config/app.ini
+*.log
