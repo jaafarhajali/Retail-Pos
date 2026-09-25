@@ -19,7 +19,8 @@
 <main class="p-3 print-sheet">
   <?php if (!empty($printing)): ?>
     <header class="print-head">
-      <div><div class="shop" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?></div><div class="title"><?= e($pageTitle ?? '') ?></div></div>
+      <?php if (($logo = logo_url()) !== null): ?><img class="print-logo" src="<?= e($logo) ?>" alt=""><?php endif; ?>
+      <div class="print-head-text"><div class="shop" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?></div><div class="title"><?= e($pageTitle ?? '') ?></div></div>
       <div class="meta">Printed <?= e(date('d/m/Y H:i')) ?></div>
     </header>
   <?php endif; ?>

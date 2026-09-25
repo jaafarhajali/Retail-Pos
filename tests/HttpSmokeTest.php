@@ -89,4 +89,23 @@ return [
         assert_false(is_file(UPLOADS_PATH . '/' . $file));
         assert_not_contains('class="app-brand-logo"', (new HttpClient())->get('auth/login')->body);
     },
+    'an SVG logo is kept as vector and served as SVG; an SVG with a script is refused' => function (): void {
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $svg = '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="600pt" height="614pt" viewBox="0 0 600 614"><path d="M0 0h600v614H0z"/></svg>';
+        assert_same(302, $client->postMultipart('settings/logo', [], ['logo' => ['crest.svg', $svg, 'image/svg+xml']])->status);
+        $file = (string) Database::pdo()->query("SELECT setting_value FROM settings WHERE setting_key = 'shop_logo'")->fetchColumn();
+        assert_true((bool) preg_match('/^logo-[a-f0-9]{8}\.svg$/', $file), "svg file name: $file");
+        assert_same($svg, file_get_contents(UPLOADS_PATH . '/' . $file), 'stored unchanged');
+        $served = get_headers(dirname(TestServer::url()) . '/' . UPLOADS_URL . '/' . $file, true);
+        assert_true(is_array($served) && str_contains((string) $served[0], '200'), 'the logo file is served');
+        assert_contains('image/svg+xml', (string) ($served['Content-Type'] ?? ''));
+        assert_contains($file, (new HttpClient())->get('auth/login')->body);
+        assert_contains('class="print-logo"', $client->get('reports', ['type' => 'sales', 'print' => '1'])->body);
+
+        $evil = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><path d="M0 0h1v1z"/></svg>';
+        assert_same(302, $client->postMultipart('settings/logo', [], ['logo' => ['evil.svg', $evil, 'image/svg+xml']])->status);
+        assert_contains('scripts, links or embedded files', $client->get('settings')->body);
+        assert_same($file, (string) Database::pdo()->query("SELECT setting_value FROM settings WHERE setting_key = 'shop_logo'")->fetchColumn(), 'the good logo stays');
+        assert_same(302, $client->post('settings/logo-delete', [])->status);
+    },
 ];

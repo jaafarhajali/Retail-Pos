@@ -61,7 +61,7 @@ function asset(string $path): string
 function logo_url(): ?string
 {
     $file = \App\Core\Settings::get('shop_logo');
-    if ($file === '' || !preg_match('/^logo-[a-f0-9]{8}\.png$/', $file) || !is_file(UPLOADS_PATH . '/' . $file)) {
+    if ($file === '' || !preg_match('/^logo-[a-f0-9]{8}\.(png|svg)$/', $file) || !is_file(UPLOADS_PATH . '/' . $file)) {
         return null;
     }
 

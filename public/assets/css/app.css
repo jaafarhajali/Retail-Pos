@@ -379,6 +379,8 @@ body > .error-wrap .blocked { width: 100%; }
 .print-bar { position: sticky; top: 0; z-index: 5; }
 /* What a printed report says at the top: whose shop, which report, when it was printed. */
 .print-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; padding-bottom: .6rem; margin-bottom: 1rem; border-bottom: 2px solid var(--ink); }
+.print-head .print-logo { display: block; height: 15mm; width: auto; max-width: 60mm; object-fit: contain; align-self: center; }
+.print-head .print-head-text { flex: 1; min-width: 0; }
 .print-head .shop { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; line-height: 1.2; }
 .print-head .title { font-weight: 600; color: var(--ink-2); }
 .print-head .meta { color: var(--ink-2); font-size: .85rem; text-align: right; white-space: nowrap; }
@@ -404,7 +406,7 @@ body > .error-wrap .blocked { width: 100%; }
 .receipt td { padding: 1px 0; vertical-align: top; }
 .receipt .rule { border-top: 1px dashed #000; margin: 6px 0; }
 .receipt .big { font-size: 15px; font-weight: 700; }
-.receipt > .c.big:first-child { font-size: 18px; letter-spacing: -.01em; margin-bottom: 2px; }
+.receipt > .c.big:first-child, .receipt > .receipt-logo + .c.big { font-size: 18px; letter-spacing: -.01em; margin-bottom: 2px; }
 .receipt .total td { padding-top: 3px; font-size: 17px; font-weight: 700; }
 .receipt .total-lbp td { font-size: 13px; font-weight: 700; }
 .receipt .muted { font-size: 11px; }
@@ -660,9 +662,13 @@ body > .error-wrap .blocked { width: 100%; }
 
 
 /* Shop logo (Settings → Logo) */
-.logo-preview { width: 240px; min-height: 120px; display: grid; place-items: center; background: #fff; border: 1px solid var(--line, #D3DADE); border-radius: .5rem; padding: .6rem; }
-.logo-preview img { max-width: 100%; max-height: 140px; }
-/* On the deep-blue sidebar and sign-in panel the logo sits on a white plate, so a dark logo on a transparent background still reads. */
-.app-brand-logo { display: block; box-sizing: content-box; max-height: 40px; max-width: 168px; object-fit: contain; padding: .35rem .6rem; background: #fff; border-radius: .5rem; }
-.login-brand .app-brand-logo { max-height: 72px; max-width: 260px; padding: .6rem .9rem; margin: 0 auto .75rem; border-radius: .75rem; }
-.receipt .receipt-logo { display: block; max-width: 48mm; max-height: 22mm; margin: 0 auto 2mm; filter: grayscale(1); }
+.logo-preview { width: 240px; height: 160px; display: grid; place-items: center; background: #fff; border: 1px solid var(--line, #D3DADE); border-radius: .5rem; padding: 6px; }
+.logo-preview img { display: block; width: auto; height: auto; max-width: 226px; max-height: 146px; object-fit: contain; }
+/* On the deep-blue sidebar and sign-in panel the logo sits on a white plate next to the shop name, so a dark logo on a
+   transparent background still reads. Square logos (the usual shop crest) and wide ones both fit: height is fixed, width follows. */
+.app-brand-logo { flex-shrink: 0; display: grid; place-items: center; height: 44px; min-width: 44px; max-width: 140px; padding: 2px; background: #fff; border-radius: 9px; }
+.app-brand-logo img { display: block; height: 40px; width: auto; max-width: 136px; object-fit: contain; }
+.login-brand.has-logo { flex-direction: column; gap: .6rem; text-align: center; }
+.login-brand .app-brand-logo { height: 120px; min-width: 120px; max-width: 300px; padding: 5px; border-radius: 16px; }
+.login-brand .app-brand-logo img { height: 110px; max-width: 290px; }
+.receipt .receipt-logo { display: block; max-width: 48mm; max-height: 26mm; margin: 0 auto 2mm; filter: grayscale(1); }

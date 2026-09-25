@@ -28,7 +28,7 @@ final class SettingController extends Controller
             if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file((string) $file['tmp_name'])) {
                 throw new \DomainException('The upload failed. Try again.');
             }
-            (new SettingService())->saveLogo((string) $file['tmp_name'], (int) $file['size']);
+            (new SettingService())->saveLogo((string) $file['tmp_name'], (int) $file['size'], (string) ($file['name'] ?? ''));
         } catch (\DomainException $e) {
             $this->failBack('settings', [], ['logo' => $e->getMessage()]);
         }

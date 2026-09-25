@@ -70,21 +70,25 @@ final class SettingService
     public const LOGO_MAX_H = 300;
 
     /**
-     * Shop logo for the sidebar, sign-in page and receipts: PNG (transparency kept), resized
-     * to fit 600×300, saved under public/uploads/. Returns the file name.
+     * Shop logo for the sidebar, sign-in page, receipts and printed reports. An SVG is kept as
+     * vector (crisp on the receipt printer) after a safety check; a raster image is resized to
+     * fit 600×300 and saved as PNG. Files go under public/uploads/. Returns the file name.
      */
-    public function saveLogo(string $tmpPath, int $size): string
+    public function saveLogo(string $tmpPath, int $size, string $originalName = ''): string
     {
-        if (!extension_loaded('gd')) {
-            throw new \DomainException('Image support (GD) is not enabled on this server.');
-        }
         if ($size > 5 * 1024 * 1024 || filesize($tmpPath) > 5 * 1024 * 1024) {
             throw new \DomainException('The logo must be 5 MB or smaller.');
+        }
+        if ($this->looksLikeSvg($tmpPath, $originalName)) {
+            return $this->storeLogoFile($this->cleanSvg((string) file_get_contents($tmpPath)), 'svg', 'vector');
+        }
+        if (!extension_loaded('gd')) {
+            throw new \DomainException('Image support (GD) is not enabled on this server.');
         }
         $info = @getimagesize($tmpPath);
         $mime = is_array($info) ? (string) ($info['mime'] ?? '') : '';
         if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true)) {
-            throw new \DomainException('Choose a JPG, PNG, WEBP or GIF image.');
+            throw new \DomainException('Choose an SVG, PNG, JPG, WEBP or GIF image.');
         }
         if ((int) $info[0] * (int) $info[1] > 30_000_000) {
             throw new \DomainException('The image is too large (over 30 megapixels). Resize it first.');
@@ -96,7 +100,7 @@ final class SettingService
             default      => @imagecreatefromgif($tmpPath),
         };
         if ($source === false) {
-            throw new \DomainException('Choose a JPG, PNG, WEBP or GIF image.');
+            throw new \DomainException('Choose an SVG, PNG, JPG, WEBP or GIF image.');
         }
         $w = imagesx($source);
         $h = imagesy($source);
@@ -108,25 +112,70 @@ final class SettingService
         imagesavealpha($target, true);
         imagefill($target, 0, 0, imagecolorallocatealpha($target, 255, 255, 255, 127));
         imagecopyresampled($target, $source, 0, 0, 0, 0, $tw, $th, $w, $h);
+        ob_start();
+        $written = imagepng($target, null, 6);
+        $png = (string) ob_get_clean();
+        if (!$written || $png === '') {
+            throw new \RuntimeException('Could not save the logo.');
+        }
+
+        return $this->storeLogoFile($png, 'png', "{$tw}x{$th}");
+    }
+
+    private function storeLogoFile(string $bytes, string $ext, string $sizeNote): string
+    {
         if (!is_dir(UPLOADS_PATH) && !mkdir(UPLOADS_PATH, 0777, true) && !is_dir(UPLOADS_PATH)) {
             throw new \RuntimeException('Cannot create the uploads folder.');
         }
-        $file = 'logo-' . bin2hex(random_bytes(4)) . '.png';
-        if (!imagepng($target, UPLOADS_PATH . '/' . $file, 6)) {
+        $file = 'logo-' . bin2hex(random_bytes(4)) . '.' . $ext;
+        if (file_put_contents(UPLOADS_PATH . '/' . $file, $bytes) === false) {
             throw new \RuntimeException('Could not save the logo.');
         }
         $this->removeLogo(false);
         (new Setting())->setMany(['shop_logo' => $file]);
         Settings::flush();
-        Audit::log('settings.logo_set', 'settings', null, ['file' => $file, 'size' => "{$tw}x{$th}"]);
+        Audit::log('settings.logo_set', 'settings', null, ['file' => $file, 'size' => $sizeNote]);
 
         return $file;
+    }
+
+    private function looksLikeSvg(string $path, string $originalName): bool
+    {
+        if (strtolower(pathinfo($originalName, PATHINFO_EXTENSION)) === 'svg') {
+            return true;
+        }
+        $head = ltrim((string) file_get_contents($path, false, null, 0, 1024), "\xEF\xBB\xBF \t\r\n");
+
+        return str_starts_with($head, '<?xml') || str_starts_with($head, '<svg') || str_starts_with($head, '<!DOCTYPE svg');
+    }
+
+    /**
+     * The SVG is shown through <img> (which never runs scripts) but it is still checked: only plain
+     * drawing content is accepted, nothing that scripts, loads other files or expands entities.
+     */
+    private function cleanSvg(string $svg): string
+    {
+        if (strlen($svg) > 1024 * 1024) {
+            throw new \DomainException('The SVG logo must be 1 MB or smaller.');
+        }
+        if (!preg_match('/<svg[\s>]/i', $svg) || !preg_match('/<\/svg>\s*$/i', $svg)) {
+            throw new \DomainException('This is not a valid SVG file.');
+        }
+        $forbidden = ['/<script/i', '/<!ENTITY/i', '/<foreignObject/i', '/<iframe/i', '/<embed/i', '/<object/i', '/<image/i', '/<use\b/i',
+                      '/\son[a-z]+\s*=/i', '/javascript:/i', '/(?:xlink:)?href\s*=\s*["\'](?!#)/i', '/@import/i', '/url\s*\(\s*["\']?\s*(?:https?:|data:)/i'];
+        foreach ($forbidden as $pattern) {
+            if (preg_match($pattern, $svg)) {
+                throw new \DomainException('The SVG contains scripts, links or embedded files. Export it as a plain drawing (paths only).');
+            }
+        }
+
+        return $svg;
     }
 
     public function removeLogo(bool $audit = true): void
     {
         $current = Settings::get('shop_logo');
-        if ($current !== '' && preg_match('/^logo-[a-f0-9]{8}\.png$/', $current) && is_file(UPLOADS_PATH . '/' . $current)) {
+        if ($current !== '' && preg_match('/^logo-[a-f0-9]{8}\.(png|svg)$/', $current) && is_file(UPLOADS_PATH . '/' . $current)) {
             unlink(UPLOADS_PATH . '/' . $current);
         }
         if ($current !== '') {
