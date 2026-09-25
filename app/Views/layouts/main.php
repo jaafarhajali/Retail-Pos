@@ -18,7 +18,7 @@ $navLocked = (int) ($authUser['must_change_password'] ?? 0) === 1;
   <title><?= e($pageTitle ?? APP_NAME) ?> · <?= e(setting('shop_name', APP_NAME)) ?></title>
   <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="<?= e(asset('assets/css/app.css')) ?>">
 </head>
 <body>
 <div class="app">
@@ -61,7 +61,7 @@ $navLocked = (int) ($authUser['must_change_password'] ?? 0) === 1;
   </main>
 </div>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="<?= e(asset('assets/js/app.js')) ?>"></script>
 </body>
 </html>
 <?php clear_form_stash(); ?>

@@ -6,7 +6,7 @@
   <title>Till · <?= e(setting('shop_name', APP_NAME)) ?></title>
   <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="<?= e(asset('assets/css/app.css')) ?>">
 </head>
 <body class="pos-body">
 <div class="pos-msg" id="msg" role="status" aria-live="polite"></div>
@@ -152,6 +152,6 @@ window.POS = {
 };
 </script>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="assets/js/pos.js"></script>
+<script src="<?= e(asset('assets/js/pos.js')) ?>"></script>
 </body>
 </html>

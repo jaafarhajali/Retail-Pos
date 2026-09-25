@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= e($pageTitle ?? APP_NAME) ?></title>
-  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="<?= e(asset('assets/css/app.css')) ?>">
   <style>@page { margin: 2mm; }</style>
 </head>
 <body class="receipt-page">

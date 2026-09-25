@@ -662,6 +662,7 @@ body > .error-wrap .blocked { width: 100%; }
 /* Shop logo (Settings → Logo) */
 .logo-preview { width: 240px; min-height: 120px; display: grid; place-items: center; background: #fff; border: 1px solid var(--line, #D3DADE); border-radius: .5rem; padding: .6rem; }
 .logo-preview img { max-width: 100%; max-height: 140px; }
-.app-brand-logo { display: block; max-height: 44px; max-width: 180px; object-fit: contain; }
-.login-brand .app-brand-logo { max-height: 72px; max-width: 260px; margin: 0 auto .5rem; }
+/* On the deep-blue sidebar and sign-in panel the logo sits on a white plate, so a dark logo on a transparent background still reads. */
+.app-brand-logo { display: block; box-sizing: content-box; max-height: 40px; max-width: 168px; object-fit: contain; padding: .35rem .6rem; background: #fff; border-radius: .5rem; }
+.login-brand .app-brand-logo { max-height: 72px; max-width: 260px; padding: .6rem .9rem; margin: 0 auto .75rem; border-radius: .75rem; }
 .receipt .receipt-logo { display: block; max-width: 48mm; max-height: 22mm; margin: 0 auto 2mm; filter: grayscale(1); }

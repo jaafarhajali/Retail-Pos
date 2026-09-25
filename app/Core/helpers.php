@@ -49,6 +49,14 @@ function lbp(float|int|string|null $amount): string
     return number_format((float) ($amount ?? 0), 0) . ' LBP';
 }
 
+/** Our own CSS/JS with a ?v= cache-buster, so browsers on the terminals pick up every update. */
+function asset(string $path): string
+{
+    $file = BASE_PATH . '/public/' . $path;
+
+    return $path . '?v=' . (is_file($file) ? (string) filemtime($file) : '0');
+}
+
 /** The shop logo's URL (relative to public/), or null when none is set. */
 function logo_url(): ?string
 {
