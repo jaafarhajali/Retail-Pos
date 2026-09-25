@@ -668,9 +668,10 @@ body > .error-wrap .blocked { width: 100%; }
 .logo-preview .text-muted { padding: 1rem 1.25rem; }
 /* On the deep-blue sidebar and sign-in panel the logo sits on a white plate next to the shop name, so a dark logo on a
    transparent background still reads. Square logos (the usual shop crest) and wide ones both fit: height is fixed, width follows. */
-.app-brand-logo { flex-shrink: 0; display: grid; place-items: center; height: 44px; min-width: 44px; max-width: 140px; padding: 0; overflow: hidden; background: #fff; border-radius: 9px; }
-.app-brand-logo img { display: block; height: 44px; width: auto; max-width: 140px; object-fit: contain; }
+/* The plate is nothing but the image with a white background and rounded corners: no fixed size, so it can never be larger than the picture. */
+.app-brand-logo { flex-shrink: 0; display: inline-block; line-height: 0; font-size: 0; padding: 0; margin: 0; overflow: hidden; background: #fff; border-radius: 9px; }
+.app-brand-logo img { display: block; height: 44px; width: auto; max-width: 140px; margin: 0; }
 .login-brand.has-logo { flex-direction: column; gap: .6rem; text-align: center; }
-.login-brand .app-brand-logo { height: 120px; min-width: 120px; max-width: 300px; border-radius: 16px; }
+.login-brand .app-brand-logo { border-radius: 16px; }
 .login-brand .app-brand-logo img { height: 120px; max-width: 300px; }
 .receipt .receipt-logo { display: block; max-width: 48mm; max-height: 26mm; margin: 0 auto 2mm; filter: grayscale(1); }
