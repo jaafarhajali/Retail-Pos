@@ -49,6 +49,17 @@ function lbp(float|int|string|null $amount): string
     return number_format((float) ($amount ?? 0), 0) . ' LBP';
 }
 
+/** The shop logo's URL (relative to public/), or null when none is set. */
+function logo_url(): ?string
+{
+    $file = \App\Core\Settings::get('shop_logo');
+    if ($file === '' || !preg_match('/^logo-[a-f0-9]{8}\.png$/', $file) || !is_file(UPLOADS_PATH . '/' . $file)) {
+        return null;
+    }
+
+    return UPLOADS_URL . '/' . $file;
+}
+
 function csrf_field(): string
 {
     return \App\Core\Csrf::field();

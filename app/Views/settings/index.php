@@ -64,3 +64,26 @@ $step = is_string($stashedStep) ? $stashedStep : (string) ($values['lbp_rounding
     <button class="btn btn-primary" type="submit">Save settings</button>
   </div>
 </form>
+
+<?php $logo = logo_url(); ?>
+<div class="card mt-3" style="max-width: 820px"><div class="card-body">
+  <h2 class="h5">Logo</h2>
+  <p class="text-muted small mb-3">Shown on the menu, the sign-in page and at the top of receipts and X/Z printouts. Use a simple dark logo on a transparent or white background; it prints in black on the receipt printer.</p>
+  <div class="d-flex gap-4 align-items-start flex-wrap">
+    <div class="logo-preview"><?php if ($logo !== null): ?><img src="<?= e($logo) ?>" alt="Shop logo"><?php else: ?><span class="text-muted">No logo yet</span><?php endif; ?></div>
+    <div class="flex-fill" style="min-width: 260px">
+      <form method="post" action="<?= url('settings/logo') ?>" enctype="multipart/form-data" class="mb-2">
+        <?= csrf_field() ?>
+        <input class="form-control mb-2" type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif" required>
+        <button class="btn btn-outline-primary" type="submit">Upload logo</button>
+        <div class="form-text">PNG, JPG or WEBP up to 5 MB; resized to fit 600 × 300 px.</div>
+      </form>
+      <?php if ($logo !== null): ?>
+        <form method="post" action="<?= url('settings/logo-delete') ?>" data-confirm="Remove the logo?">
+          <?= csrf_field() ?>
+          <button class="btn btn-sm btn-outline-danger" type="submit">Remove logo</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </div>
+</div></div>

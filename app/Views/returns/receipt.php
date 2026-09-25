@@ -1,5 +1,6 @@
 <?php $r = $return; ?>
 <div class="receipt <?= e($width) ?>">
+  <?php if (($logo = logo_url()) !== null): ?><img class="receipt-logo" src="<?= e($logo) ?>" alt=""><?php endif; ?>
   <div class="c big" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?></div>
   <div class="c big">RETURN <?= e($r['return_no']) ?></div>
   <div class="c">Invoice <?= e($r['invoice_no']) ?> · <?= e(date('d/m/Y H:i', strtotime($r['created_at']))) ?></div>

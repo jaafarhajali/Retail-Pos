@@ -63,4 +63,30 @@ return [
         assert_same(200, $client->get('sessions/close', ['id' => $sessionId])->status);
         assert_same(200, $client->get('returns', ['invoice' => 'INV-000001'])->status);
     },
+    'the shop logo uploads, shows on the sign-in page and receipts, and can be removed' => function (): void {
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $img = imagecreatetruecolor(1200, 300);
+        imagefill($img, 0, 0, imagecolorallocate($img, 20, 40, 90));
+        ob_start();
+        imagepng($img);
+        $bytes = (string) ob_get_clean();
+        $response = $client->postMultipart('settings/logo', [], ['logo' => ['logo.png', $bytes, 'image/png']]);
+        assert_same(302, $response->status);
+        $file = (string) Database::pdo()->query("SELECT setting_value FROM settings WHERE setting_key = 'shop_logo'")->fetchColumn();
+        assert_true((bool) preg_match('/^logo-[a-f0-9]{8}\.png$/', $file), "logo file name: $file");
+        assert_true(is_file(UPLOADS_PATH . '/' . $file));
+        [$w, $h] = getimagesize(UPLOADS_PATH . '/' . $file);
+        assert_same([600, 150], [$w, $h], 'resized to fit 600 wide');
+        assert_contains('class="app-brand-logo"', (new HttpClient())->get('auth/login')->body);
+        assert_contains('Remove logo', $client->get('settings')->body);
+
+        $bad = $client->postMultipart('settings/logo', [], ['logo' => ['x.txt', 'not an image', 'text/plain']]);
+        assert_same(302, $bad->status);
+        assert_true(is_file(UPLOADS_PATH . '/' . $file), 'a refused upload keeps the old logo');
+
+        assert_same(302, $client->post('settings/logo-delete', [])->status);
+        clearstatcache();
+        assert_false(is_file(UPLOADS_PATH . '/' . $file));
+        assert_not_contains('class="app-brand-logo"', (new HttpClient())->get('auth/login')->body);
+    },
 ];

@@ -658,3 +658,10 @@ body > .error-wrap .blocked { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } .tile:active { transform: none; } }
 
+
+/* Shop logo (Settings → Logo) */
+.logo-preview { width: 240px; min-height: 120px; display: grid; place-items: center; background: #fff; border: 1px solid var(--line, #D3DADE); border-radius: .5rem; padding: .6rem; }
+.logo-preview img { max-width: 100%; max-height: 140px; }
+.app-brand-logo { display: block; max-height: 44px; max-width: 180px; object-fit: contain; }
+.login-brand .app-brand-logo { max-height: 72px; max-width: 260px; margin: 0 auto .5rem; }
+.receipt .receipt-logo { display: block; max-width: 48mm; max-height: 22mm; margin: 0 auto 2mm; filter: grayscale(1); }

@@ -1,5 +1,6 @@
 <?php $s = $sale; ?>
 <div class="receipt <?= e($width) ?>">
+  <?php if (($logo = logo_url()) !== null): ?><img class="receipt-logo" src="<?= e($logo) ?>" alt=""><?php endif; ?>
   <div class="c big" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?></div>
   <?php if (setting('shop_address') !== ''): ?><div class="c" dir="auto"><?= e(setting('shop_address')) ?></div><?php endif; ?>
   <?php if (setting('shop_phone') !== ''): ?><div class="c"><?= e(setting('shop_phone')) ?></div><?php endif; ?>

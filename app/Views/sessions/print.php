@@ -3,6 +3,7 @@ $s = $session; $isZ = $s['status'] !== 'open';
 $minus = static fn ($amount, string $shown): string => (float) $amount != 0 ? '-' . $shown : $shown;   // no "-$0.00" on paper
 ?>
 <div class="receipt <?= e($width) ?>">
+  <?php if (($logo = logo_url()) !== null): ?><img class="receipt-logo" src="<?= e($logo) ?>" alt=""><?php endif; ?>
   <div class="c big" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?></div>
   <div class="c big"><?= $isZ ? 'Z REPORT ' . e($s['z_no']) : 'X REPORT' ?></div>
   <div class="c">Session <?= e($s['session_no']) ?> · <?= e($s['register_name']) ?></div>

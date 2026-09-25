@@ -2,8 +2,9 @@
 <div class="login-wrap">
   <div class="login-panel">
     <div class="login-brand">
+      <?php if (($brandLogo = logo_url()) !== null): ?><img class="app-brand-logo" src="<?= e($brandLogo) ?>" alt="<?= e($shopName) ?>"><?php else: ?>
       <span class="app-brand-mark" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($shopName, 0, 1))) ?></span>
-      <span class="app-brand-name" dir="auto"><?= e($shopName) ?></span>
+      <span class="app-brand-name" dir="auto"><?= e($shopName) ?></span><?php endif; ?>
     </div>
     <div class="card login-card">
       <div class="card-body">
