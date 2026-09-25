@@ -662,8 +662,10 @@ body > .error-wrap .blocked { width: 100%; }
 
 
 /* Shop logo (Settings → Logo) */
-.logo-preview { width: 240px; height: 160px; display: grid; place-items: center; background: #fff; border: 1px solid var(--line, #D3DADE); border-radius: .5rem; padding: 6px; }
-.logo-preview img { display: block; width: auto; height: auto; max-width: 226px; max-height: 146px; object-fit: contain; }
+/* The preview frame wraps the image itself (no fixed box), so what you see is exactly the logo file. */
+.logo-preview { display: inline-grid; place-items: center; min-width: 120px; min-height: 60px; background: #fff; border: 1px solid var(--line, #D3DADE); border-radius: .5rem; overflow: hidden; }
+.logo-preview img { display: block; width: auto; height: auto; max-width: 280px; max-height: 160px; }
+.logo-preview .text-muted { padding: 1rem 1.25rem; }
 /* On the deep-blue sidebar and sign-in panel the logo sits on a white plate next to the shop name, so a dark logo on a
    transparent background still reads. Square logos (the usual shop crest) and wide ones both fit: height is fixed, width follows. */
 .app-brand-logo { flex-shrink: 0; display: grid; place-items: center; height: 44px; min-width: 44px; max-width: 140px; padding: 0; overflow: hidden; background: #fff; border-radius: 9px; }
