@@ -294,6 +294,7 @@ final class ProductController extends Controller
             'units'      => $id > 0 ? (new ProductUnit())->forProduct($id) : [],
             'barcodes'   => $id > 0 ? (new Barcode())->forProduct($id) : [],
             'unitNames'  => ProductService::DEFAULT_UNIT_NAMES,
+            'unitTypes'  => ProductService::UNIT_TYPES,
             'canManage'  => Gate::allows('product.manage'),
             'canPrice'   => Gate::allows('price.manage'),
             'showCost'   => Gate::allows('product.view_cost'),

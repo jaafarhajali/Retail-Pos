@@ -9,6 +9,18 @@ $pid = $isEdit ? (int) $product['id'] : 0;
 $stashedBase = $_SESSION['_old']['base_unit'] ?? null;
 $stashedCategory = $_SESSION['_old']['category_id'] ?? null;
 $baseUnit = $isEdit ? $product['base_unit'] : (is_string($stashedBase) ? $stashedBase : 'piece');
+/** <option>s for the unit-type dropdown. With a base unit given only fitting types are listed; without one (create form) all are, and the page script filters them. */
+$typeOptions = static function (string $selected, ?string $base) use ($unitTypes): string {
+    $html = '';
+    foreach ($unitTypes as $type => $def) {
+        if ($base !== null && !in_array($base, $def['bases'], true)) {
+            continue;
+        }
+        $html .= '<option value="' . e($type) . '" data-bases="' . e(implode(',', $def['bases'])) . '" data-factor="' . e((string) ($def['factor'] ?? '')) . '"' . (strcasecmp($type, $selected) === 0 ? ' selected' : '') . '>' . e($type) . '</option>';
+    }
+
+    return $html;
+};
 $baseLocked = $isEdit && $units !== [];
 $selectedCategory = is_string($stashedCategory) ? (int) $stashedCategory : (int) ($product['category_id'] ?? 0);
 $minStockUnit = null;
@@ -117,12 +129,12 @@ $dis = $readonly ? 'disabled' : '';
     <div class="col-lg-6">
       <div class="card"><div class="card-body">
         <h2 class="h5 mb-1">First unit and prices</h2>
-        <p class="text-muted small">How the product is sold. More units (Box, Carton, kg…), barcodes and a photo can be added after saving.</p>
-        <div class="row g-2 mb-3">
+        <p class="text-muted small">Pick how it is sold. Stock is always counted in the base unit; a container unit says how many base units it holds. Example: base <em>piece</em>, first unit <em>Piece</em> at $2; after saving, add <em>Box</em> of 6 at $11 — the till offers both, and selling one box takes 6 pieces from stock.</p>
+        <div class="row g-2 mb-3" data-unit-picker data-base-source="product-form">
           <div class="col-7"><label class="form-label" for="unit_name">Unit</label>
-            <input class="form-control" form="product-form" id="unit_name" name="unit_name" list="unit-names" dir="auto" maxlength="30" value="<?= old('unit_name', 'Piece') ?>" placeholder="Piece, kg, Box…">
-            <datalist id="unit-names"><?php foreach ($unitNames as $n): ?><option value="<?= e($n) ?>"><?php endforeach; ?></datalist></div>
-          <div class="col-5"><label class="form-label" for="unit_factor">Base units per 1</label><input class="form-control" form="product-form" id="unit_factor" name="unit_factor" inputmode="numeric" value="<?= old('unit_factor', '1') ?>" placeholder="1000 for kg"></div>
+            <select class="form-select" form="product-form" id="unit_name" name="unit_name" data-unit-type><?= $typeOptions((string) old('unit_name', 'Piece'), null) ?></select></div>
+          <div class="col-5"><label class="form-label" for="unit_factor" data-unit-factor-label>Base units in 1</label><input class="form-control" form="product-form" id="unit_factor" name="unit_factor" inputmode="numeric" value="<?= old('unit_factor', '1') ?>" data-unit-factor></div>
+          <div class="col-12 form-text" data-unit-preview></div>
         </div>
         <div class="form-check form-switch mb-3"><input class="form-check-input" form="product-form" type="checkbox" role="switch" id="allows_fraction" name="allows_fraction" value="1" <?= old('allows_fraction') ? 'checked' : '' ?>><label class="form-check-label" for="allows_fraction">Sold in fractions (2.5 kg)</label></div>
         <div class="row g-2 mb-3">
@@ -205,8 +217,9 @@ $dis = $readonly ? 'disabled' : '';
             <tbody>
             <?php foreach ($units as $u): $uid = (int) $u['id']; ?>
               <tr>
-                <td><input class="form-control form-control-sm" form="unit-<?= $uid ?>" name="unit_name" dir="auto" value="<?= e($u['name']) ?>" maxlength="30" required <?= $dis ?>></td>
-                <td><input class="form-control form-control-sm" form="unit-<?= $uid ?>" name="unit_factor" inputmode="numeric" value="<?= (int) $u['factor'] ?>" required <?= $dis ?>></td>
+                <td data-unit-picker data-base="<?= e($baseUnit) ?>"><select class="form-select form-select-sm" form="unit-<?= $uid ?>" name="unit_name" data-unit-type title="<?= e($u['name']) ?>" <?= $dis ?>><?= $typeOptions(\App\Services\ProductService::unitType($u['name']), $baseUnit) ?></select>
+                  <input class="form-control form-control-sm mt-1" form="unit-<?= $uid ?>" name="unit_factor" inputmode="numeric" value="<?= (int) $u['factor'] ?>" required data-unit-factor <?= $dis ?>><span class="cell-sub" data-unit-preview></span></td>
+                <td class="text-nowrap"><?= (int) $u['factor'] ?> <?= e($baseUnit) ?></td>
                 <td><input class="form-check-input" form="unit-<?= $uid ?>" type="checkbox" name="allows_fraction" value="1" <?= (int) $u['allows_fraction'] ? 'checked' : '' ?> <?= $dis ?>></td>
                 <td><input class="form-check-input" form="unit-<?= $uid ?>" type="checkbox" name="is_display" value="1" <?= (int) $u['is_display'] ? 'checked' : '' ?> <?= $dis ?>></td>
                 <td><?php if ($canManage): ?><button class="btn btn-sm btn-outline-primary" form="unit-<?= $uid ?>" type="submit">Save unit</button><?php endif; ?></td>
@@ -261,17 +274,17 @@ $dis = $readonly ? 'disabled' : '';
           </form>
         <?php endforeach; ?>
         <?php if ($canManage): ?>
-          <form method="post" action="<?= url('products/unit-store') ?>" class="add-row">
+          <form method="post" action="<?= url('products/unit-store') ?>" class="add-row" data-unit-picker data-base="<?= e($baseUnit) ?>">
             <?= csrf_field() ?>
             <input type="hidden" name="product_id" value="<?= $pid ?>">
             <div class="add-row-field">
               <label class="form-label" for="new_unit_name">Add unit</label>
-              <input class="form-control" id="new_unit_name" name="unit_name" list="unit-names" dir="auto" maxlength="30" required value="<?= old('unit_name') ?>" placeholder="Piece, Box, kg…">
-              <datalist id="unit-names"><?php foreach ($unitNames as $n): ?><option value="<?= e($n) ?>"><?php endforeach; ?></datalist>
+              <select class="form-select" id="new_unit_name" name="unit_name" data-unit-type><?= $typeOptions((string) old('unit_name', 'Box'), $baseUnit) ?></select>
+              <div class="form-text" data-unit-preview></div>
             </div>
             <div class="add-row-field">
-              <label class="form-label" for="new_unit_factor">Factor (<?= e($baseUnit) ?> per unit)</label>
-              <input class="form-control" id="new_unit_factor" name="unit_factor" inputmode="numeric" required value="<?= old('unit_factor') ?>" placeholder="1000">
+              <label class="form-label" for="new_unit_factor" data-unit-factor-label>How many <?= e($baseUnit) ?> in 1?</label>
+              <input class="form-control" id="new_unit_factor" name="unit_factor" inputmode="numeric" required value="<?= old('unit_factor') ?>" placeholder="6" data-unit-factor>
             </div>
             <div class="add-row-checks">
               <div class="form-check">

@@ -76,7 +76,7 @@ return [
         assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => 'kg', 'unit_factor' => '1000', 'allows_fraction' => '1'])->status);
         $client->get('products/edit', ['id' => $id]);
         assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => 'Box', 'unit_factor' => '20,000', 'is_display' => '1'])->status);
-        $box = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id} AND name = 'Box'")->fetchColumn();
+        $box = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id} AND name = 'Box 20kg'")->fetchColumn();
         $kg = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id} AND name = 'kg'")->fetchColumn();
 
         $client->get('products/edit', ['id' => $id]);

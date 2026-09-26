@@ -102,30 +102,30 @@ $stock = new StockService();
 $units = new ProductUnit();
 
 /**
- * [name, category, base unit, units => [name, factor, fraction?, retail, wholesale, barcode?], cost per base, opening (qty, unit index), min stock (qty, unit index), override?]
+ * [name, category, base unit, units => [type, factor, fraction?, retail, wholesale, barcode?], cost per base, opening (qty, unit index), min stock (qty, unit index), override?]
  * Prices are USD. Cost is the purchase cost of the FIRST unit listed (the service turns it into a cost per base unit).
  */
 $catalog = [
-    ['Al Fakher Two Apples 250g', 'Tobacco', 'g', [['Pack 250g', 250, false, '9.00', '7.50', '6291100011123'], ['Pack 50g', 50, false, '2.50', '2.00', '6291100011130']], '6.00', ['40', 0], ['10', 0], false],
-    ['Al Fakher Mint 250g', 'Tobacco', 'g', [['Pack 250g', 250, false, '9.00', '7.50', '6291100011147']], '6.00', ['30', 0], ['10', 0], false],
-    ['Al Fakher Grape with Mint 1kg', 'Tobacco', 'g', [['Box 1kg', 1000, false, '32.00', '28.00', '6291100011154'], ['Loose 100g', 100, true, '3.80', '']], '26.00', ['8', 0], ['2', 0], false],
-    ['Adalya Love 66 200g', 'Tobacco', 'g', [['Pack 200g', 200, false, '8.50', '7.00', '8681155019994']], '5.60', ['25', 0], ['8', 0], false],
-    ['Mazaya Two Apples 250g', 'Tobacco', 'g', [['Pack 250g', 250, false, '7.00', '6.00', '6251009003030']], '5.00', ['20', 0], ['6', 0], false],
-    ['Fumari White Gummi Bear 100g', 'Tobacco', 'g', [['Pack 100g', 100, false, '9.50', '8.00', '811742010010']], '6.00', ['12', 0], ['4', 0], false],
-    ['معسل النخلة تفاحتين 250غ', 'Tobacco', 'g', [['Pack 250g', 250, false, '6.50', '5.50', '6281010102022']], '4.50', ['18', 0], ['6', 0], false],
-    ['Coco Nara Coconut Charcoal', 'Charcoal', 'piece', [['Box 72 cubes', 72, false, '12.00', '10.00', '857701003040'], ['Cube', 1, false, '0.25', '']], '7.92', ['15', 0], ['3', 0], false],
-    ['Three Kings Quick-Light 33mm', 'Charcoal', 'piece', [['Roll 10 tabs', 10, false, '1.50', '1.20', '8710222012301'], ['Box 10 rolls', 100, false, '13.00', '11.00']], '0.90', ['30', 1], ['5', 1], false],
+    ['Al Fakher Two Apples 250g', 'Tobacco', 'g', [['Pack', 250, false, '9.00', '7.50', '6291100011123'], ['Pack', 50, false, '2.50', '2.00', '6291100011130']], '6.00', ['40', 0], ['10', 0], false],
+    ['Al Fakher Mint 250g', 'Tobacco', 'g', [['Pack', 250, false, '9.00', '7.50', '6291100011147']], '6.00', ['30', 0], ['10', 0], false],
+    ['Al Fakher Grape with Mint 1kg', 'Tobacco', 'g', [['Box', 1000, false, '32.00', '28.00', '6291100011154'], ['kg', 1000, true, '38.00', '']], '26.00', ['8', 0], ['2', 0], false],
+    ['Adalya Love 66 200g', 'Tobacco', 'g', [['Pack', 200, false, '8.50', '7.00', '8681155019994']], '5.60', ['25', 0], ['8', 0], false],
+    ['Mazaya Two Apples 250g', 'Tobacco', 'g', [['Pack', 250, false, '7.00', '6.00', '6251009003030']], '5.00', ['20', 0], ['6', 0], false],
+    ['Fumari White Gummi Bear 100g', 'Tobacco', 'g', [['Pack', 100, false, '9.50', '8.00', '811742010010']], '6.00', ['12', 0], ['4', 0], false],
+    ['معسل النخلة تفاحتين 250غ', 'Tobacco', 'g', [['Pack', 250, false, '6.50', '5.50', '6281010102022']], '4.50', ['18', 0], ['6', 0], false],
+    ['Coco Nara Coconut Charcoal', 'Charcoal', 'piece', [['Box', 72, false, '12.00', '10.00', '857701003040'], ['Piece', 1, false, '0.25', '']], '7.92', ['15', 0], ['3', 0], false],
+    ['Three Kings Quick-Light 33mm', 'Charcoal', 'piece', [['Roll', 10, false, '1.50', '1.20', '8710222012301'], ['Box', 100, false, '13.00', '11.00']], '0.90', ['30', 1], ['5', 1], false],
     ['Khalil Mamoon Classic Hookah', 'Hookahs', 'piece', [['Piece', 1, false, '120.00', '100.00', 'KM-CLASSIC-01']], '75.00', ['4', 0], ['1', 0], true],
     ['Aladin Evolution Hookah', 'Hookahs', 'piece', [['Piece', 1, false, '95.00', '80.00', 'ALADIN-EVO-01']], '58.00', ['3', 0], ['1', 0], true],
     ['Silicone Hose with Aluminium Handle', 'Hoses & Bowls', 'piece', [['Piece', 1, false, '8.00', '6.50', '6970001112223']], '4.20', ['25', 0], ['5', 0], false],
     ['Clay Bowl (Egyptian)', 'Hoses & Bowls', 'piece', [['Piece', 1, false, '6.00', '4.50', '6970001112230']], '2.50', ['20', 0], ['5', 0], false],
     ['Silicone Phunnel Bowl', 'Hoses & Bowls', 'piece', [['Piece', 1, false, '10.00', '8.00', '6970001112247']], '5.00', ['10', 0], ['3', 0], false],
-    ['Disposable Mouthpieces', 'Accessories', 'piece', [['Pack 100', 100, false, '5.00', '4.00', '6970001112254'], ['Piece', 1, false, '0.10', '']], '3.00', ['30', 0], ['5', 0], false],
+    ['Disposable Mouthpieces', 'Accessories', 'piece', [['Pack', 100, false, '5.00', '4.00', '6970001112254'], ['Piece', 1, false, '0.10', '']], '3.00', ['30', 0], ['5', 0], false],
     ['Aluminium Foil Roll', 'Accessories', 'piece', [['Roll', 1, false, '2.00', '1.50', '6970001112261']], '0.90', ['40', 0], ['10', 0], false],
     ['Hookah Cleaning Brush Set', 'Accessories', 'piece', [['Set', 1, false, '3.50', '2.80', '6970001112278']], '1.60', ['15', 0], ['3', 0], false],
     ['Heat Management Device (Kaloud style)', 'Accessories', 'piece', [['Piece', 1, false, '15.00', '12.00', '6970001112285']], '7.50', ['6', 0], ['2', 0], false],
-    ['Pepsi 330ml', 'Drinks', 'piece', [['Can', 1, false, '1.00', '0.80', '012000001291'], ['Case 24', 24, false, '20.00', '18.00']], '0.55', ['3', 1], ['24', 0], false],
-    ['Water 500ml', 'Drinks', 'piece', [['Bottle', 1, false, '0.50', '0.40', '6281001101017'], ['Pack 12', 12, false, '5.00', '4.20']], '0.25', ['5', 1], ['12', 0], false],
+    ['Pepsi 330ml', 'Drinks', 'piece', [['Can', 1, false, '1.00', '0.80', '012000001291'], ['Case', 24, false, '20.00', '18.00']], '0.55', ['3', 1], ['24', 0], false],
+    ['Water 500ml', 'Drinks', 'piece', [['Bottle', 1, false, '0.50', '0.40', '6281001101017'], ['Pack', 12, false, '5.00', '4.20']], '0.25', ['5', 1], ['12', 0], false],
 ];
 
 $p = [];   // name => ['id' => product id, 'units' => [unit ids]]
@@ -203,8 +203,8 @@ if ($sessionId !== null) {
     $sale([$u('Al Fakher Grape with Mint 1kg') + ['qty' => '2'], $u('Coco Nara Coconut Charcoal') + ['qty' => '3'], $u('Silicone Hose with Aluminium Handle') + ['qty' => '2']],
         [['method' => 'cash', 'currency' => 'USD', 'amount' => '50'], ['method' => 'credit', 'currency' => 'USD', 'amount' => '49']],
         ['customer_id' => $cust['Café Al Rawda'], 'price_level' => 'wholesale']);
-    // 5. Loose tobacco by weight (fraction).
-    $sale([$u('Al Fakher Grape with Mint 1kg', 1) + ['qty' => '2.5']], [['method' => 'cash', 'currency' => 'USD', 'amount' => '10']]);
+    // 5. Loose tobacco by weight: 0.25 kg (fraction).
+    $sale([$u('Al Fakher Grape with Mint 1kg', 1) + ['qty' => '0.25']], [['method' => 'cash', 'currency' => 'USD', 'amount' => '10']]);
 
     (new ExpenseService())->create(['category' => 'Electricity', 'description' => 'Generator subscription', 'currency' => 'USD', 'amount' => '20',
         'expense_date' => date('Y-m-d'), 'paid_from' => 'drawer', 'supplier_id' => 0], $admin);

@@ -26,7 +26,7 @@ return [
         $svc->setCost($id, '200', 20000);
 
         $units = (new ProductUnit())->forProduct($id);
-        assert_same(['kg', 'Box'], array_column($units, 'name'));
+        assert_same(['kg', 'Box 20kg'], array_column($units, 'name'));
         assert_same('15.00', $units[0]['retail_price']);
         assert_same('280.00', $units[1]['retail_price']);
         assert_same('250.00', $units[1]['wholesale_price']);
@@ -35,7 +35,7 @@ return [
         assert_same('0.010000', (new Product())->find($id)['cost_per_base']);
 
         Database::pdo()->exec("UPDATE products SET stock_base = 197500 WHERE id = {$id}");   // Phase 3 owns stock; direct only in tests
-        assert_same('9 Box + 17.5 kg', Quantity::format(197500, $units, 'g'));
+        assert_same('9 Box 20kg + 17.5 kg', Quantity::format(197500, $units, 'g'));
     },
 
     'unit names are unique per product in any case and factors are whole numbers of at least 1' => function (): void {
@@ -62,7 +62,7 @@ return [
         $units = array_column((new ProductUnit())->forProduct($id), null, 'name');
         assert_same(1, (int) $units['Piece']['is_default_sale']);
         assert_same(0, (int) $units['Piece']['is_default_purchase']);
-        assert_same(1, (int) $units['Carton']['is_default_purchase']);
+        assert_same(1, (int) $units['Carton of 24']['is_default_purchase']);
         assert_throws(DomainException::class, fn () => $svc->setDefaultUnit($carton, 'nonsense'));
 
         $svc->deleteUnit($piece);
@@ -75,9 +75,9 @@ return [
         $svc = new ProductService();
         $id = make_product('Charcoal', 'g');
         $unit = $svc->addUnit($id, 'Box', '20000', false, false);
-        $svc->updateUnit($unit, 'Big box', '25000', false, true);
+        $svc->updateUnit($unit, 'Bag', '25000', false, true);
         $row = (new ProductUnit())->find($unit);
-        assert_same('Big box', $row['name']);
+        assert_same('Bag 25kg', $row['name']);
         assert_same(25000, (int) $row['factor']);
         assert_same(1, (int) $row['is_display']);
         assert_same('g', $row['base_unit']);
@@ -96,7 +96,7 @@ return [
         $svc->setPrices($unit, '15,5', '14');
         $audit = Database::pdo()->query("SELECT details FROM audit_log WHERE action = 'product.price_changed' ORDER BY id DESC LIMIT 1")->fetch();
         assert_same(
-            ['unit' => 'Box', 'retail' => ['old' => '1250.00', 'new' => '15.50'], 'wholesale' => ['old' => null, 'new' => '14.00']],
+            ['unit' => 'Box 20kg', 'retail' => ['old' => '1250.00', 'new' => '15.50'], 'wholesale' => ['old' => null, 'new' => '14.00']],
             json_decode((string) $audit['details'], true)
         );
         assert_throws(DomainException::class, fn () => $svc->setPrices($unit, '-5', ''));
@@ -163,7 +163,7 @@ return [
         $svc->addUnit($a, 'Box', '20000', false, true);
         $svc->addUnit($b, 'Piece', '1', false, false);
         $grouped = (new ProductUnit())->forProducts([$a, $b, 999]);
-        assert_same(['kg', 'Box'], array_column($grouped[$a], 'name'));
+        assert_same(['kg', 'Box 20kg'], array_column($grouped[$a], 'name'));
         assert_same(['Piece'], array_column($grouped[$b], 'name'));
         assert_false(isset($grouped[999]));
         assert_same([], (new ProductUnit())->forProducts([]));

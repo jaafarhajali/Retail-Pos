@@ -20,6 +20,55 @@ final class ProductService
     /** Offered in the unit dropdown (owner decision 2026-09-24); any other name may be typed. */
     public const DEFAULT_UNIT_NAMES = ['Piece', 'Pack', 'Box', 'Carton', 'Dozen', 'kg', 'g', 'L', 'ml'];
 
+    /**
+     * The unit types an administrator can pick; there is no free text. Each type lists the base units it fits
+     * and, for the plain measures, its fixed factor. Containers (Pack, Box…) ask how many base units they hold.
+     */
+    public const UNIT_TYPES = [
+        'Piece'  => ['bases' => ['piece'],            'factor' => 1],
+        'Dozen'  => ['bases' => ['piece'],            'factor' => 12],
+        'g'      => ['bases' => ['g'],                'factor' => 1],
+        'kg'     => ['bases' => ['g'],                'factor' => 1000],
+        'ml'     => ['bases' => ['ml'],               'factor' => 1],
+        'L'      => ['bases' => ['ml'],               'factor' => 1000],
+        'Pack'   => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+        'Box'    => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+        'Carton' => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+        'Case'   => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+        'Bag'    => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+        'Roll'   => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+        'Bottle' => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+        'Can'    => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+        'Set'    => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
+    ];
+
+    /** "Box" of 6 pieces → "Box of 6"; "Pack" of 250 g → "Pack 250g"; "Box" of 1000 g → "Box 1kg"; plain measures keep their name. */
+    public static function unitLabel(string $type, int $factor, string $base): string
+    {
+        if ((self::UNIT_TYPES[$type]['factor'] ?? null) !== null || $factor === 1) {
+            return $type;
+        }
+        if ($base === 'piece') {
+            return "{$type} of {$factor}";
+        }
+        $big = $base === 'g' ? 'kg' : 'L';
+
+        return $factor % 1000 === 0 ? "{$type} " . intdiv($factor, 1000) . $big : "{$type} {$factor}{$base}";
+    }
+
+    /** The type a stored unit name was made from ("Pack 250g" → "Pack"), to preselect the dropdown. */
+    public static function unitType(string $name): string
+    {
+        $first = explode(' ', trim($name))[0];
+        foreach (array_keys(self::UNIT_TYPES) as $type) {
+            if (strcasecmp($type, $first) === 0) {
+                return $type;
+            }
+        }
+
+        return $first;
+    }
+
     private Product $products;
     private ProductUnit $units;
     private Barcode $barcodes;
@@ -82,9 +131,11 @@ final class ProductService
     /** The first unit of a product becomes its default sale and purchase unit. */
     public function addUnit(int $productId, string $name, string $factor, bool $allowsFraction, bool $isDisplay): int
     {
-        $this->products->find($productId) ?? throw new \DomainException('Product not found.');
-        $name = $this->cleanUnitName($productId, $name, 0);
-        $factorInt = $this->cleanFactor($factor);
+        $product = $this->products->find($productId) ?? throw new \DomainException('Product not found.');
+        [$name, $factorInt] = $this->resolveUnit($product, $name, $factor);
+        if ($this->units->nameExists($productId, $name, 0)) {
+            throw new \DomainException("This product already has a unit called {$name}.");
+        }
         $first = $this->units->count($productId) === 0;
         $id = $this->units->create($productId, $name, $factorInt, $allowsFraction, $isDisplay);
         if ($first) {
@@ -99,8 +150,11 @@ final class ProductService
     public function updateUnit(int $unitId, string $name, string $factor, bool $allowsFraction, bool $isDisplay): void
     {
         $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
-        $name = $this->cleanUnitName((int) $unit['product_id'], $name, $unitId);
-        $factorInt = $this->cleanFactor($factor);
+        $product = $this->products->find((int) $unit['product_id']) ?? throw new \DomainException('Product not found.');
+        [$name, $factorInt] = $this->resolveUnit($product, $name, $factor);
+        if ($this->units->nameExists((int) $unit['product_id'], $name, $unitId)) {
+            throw new \DomainException("This product already has a unit called {$name}.");
+        }
         if ($factorInt !== (int) $unit['factor'] && (new \App\Models\StockMovement())->hasMovements((int) $unit['product_id'])) {
             throw new \DomainException('The factor is locked because the product already has stock movements. Add a new unit instead.');
         }
@@ -213,17 +267,33 @@ final class ProductService
         Audit::log('product.updated', 'product', $productId, ['min_stock_base' => $base, 'base_unit' => $product['base_unit']]);
     }
 
-    private function cleanUnitName(int $productId, string $name, int $exceptId): string
+    /**
+     * The picked type must be in UNIT_TYPES and fit the product's base unit. Plain measures get their fixed
+     * factor whatever was typed; containers need the number of base units. Returns [unit name, factor].
+     *
+     * @return array{0: string, 1: int}
+     */
+    private function resolveUnit(array $product, string $type, string $factor): array
     {
-        $name = trim($name);
-        if ($name === '' || mb_strlen($name) > 30) {
-            throw new \DomainException('Unit name must be 1–30 characters.');
+        $type = trim($type);
+        $match = null;
+        foreach (array_keys(self::UNIT_TYPES) as $known) {
+            if (strcasecmp($known, $type) === 0) {
+                $match = $known;
+                break;
+            }
         }
-        if ($this->units->nameExists($productId, $name, $exceptId)) {
-            throw new \DomainException("This product already has a unit called {$name}.");
+        if ($match === null) {
+            throw new \DomainException('Choose a unit type from the list (Piece, Pack, Box, kg…).');
         }
+        $def = self::UNIT_TYPES[$match];
+        $base = (string) $product['base_unit'];
+        if (!in_array($base, $def['bases'], true)) {
+            throw new \DomainException("{$match} does not fit a product counted in {$base}.");
+        }
+        $factorInt = $def['factor'] ?? $this->cleanFactor($factor);
 
-        return $name;
+        return [self::unitLabel($match, $factorInt, $base), $factorInt];
     }
 
     /** Base units per 1 of this unit: a whole number from 1 to 999,999,999. */
