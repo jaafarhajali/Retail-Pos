@@ -21,8 +21,30 @@ built, what comes next, and what was decided (and why) during the design convers
 | 7 | Expenses — expenses, cash in/out, supplier payments | **Implemented** 2026-09-24 | — |
 | 8 | Reports — sales, payments, profit, stock, credit, stock table print | **Implemented** 2026-09-24 | — |
 | 9 | Stocktaking — count, differences, adjustments, history | **Implemented** 2026-09-24 | — |
-| 10 | Hardware testing, backups, LAN deployment | Backup page + `bin/backup.php` done; hardware/LAN test is the owner's | — |
+| 10 | Hardware testing, backups, LAN deployment | Backups work and the **restore drill passed** 2026-09-28 (`bin/restore-drill.php`); hardware and LAN tests are the owner's | — |
 
+**Status on 2026-09-28:** every phase is built and covered by 214 automated tests. Phases 2–9 stay
+"Implemented" until the owner has checked them in the browser; only then "Done".
+
+### Open items
+
+| # | What | Whose |
+|---|---|---|
+| 1 | **Restart Apache** so the Backups page sees PHP's zip extension (enabled in `php.ini` on 2026-09-28; the command line already works). | Owner |
+| 2 | Schedule the nightly backup in Windows Task Scheduler and copy the zips off this PC (USB or another machine). | Owner |
+| 3 | Test the receipt printer, cash drawer, barcode scanner and Chrome `--kiosk-printing`. | Owner |
+| 4 | Test a second PC on the LAN as a till. | Owner |
+| 5 | Set the administrator's **approval PIN** (none yet, so no cashier discount can be approved) and change the password `admin123`. | Owner |
+| 6 | Before opening: `config/app.ini` with `env = production` so error pages stop showing technical details. | Owner + Claude |
+| 7 | Click through in a browser: purchases, stocktaking, returns, closing a session (blind count), hold / resume, debt collection. Their rules are tested, their screens were not driven. | Claude |
+| 8 | The two existing "Ahmad Saleh" customers: rename or merge by hand (new duplicates are refused; there is no merge tool). | Owner |
+| 9 | Products created before 2026-09-26 keep their typed unit names until the unit is saved again. | Owner |
+| 10 | At closing, a surplus is shown in red like a shortage. | Claude, when asked |
+| 11 | Cost per gram is shown with 6 decimals (`$0.010000`). | Claude, when asked |
+| 12 | "A lot of settings are missing" (owner, 2026-09-24): which ones was never said. Only the logo was added. | Owner to list |
+
+**Tools:** `php bin/seed-demo.php` fills an empty database with demo data;
+`php bin/restore-drill.php` proves that a backup restores (run it monthly).
 **Workflow for every phase:** Claude asks the phase's "Decide before the plan" questions
 and writes the plan from the spec and the existing code → the owner reviews it →
 implement task by task (tests first, every task ends green and committed) → the owner
@@ -161,3 +183,21 @@ Newest decisions go at the bottom. Never delete an entry; add a new one that ove
 | 2026-09-24 | Units | A unit's **factor locks once the product has stock movements**; add a new unit instead. |
 | 2026-09-24 | Cash closing | **Only the admin closes sessions** (migration 004 removes `session.close_own` from the Cashier role). The cashier signs out; the admin counts the drawer and closes from Cash sessions. The Registers page shows who is using each register. |
 | 2026-09-24 | UI | Redesign: clean light admin (warm neutral palette, one accent, system font stack, roomy cards) and a high-contrast dark touch POS with 56 px targets. |
+| 2026-09-25 | Logo | Settings → Logo: an **SVG** (kept as vector after a safety check) or PNG/JPG/WEBP/GIF (resized to fit 600×300). Shown on the menu, the sign-in page and at the top of **every printout**: receipts, X/Z reports, printed reports. It fills its frame; the shop name stays beside it. The file lives in `public/uploads/`, so it is in the backups. |
+| 2026-09-25 | Assets | The app's own CSS/JS links carry `?v=<file time>`, so the terminals' browsers pick up every update without Ctrl+F5. |
+| 2026-09-25 | Demo data | `bin/seed-demo.php` creates an argile shop to test with (20 products, suppliers, customers, two cashiers, a purchase, an open session with sales). It refuses production and non-empty databases without `--force`. |
+| 2026-09-26 | Units | **No free text.** A unit is picked from a list of types: Piece, Dozen, g, kg, ml, L, Pack, Box, Carton, Case, Bag, Roll, Bottle, Can, Set. Plain measures fix their factor (kg = 1000 g, Dozen = 12); containers ask how many base units they hold. The name is composed: "Box of 6", "Pack 250g", "Box 1kg". Only types that fit the base unit are offered. Two sizes of one type on a product are allowed. |
+| 2026-09-26 | Box and piece | "A box holds 6 pieces, sold by piece or by box" = base unit *piece*, unit Piece (factor 1) and unit Box (factor 6), each with its own price. Stock is kept in pieces; selling a box takes 6. |
+| 2026-09-26 | Process | When the owner asks "how to solve X?" or questions a design, Claude **answers and offers options first** and edits nothing until the owner chooses. A plain instruction is implemented directly. |
+| 2026-09-28 | Approval PIN | **Only administrators have a PIN.** The PIN card does not show for other users and the service refuses one. The till asks for the PIN **as soon as** a cashier enters something restricted, not at the end; without it the discount is not applied. One approval covers the rest of that sale. Wholesale prices, credit and price changes use the same dialog. |
+| 2026-09-28 | Approval PIN field | It is a masked text field with `autocomplete="one-time-code"`, not a password field, so browsers never offer to save or fill it. The eye that shows passwords is not on the PIN. |
+| 2026-09-28 | Discounts | Line and invoice discounts are typed as a **percentage** (default) or in USD, with the other value shown underneath. The pre-filled payment follows the invoice discount. |
+| 2026-09-28 | Below cost | A line that ends under its cost after line discount, invoice discount or a changed price is flagged at the till, on the sale's result and in the audit log (`sale.below_cost`). The till is told yes or no per line, **never the cost**. It **needs the administrator's PIN** for anyone who is not an administrator, whatever the allowed percentage. A list price already under cost only warns, because the cashier lowered nothing. |
+| 2026-09-28 | Navigation | Every page except the dashboard has a small **Back**: a page inside a section goes to the section, a section page with filters goes to the section without them, a plain section page goes to the dashboard. Password fields have an eye. |
+| 2026-09-28 | Registers | A device whose register has an open session **cannot move** to another register. Taking over a register in use from another device stays possible (a broken PC) and says whose shift continues. A register with an open session cannot be deactivated. A deactivated register can be **reactivated**. |
+| 2026-09-28 | Busy register | One register, one open session. While somebody else's session is open, the dashboard says "In use by …". The administrator gets "Count and close S-…"; a cashier is told to ask the administrator and sees no button to a page they may not open. |
+| 2026-09-28 | Customers | A **phone** that another customer has is refused, however it is written (`03 111 222` = `+961 3 111 222`). The same **name** asks for "different person, save anyway". Editing checks only what was changed. |
+| 2026-09-28 | Sales list | Invoices with returns carry a badge: **returned** or **part returned**. Walk-in returns say "Walk-in" in the Returns report. |
+| 2026-09-28 | Profit report (B1) | Fixed: refunds and returned cost are two separate sums. Joined, a return was counted once per item. |
+| 2026-09-28 | LBP typing | LBP amounts show thousands separators while they are typed (`10,000,000`), in the admin pages and at the till. The server reads LBP with or without them. |
+| 2026-09-28 | Backups | PHP's **zip extension must be on** (`extension=zip` in `php.ini`); it was off, so no backup had ever worked. The Backups page and the command now say so. First **restore drill passed** on the owner's data: 35 tables and 666 rows identical, money figures and Arabic names identical, uploaded files identical. `bin/restore-drill.php` repeats it; run it monthly. |

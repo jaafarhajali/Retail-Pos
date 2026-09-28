@@ -31,6 +31,10 @@ scanner and a receipt printer with a cash drawer.
 - A business-rule question that the spec and the decisions log don't answer →
   **ask the owner**, don't guess. Record the answer in the decisions log.
 - Screens get a short screen spec (with a mockup) before their plan, especially the POS screen (Phase 4).
+- **Since 2026-09-24 the owner works by request** (decisions log): v1 was built in one continuous
+  run, and changes now arrive as messages. A plain instruction ("add X", "fix Y") is implemented
+  directly, with tests, and committed. A question ("how to solve X?") gets an answer and
+  options first; nothing is edited until the owner chooses. Every decision goes in the log.
 
 ## Environment
 
@@ -42,6 +46,10 @@ scanner and a receipt printer with a cash drawer.
 - Tests: `/c/xampp/php/php.exe tests/run.php [Filter]`. HTTP tests start their own
   server on port 8190.
 - No Composer, npm or CDN. Vendor assets are local in `public/assets/vendor/`.
+- `C:\xampp\php\php.ini` needs `extension=gd` (product images, logo) and `extension=zip` (backups).
+  Apache reads it only when it starts.
+- `php bin/seed-demo.php` fills an empty database with demo data. `php bin/restore-drill.php`
+  proves a backup restores; it only reads the live database.
 
 ## Rules that must never be broken
 
@@ -71,6 +79,7 @@ scanner and a receipt printer with a cash drawer.
 
 ## Current status
 
-See the phase table in `docs/ROADMAP.md`. As of 2026-09-24: the Phase 1 plan is written and
-approved for review, nothing is implemented yet, and the execution method is not chosen
-(Native recommended).
+See the phase table and the **Open items** in `docs/ROADMAP.md`. As of 2026-09-28: all ten phases
+are built (214 tests); Phase 1 is Done, Phases 2–9 are Implemented and wait for the owner's
+browser check; backups work and a restore drill passed. What remains is mostly the owner's:
+hardware, LAN, the nightly backup task, the administrator's PIN and production mode.
