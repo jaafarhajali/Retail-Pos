@@ -1,6 +1,8 @@
 <?php
 $isEdit = $user !== null;
 $selectedRole = (int) ($_SESSION['_old']['role_id'] ?? $user['role_id'] ?? \App\Models\Role::CASHIER_ID);
+// Only an administrator's PIN approves anything at the till, so only administrators get the PIN card.
+$userIsAdmin = $isEdit && array_filter($roles, static fn (array $r): bool => (int) $r['id'] === (int) $user['role_id'] && (int) $r['is_super'] === 1) !== [];
 ?>
 <div class="row g-3">
   <div class="col-lg-6">
@@ -63,9 +65,10 @@ $selectedRole = (int) ($_SESSION['_old']['role_id'] ?? $user['role_id'] ?? \App\
           <button class="btn btn-outline-primary" type="submit">Reset password</button>
         </form>
       </div></div>
+      <?php if ($userIsAdmin): ?>
       <div class="card"><div class="card-body">
         <h2 class="h5">Approval PIN</h2>
-        <p class="text-muted small">4–6 digits, used to approve restricted actions at the POS (discounts, voids, returns). Save it empty to remove the PIN.</p>
+        <p class="text-muted small">4–6 digits. The administrator types it on a cashier's till to approve a discount, a price change, wholesale prices, a sale on credit or a void. Save it empty to remove the PIN.</p>
         <form method="post" action="<?= url('users/pin') ?>">
           <?= csrf_field() ?>
           <input type="hidden" name="id" value="<?= (int) $user['id'] ?>">
@@ -74,6 +77,7 @@ $selectedRole = (int) ($_SESSION['_old']['role_id'] ?? $user['role_id'] ?? \App\
           <button class="btn btn-outline-primary" type="submit">Save PIN</button>
         </form>
       </div></div>
+      <?php endif; ?>
     </div>
   <?php endif; ?>
 </div>

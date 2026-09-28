@@ -82,8 +82,14 @@ return [
         assert_same(1, (int) $user['must_change_password']);
     },
 
+    'only administrators get an approval PIN' => function (): void {
+        $cashier = make_user('cashier1');
+        assert_throws(DomainException::class, fn () => (new UserService())->setPin($cashier, '4321'));
+        assert_same(null, (new User())->find($cashier)['pin_hash']);
+    },
+
     'a PIN must be 4-6 digits and an empty PIN removes it' => function (): void {
-        $id = make_user('cashier1');
+        $id = make_user('boss', \App\Models\Role::ADMIN_ID);
         foreach (['12', '1234567', '12a4'] as $bad) {
             assert_throws(DomainException::class, fn () => (new UserService())->setPin($id, $bad));
         }

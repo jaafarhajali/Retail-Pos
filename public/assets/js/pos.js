@@ -2,9 +2,11 @@
 (function () {
   'use strict';
   var P = window.POS, data = null, cart = [], selected = -1, level = 'retail', customer = null, tab = 0, filter = '';
+  // Discounts are typed as a percentage (default) or in USD. approvedPin: the administrator's PIN once it was checked for this sale.
+  var discMode = { line: 'pct', pay: 'pct' }, approvedPin = '', pinThen = null, pinCancel = null, pinOk = false, payTotal = 0;
   var $ = function (id) { return document.getElementById(id); };
   var modals = {};
-  ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
+  ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold', 'm-pin'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
 
   function money(n) { n = Math.round(n * 100) / 100; return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function lbp(n) { return Math.round(n).toLocaleString('en-US') + ' LBP'; }
@@ -61,7 +63,7 @@
   }
   function totals() {
     var sub = 0; cart.forEach(function (l) { sub += lineTotals(l).total; });
-    var disc = Math.min(sub, num($('pay-discount').value)); var total = Math.round((sub - disc) * 100) / 100;
+    var disc = discountUsd('pay', sub); var total = Math.round((sub - disc) * 100) / 100;
     return { sub: sub, disc: disc, total: total };
   }
   function renderCart() {
@@ -94,7 +96,9 @@
     $('m-line-title').textContent = t.p.name;
     $('line-qty').value = l.mode === 'qty' ? l.qty : ''; $('line-amount').value = l.mode === 'amount' ? l.amount : ''; $('line-amount-lbp').value = '';
     $('line-price').value = l.price !== null ? l.price : ''; $('line-price').placeholder = money(unitPrice(t.u)); $('line-price').disabled = !t.p.override;
-    $('line-discount').value = l.discount || '';
+    discMode.line = l.dmode || discMode.line; syncModes();
+    $('line-discount').value = l.discount ? (discMode.line === 'pct' ? trimNum(t.gross > 0 ? l.discount / t.gross * 100 : 0) : l.discount) : '';
+    discountHint('line', t.gross);
     modals['m-line'].show(); setTimeout(function () { $('line-qty').focus(); $('line-qty').select(); }, 300);
   }
   $('line-amount-lbp').addEventListener('input', function () { var v = num(this.value); $('line-amount').value = v ? (v / P.rate).toFixed(2) : ''; });
@@ -105,13 +109,99 @@
     if (amount > 0) { l.mode = 'amount'; l.amount = amount; if (!u.fraction) { msg('Selling by amount needs a unit sold in fractions (kg, not Box)', true); return; } }
     else { if (qty <= 0) { msg('Enter a quantity', true); return; } if (!u.fraction && qty % 1 !== 0) { msg(u.name + ' is sold in whole numbers', true); return; } l.mode = 'qty'; l.qty = qty; }
     var pr = $('line-price').value.trim(); l.price = pr === '' || !p.override ? null : num(pr);
-    l.discount = num($('line-discount').value);
-    modals['m-line'].hide(); renderCart();
+    var before = l.discount || 0; l.discount = 0;
+    var d = discountUsd('line', lineTotals(l).gross); l.discount = before;
+    var apply = function () { l.discount = d; l.dmode = discMode.line; renderCart(); };
+    if (d > before + 0.004 && needsApproval(d - before)) {
+      renderCart();
+      swapModal('m-line', function () { askPin('Discount of ' + money(d) + ' on ' + p.name, apply); });
+      return;
+    }
+    modals['m-line'].hide(); apply();
   });
   $('btn-qty').addEventListener('click', openLine);
   $('btn-remove').addEventListener('click', function () { if (selected >= 0) { cart.splice(selected, 1); selected = cart.length - 1; renderCart(); } });
   $('btn-discount').addEventListener('click', function () { if (!cart.length) return; modals['m-pay'].show(); setTimeout(function () { $('pay-discount').focus(); }, 300); });
-  $('pay-discount').addEventListener('input', function () { renderCart(); renderPay(); });
+  // The payment dialog opens with one cash payment for the whole amount; while nobody changed it, it follows the discount.
+  function followTotal() {
+    var p = payments.length === 1 ? payments[0] : null;
+    if (p && p.method === 'cash' && p.currency === 'USD' && Math.abs(num(p.amount) - payTotal) < 0.005) { p.amount = totals().total.toFixed(2); }
+  }
+  $('pay-discount').addEventListener('input', function () { followTotal(); renderCart(); renderPay(); discountHint('pay', subtotal()); });
+  ['line-discount', 'line-qty', 'line-price', 'line-amount', 'line-amount-lbp'].forEach(function (id) { $(id).addEventListener('input', function () { discountHint('line', lineBase()); }); });
+
+  // ---- discounts (percentage or USD) and the administrator's approval
+  function trimNum(n) { return String(Math.round(n * 100) / 100); }
+  function subtotal() { var sub = 0; cart.forEach(function (l) { sub += lineTotals(l).total; }); return sub; }
+  function discountUsd(kind, base) {
+    var v = num($(kind === 'line' ? 'line-discount' : 'pay-discount').value);
+    var usd = discMode[kind] === 'pct' ? Math.round(base * Math.min(v, 100)) / 100 : v;
+    return Math.min(base, Math.max(0, usd));
+  }
+  function discountHint(kind, base) {
+    var usd = discountUsd(kind, base);
+    $(kind + '-discount-hint').textContent = usd > 0 ? (discMode[kind] === 'pct' ? '= ' + money(usd) + ' off' : '= ' + (base > 0 ? (usd / base * 100).toFixed(1) : '0') + ' % off') : '';
+  }
+  // The line being edited, from what the dialog shows now (unit, quantity or amount, price).
+  function lineBase() {
+    var l = cart[selected]; if (!l) return 0;
+    var p = product(l.p), id = parseInt($('line-unit').value, 10), u = p.units.find(function (x) { return x.id === id; }) || p.units[0];
+    var amount = num($('line-amount').value), pr = $('line-price').value.trim(), price = pr !== '' && p.override ? num(pr) : (unitPrice(u) || 0);
+    return amount > 0 ? amount : Math.round(num($('line-qty').value) * price * 100) / 100;
+  }
+  function syncModes() { document.querySelectorAll('.disc-mode button').forEach(function (b) { b.classList.toggle('active', discMode[b.dataset.kind] === b.dataset.mode); }); }
+  document.querySelectorAll('.disc-mode button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var kind = b.dataset.kind, input = $(kind === 'line' ? 'line-discount' : 'pay-discount');
+      if (discMode[kind] === b.dataset.mode) return;
+      var base = kind === 'line' ? lineBase() : subtotal(), usd = discountUsd(kind, base);   // keep the same discount, shown the other way
+      discMode[kind] = b.dataset.mode; syncModes();
+      input.value = usd > 0 ? (discMode[kind] === 'pct' ? trimNum(base > 0 ? usd / base * 100 : 0) : usd.toFixed(2)) : '';
+      input.dispatchEvent(new Event('input', { bubbles: true })); input.focus();
+    });
+  });
+  // A user without the discount permission needs the administrator's PIN above the allowed percentage (Settings).
+  function needsApproval(extra) {
+    if (P.can.discount || approvedPin) return false;
+    var gross = 0, disc = extra || 0;
+    cart.forEach(function (l) { var t = lineTotals(l); gross += t.gross; disc += (l.discount || 0); });
+    disc += discountUsd('pay', subtotal());
+    return disc > 0.004 && gross > 0 && disc / gross * 100 > parseFloat(P.maxDiscount) + 0.0001;
+  }
+  // Closes one dialog and runs `then` once it is gone. Bootstrap drops a hide() during the opening animation, so wait for it.
+  function swapModal(from, then) {
+    var el = $(from);
+    el.addEventListener('hidden.bs.modal', then, { once: true });
+    if (modals[from]._isTransitioning) { el.addEventListener('shown.bs.modal', function () { modals[from].hide(); }, { once: true }); }
+    else { modals[from].hide(); }
+  }
+  function askPin(what, then, cancel) {
+    pinThen = then || null; pinCancel = cancel || null; pinOk = false;
+    $('pin-for').textContent = what; $('pin-input').value = ''; $('pin-error').textContent = '';
+    modals['m-pin'].show(); setTimeout(function () { $('pin-input').focus(); }, 300);
+  }
+  $('pin-ok').addEventListener('click', function () {
+    var pin = $('pin-input').value.trim(), btn = this;
+    if (pin === '') { $('pin-error').textContent = 'Type the administrator\'s PIN.'; return; }
+    btn.disabled = true;
+    api(P.urls.pin, { pin: pin, 'for': $('pin-for').textContent }).then(function (j) {
+      approvedPin = pin; $('pay-pin').value = pin; pinOk = true; msg('Approved by ' + j.by); modals['m-pin'].hide();
+    }).catch(function (e) { $('pin-error').textContent = e.error || 'Wrong PIN.'; $('pin-input').value = ''; $('pin-input').focus(); })
+      .finally(function () { btn.disabled = false; });
+  });
+  $('pin-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('pin-ok').click(); } });
+  $('m-pin').addEventListener('hidden.bs.modal', function () {
+    var then = pinThen, cancel = pinCancel, ok = pinOk; pinThen = null; pinCancel = null; pinOk = false;
+    if (ok) { if (then) then(); } else if (cancel) cancel();
+  });
+  // Invoice discount typed by a cashier: ask for the PIN when the field is left; without it the discount is removed.
+  $('pay-discount').addEventListener('change', function () {
+    if (!needsApproval(0)) return;
+    var input = this, kept = input.value, usd = discountUsd('pay', subtotal());
+    input.value = ''; renderCart(); renderPay(); discountHint('pay', subtotal());
+    var back = function () { renderCart(); renderPay(); discountHint('pay', subtotal()); modals['m-pay'].show(); };
+    swapModal('m-pay', function () { askPin('Invoice discount of ' + money(usd), function () { input.value = kept; back(); }, back); });
+  });
 
   // ---- price level and customer
   $('btn-level').addEventListener('click', function () {
@@ -153,7 +243,7 @@
   var payments = [];
   function payLine(method, currency, amount) { payments.push({ method: method, currency: currency, amount: amount }); renderPay(); }
   function renderPay() {
-    var t = totals(); $('pay-due').textContent = money(t.total); $('pay-due-lbp').textContent = lbp(roundLbp(t.total * P.rate));
+    var t = totals(); payTotal = t.total; $('pay-due').textContent = money(t.total); $('pay-due-lbp').textContent = lbp(roundLbp(t.total * P.rate));
     var box = $('pay-lines'); box.innerHTML = '';
     payments.forEach(function (p, i) {
       var d = document.createElement('div'); d.className = 'pay-line';
@@ -183,10 +273,15 @@
   $('pay-add').addEventListener('click', function () { var t = totals(), rest = Math.max(0, t.total - paidUsd()); payLine('cash', 'USD', rest > 0 ? rest.toFixed(2) : ''); });
   $('btn-pay').addEventListener('click', function () { if (!payments.length) payments = [{ method: 'cash', currency: 'USD', amount: totals().total.toFixed(2) }]; renderPay(); modals['m-pay'].show(); });
   $('pay-ok').addEventListener('click', function () {
-    var btn = this; btn.disabled = true;
+    var btn = this, again = function () { modals['m-pay'].show(); btn.click(); }, reopen = function () { modals['m-pay'].show(); };
+    if (needsApproval(0)) {   // a discount typed with the keypad never left the field
+      swapModal('m-pay', function () { askPin('Discount of ' + money(totals().disc + cart.reduce(function (s, l) { return s + (l.discount || 0); }, 0)), again, reopen); });
+      return;
+    }
+    btn.disabled = true;
     api(P.urls.complete, {
-      customer_id: customer ? customer.id : 0, price_level: level, invoice_discount: $('pay-discount').value, change_currency: $('pay-change').value,
-      notes: $('pay-note').value, pin: $('pay-pin').value,
+      customer_id: customer ? customer.id : 0, price_level: level, invoice_discount: totals().disc.toFixed(2), change_currency: $('pay-change').value,
+      notes: $('pay-note').value, pin: approvedPin || $('pay-pin').value,
       lines: cart.map(function (l) { return { product_id: l.p, unit_id: l.u, qty: l.mode === 'qty' ? String(l.qty) : '', amount_usd: l.mode === 'amount' ? String(l.amount) : '', price: l.price === null ? null : String(l.price), discount: l.discount ? String(l.discount) : '' }; }),
       payments: payments
     }).then(function (j) {
@@ -198,8 +293,12 @@
       $('done-warn').textContent = (j.warnings || []).join(' ');
       $('done-print').href = j.receipt + '&auto=1';
       modals['m-done'].show();
-      cart = []; payments = []; selected = -1; $('pay-discount').value = ''; $('pay-pin').value = ''; $('pay-note').value = ''; setCustomer(null); renderCart(); loadData();
-    }).catch(function (e) { msg(e.error || 'Could not complete the sale', true); if (e.needs_pin) $('pay-pin').focus(); }).finally(function () { btn.disabled = false; });
+      cart = []; payments = []; selected = -1; $('pay-discount').value = ''; $('pay-discount-hint').textContent = ''; $('pay-pin').value = ''; approvedPin = ''; $('pay-note').value = ''; setCustomer(null); renderCart(); loadData();
+    }).catch(function (e) {
+      if (e.needs_pin) {   // wholesale prices, a sale on credit, a price change…: the administrator approves, then the sale completes
+        approvedPin = ''; swapModal('m-pay', function () { askPin(String(e.error).replace('Needs an Admin PIN: ', 'Approve: '), again, reopen); });
+      } else { msg(e.error || 'Could not complete the sale', true); }
+    }).finally(function () { btn.disabled = false; });
   });
   $('done-next').addEventListener('click', function () { modals['m-done'].hide(); $('search').focus(); });
 
@@ -228,7 +327,7 @@
   // fires the same 'input' event as typing, so the existing listeners do the rest.
   document.querySelectorAll('[data-keypad]').forEach(function (pad) {
     var modal = pad.closest('.modal'), field = null, fresh = true;
-    function fallback() { return modal.id === 'm-pay' ? modal.querySelector('#pay-lines .pay-line:last-child input') : $('line-qty'); }
+    function fallback() { return modal.id === 'm-pin' ? $('pin-input') : (modal.id === 'm-pay' ? modal.querySelector('#pay-lines .pay-line:last-child input') : $('line-qty')); }
     modal.addEventListener('focusin', function (e) { if (e.target.matches('input[inputmode]')) { field = e.target; fresh = true; } });
     modal.addEventListener('show.bs.modal', function () { field = null; fresh = true; });
     pad.addEventListener('mousedown', function (e) { e.preventDefault(); });   // keep the focus (and selection) in the field

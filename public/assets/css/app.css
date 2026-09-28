@@ -675,3 +675,15 @@ body > .error-wrap .blocked { width: 100%; }
 .login-brand .app-brand-logo { border-radius: 16px; }
 .login-brand .app-brand-logo img { height: 120px; max-width: 300px; }
 .receipt .receipt-logo { display: block; max-width: 48mm; max-height: 26mm; margin: 0 auto 2mm; filter: grayscale(1); }
+
+/* Till: discount typed as % or $, and the administrator's approval dialog */
+.disc-field { display: flex; gap: .45rem; align-items: stretch; }
+.disc-field .form-control { flex: 1; min-width: 0; }
+.disc-mode { display: flex; flex-shrink: 0; border: 1px solid var(--t-line); border-radius: 10px; overflow: hidden; }
+.disc-mode button { min-width: 54px; border: 0; background: #0F2331; color: var(--t-ink-2); font-weight: 700; font-size: 1.15rem; }
+.disc-mode button + button { border-left: 1px solid var(--t-line); }
+.disc-mode button.active { background: var(--t-brass); color: #1B1405; }
+.disc-hint { min-height: 1.35em; margin-top: .25rem; font-size: .9rem; color: var(--t-brass); font-variant-numeric: tabular-nums; }
+.pin-for { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: .9rem; }
+.pin-error { min-height: 1.4em; margin: .5rem 0 0; color: #FFB4A8; font-weight: 600; }
+#pin-input { letter-spacing: .4em; font-size: 1.5rem; text-align: center; }

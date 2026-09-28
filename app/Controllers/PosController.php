@@ -100,6 +100,18 @@ final class PosController extends Controller
         $this->json($result + ['receipt' => url('sales/receipt', ['id' => $result['id']])]);
     }
 
+    /** The till checks an administrator's PIN as soon as a cashier asks for something restricted (a discount), not only at the end. */
+    public function pin(): void
+    {
+        $in = $this->jsonInput();
+        try {
+            $approver = (new SaleService())->verifyPin(trim((string) ($in['pin'] ?? '')), [mb_substr(trim((string) ($in['for'] ?? 'approval')), 0, 120)]);
+        } catch (\DomainException $e) {
+            $this->json(['error' => $e->getMessage()], 422);
+        }
+        $this->json(['ok' => true, 'by' => $approver['username']]);
+    }
+
     public function hold(): void
     {
         [$register] = $this->requireSession();

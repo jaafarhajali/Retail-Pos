@@ -89,6 +89,21 @@ return [
         assert_false(is_file(UPLOADS_PATH . '/' . $file));
         assert_not_contains('class="app-brand-logo"', (new HttpClient())->get('auth/login')->body);
     },
+    'the till checks the administrator\'s PIN for a cashier; the cashier has no PIN card' => function (): void {
+        (new \App\Models\User())->setPin(TEST_ADMIN_ID, '2468');
+        $cashierId = make_user('cashier1');
+        $cashier = login_as('cashier1', 'password123');
+        $ok = $cashier->postJson('pos/pin', ['pin' => '2468', 'for' => 'Discount of $2.00']);
+        assert_same(200, $ok->status);
+        assert_contains('"by":"admin"', $ok->body);
+        $bad = $cashier->postJson('pos/pin', ['pin' => '1111', 'for' => 'Discount of $2.00']);
+        assert_same(422, $bad->status);
+        assert_contains('Wrong PIN', $bad->body);
+        $admin = login_as('admin', TEST_ADMIN_PASSWORD);
+        assert_not_contains('Approval PIN', $admin->get('users/edit', ['id' => $cashierId])->body);
+        assert_contains('Approval PIN', $admin->get('users/edit', ['id' => TEST_ADMIN_ID])->body);
+    },
+
     'an SVG logo is kept as vector and served as SVG; an SVG with a script is refused' => function (): void {
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         $svg = '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="600pt" height="614pt" viewBox="0 0 600 614"><path d="M0 0h600v614H0z"/></svg>';

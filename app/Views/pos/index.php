@@ -71,7 +71,9 @@
         <div class="col-6"><label class="form-label" for="line-amount">Or sell by amount (USD)</label><input class="form-control" id="line-amount" inputmode="decimal" placeholder="0.00"></div>
         <div class="col-6"><label class="form-label" for="line-amount-lbp">Or by amount (LBP)</label><input class="form-control" id="line-amount-lbp" inputmode="numeric" placeholder="0"></div>
       </div>
-      <div><label class="form-label" for="line-discount">Line discount (USD)</label><input class="form-control" id="line-discount" inputmode="decimal" placeholder="0"></div>
+      <div><label class="form-label" for="line-discount">Line discount</label>
+        <div class="disc-field"><input class="form-control" id="line-discount" inputmode="decimal" placeholder="0"><div class="disc-mode" role="group" aria-label="Discount type"><button type="button" data-kind="line" data-mode="pct" class="active">%</button><button type="button" data-kind="line" data-mode="usd">$</button></div></div>
+        <div class="disc-hint" id="line-discount-hint"></div></div>
     </div>
     <?php require APP_PATH . '/Views/pos/_keypad.php'; ?>
   </div>
@@ -94,8 +96,9 @@
       <p class="pay-result is-idle" id="pay-summary"></p>
       <div class="pay-extra">
         <div><label class="form-label" for="pay-change">Give change in</label><select class="form-select" id="pay-change"><option value="LBP">LBP</option><option value="USD">USD (cents in LBP)</option></select></div>
-        <div><label class="form-label" for="pay-discount">Invoice discount (USD)</label><input class="form-control" id="pay-discount" inputmode="decimal" placeholder="0"></div>
-        <div><label class="form-label" for="pay-pin">Admin PIN (only if asked)</label><input class="form-control" id="pay-pin" type="password" inputmode="numeric" autocomplete="off"></div>
+        <div><label class="form-label" for="pay-discount">Invoice discount</label>
+          <div class="disc-field"><input class="form-control" id="pay-discount" inputmode="decimal" placeholder="0"><div class="disc-mode" role="group" aria-label="Discount type"><button type="button" data-kind="pay" data-mode="pct" class="active">%</button><button type="button" data-kind="pay" data-mode="usd">$</button></div></div>
+          <div class="disc-hint" id="pay-discount-hint"></div><input type="hidden" id="pay-pin"></div>
         <div><label class="form-label" for="pay-note">Note</label><input class="form-control" id="pay-note" dir="auto"></div>
       </div>
     </div>
@@ -143,12 +146,26 @@
   </div>
 </div></div></div>
 
+<div class="modal fade pos-modal" id="m-pin" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">Administrator approval</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+  <div class="modal-body pos-split">
+    <div>
+      <p class="pin-for" id="pin-for" dir="auto"></p>
+      <label class="form-label" for="pin-input">Administrator's PIN</label>
+      <input class="form-control" id="pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="6">
+      <p class="pin-error" id="pin-error" role="alert"></p>
+    </div>
+    <?php require APP_PATH . '/Views/pos/_keypad.php'; ?>
+  </div>
+  <div class="modal-footer"><button class="pos-btn primary pos-apply" id="pin-ok">Approve</button></div>
+</div></div></div>
+
 <script>
 window.POS = {
   token: <?= json_encode($token) ?>, rate: <?= (int) $rate ?>, step: <?= (int) $step ?>,
   can: <?= json_encode($can) ?>, maxDiscount: <?= (float) $maxDiscount ?>,
   urls: { data: <?= json_encode(url('pos/data')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,
-          resume: <?= json_encode(url('pos/resume')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?> }
+          resume: <?= json_encode(url('pos/resume')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?> }
 };
 </script>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>

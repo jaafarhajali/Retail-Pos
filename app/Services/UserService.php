@@ -84,6 +84,10 @@ final class UserService
         if (!preg_match('/^\d{4,6}$/', $pin)) {
             throw new \DomainException('The PIN must be 4 to 6 digits.');
         }
+        $isAdmin = (int) \App\Core\Database::pdo()->query('SELECT r.is_super FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ' . $id)->fetchColumn() === 1;
+        if (!$isAdmin) {
+            throw new \DomainException('Only administrators have an approval PIN. A cashier asks an administrator to type theirs.');
+        }
         $this->users->setPin($id, $pin);
         Audit::log('user.pin_set', 'user', $id);
     }
