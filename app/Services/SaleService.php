@@ -49,7 +49,14 @@ final class SaleService
 
         ['lines' => $lines, 'gross' => $gross, 'lineDiscounts' => $lineDiscounts, 'subtotal' => $subtotal, 'invoiceDiscount' => $invoiceDiscount, 'total' => $total]
             = $this->priceLines($in, $level, $needsPin);
-        $belowCost = array_values(array_unique(array_column($this->belowCostLines($lines), 'name')));
+        $low = $this->belowCostLines($lines);
+        $belowCost = array_values(array_unique(array_column($low, 'name')));
+        // A discount or a changed price that takes a line under its cost is the administrator's call, whatever the percentage.
+        // A list price that is already under cost is only warned about: the cashier did nothing to cause it.
+        $lowered = array_values(array_unique(array_column(array_filter($low, static fn (array $l): bool => $l['lowered']), 'name')));
+        if ($lowered !== [] && (int) (Auth::user()['is_super'] ?? 0) !== 1) {
+            $needsPin[] = 'sale below cost: ' . implode(', ', $lowered);
+        }
         foreach ($belowCost as $name) {
             $warnings[] = $name . ' was sold below cost.';
         }
@@ -347,17 +354,18 @@ final class SaleService
     }
 
     /**
-     * The lines whose amount after every discount is under their cost, as [i => position in the cart, name].
+     * The lines whose amount after every discount is under their cost, as [i => position in the cart, name,
+     * lowered => a discount or a changed price did it (and not the list price alone)].
      *
      * @param list<array<string, mixed>> $lines
-     * @return list<array{i: int, name: string}>
+     * @return list<array{i: int, name: string, lowered: bool}>
      */
     private function belowCostLines(array $lines): array
     {
         $low = [];
         foreach ($lines as $i => $l) {
             if ((float) $l['line_cost_usd'] > 0 && (float) $l['line_total_usd'] < (float) $l['line_cost_usd'] - 0.004) {
-                $low[] = ['i' => $i, 'name' => (string) $l['product_name']];
+                $low[] = ['i' => $i, 'name' => (string) $l['product_name'], 'lowered' => (float) $l['line_discount_usd'] > 0.004 || (bool) $l['price_overridden']];
             }
         }
 
@@ -368,7 +376,7 @@ final class SaleService
      * For the till, before the sale is completed: which lines would be sold below cost. It answers yes or no per line
      * and never the cost itself, so a cashier who may not see costs still gets the warning.
      *
-     * @return list<array{i: int, name: string}>
+     * @return list<array{i: int, name: string, lowered: bool}>
      */
     public function belowCost(array $in): array
     {

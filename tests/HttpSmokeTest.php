@@ -114,7 +114,7 @@ return [
         $line = ['product_id' => $p, 'unit_id' => $kg, 'qty' => '1', 'amount_usd' => '', 'price' => null];
         $low = $cashier->postJson('pos/check', ['price_level' => 'retail', 'invoice_discount' => '0.00', 'lines' => [$line + ['discount' => '4']]]);
         assert_same(200, $low->status);
-        assert_same(['below_cost' => [['i' => 0, 'name' => 'Charcoal']]], json_decode($low->body, true));
+        assert_same(['below_cost' => [['i' => 0, 'name' => 'Charcoal', 'lowered' => true]]], json_decode($low->body, true));
         assert_not_contains('11.37', $low->body);
         $ok = $cashier->postJson('pos/check', ['price_level' => 'retail', 'invoice_discount' => '0.00', 'lines' => [$line + ['discount' => '3']]]);
         assert_same(['below_cost' => []], json_decode($ok->body, true));

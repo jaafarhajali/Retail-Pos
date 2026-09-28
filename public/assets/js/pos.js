@@ -140,10 +140,18 @@
     var before = l.discount || 0; l.discount = 0;
     var d = discountUsd('line', lineTotals(l).gross); l.discount = before;
     var apply = function () { l.discount = d; l.dmode = discMode.line; renderCart(); };
-    if (d > before + 0.004 && needsApproval(d - before)) {
+    // The administrator approves a discount over the allowed percentage, and any discount that sells the line below cost.
+    if (d > before + 0.004 && !approvedPin && (!P.can.discount || !P.can.belowCost)) {
+      var over = needsApproval(d - before), idx = selected;
       renderCart();
-      l.discount = d; var probe = probeCost(); l.discount = before;   // what the administrator is asked to approve
-      swapModal('m-line', function () { probe.then(function (found) { askPin('Discount of ' + money(d) + ' on ' + p.name + (found.some(function (x) { return x.name === p.name; }) ? ' — BELOW COST' : lowNote(found)), apply); }); });
+      l.discount = d; var probe = probeCost(); l.discount = before;   // the cart as it would be
+      swapModal('m-line', function () {
+        probe.then(function (found) {
+          var under = !P.can.belowCost && found.some(function (x) { return x.i === idx && x.lowered; });
+          if (!over && !under) { apply(); return; }
+          askPin('Discount of ' + money(d) + ' on ' + p.name + (under ? ' — BELOW COST' : ''), apply);
+        });
+      });
       return;
     }
     modals['m-line'].hide(); apply();
@@ -225,11 +233,16 @@
   });
   // Invoice discount typed by a cashier: ask for the PIN when the field is left; without it the discount is removed.
   $('pay-discount').addEventListener('change', function () {
-    if (!needsApproval(0)) return;
-    var input = this, kept = input.value, usd = discountUsd('pay', subtotal()), probe = probeCost();
-    input.value = ''; renderCart(); renderPay(); discountHint('pay', subtotal());
-    var back = function () { renderCart(); renderPay(); discountHint('pay', subtotal()); modals['m-pay'].show(); };
-    swapModal('m-pay', function () { probe.then(function (found) { askPin('Invoice discount of ' + money(usd) + lowNote(found), function () { input.value = kept; back(); }, back); }); });
+    var input = this, kept = input.value, usd = discountUsd('pay', subtotal()), over = needsApproval(0);
+    if (usd <= 0 || approvedPin || (!over && P.can.belowCost)) return;
+    probeCost().then(function (found) {
+      var under = P.can.belowCost ? [] : found.filter(function (x) { return x.lowered; });
+      if ((!over && !under.length) || input.value !== kept || approvedPin) return;
+      var show = function () { followTotal(); renderCart(); renderPay(); discountHint('pay', subtotal()); };
+      input.value = ''; show();
+      var back = function () { show(); modals['m-pay'].show(); };
+      swapModal('m-pay', function () { askPin('Invoice discount of ' + money(usd) + lowNote(under), function () { input.value = kept; back(); }, back); });
+    });
   });
 
   // ---- price level and customer

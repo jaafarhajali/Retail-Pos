@@ -35,7 +35,7 @@ $setup = static function (): array {
 $sale = static fn (array $s, array $lines, array $payments, array $extra = []): array => (new SaleService())->complete([
     'register_id' => $s['register'], 'session_id' => $s['session'], 'user_id' => TEST_ADMIN_ID, 'customer_id' => $extra['customer_id'] ?? null,
     'price_level' => $extra['price_level'] ?? 'retail', 'lines' => $lines, 'invoice_discount' => $extra['invoice_discount'] ?? '',
-    'payments' => $payments, 'change_currency' => $extra['change_currency'] ?? 'LBP', 'notes' => '', 'pin' => '',
+    'payments' => $payments, 'change_currency' => $extra['change_currency'] ?? 'LBP', 'notes' => '', 'pin' => $extra['pin'] ?? '',
 ]);
 
 return [
@@ -149,11 +149,11 @@ return [
         $s = $setup();   // 1 kg sells at $15 and costs $10
         $svc = new SaleService();
         $kg = static fn (string $discount): array => [['product_id' => $s['charcoal'], 'unit_id' => $s['kg'], 'qty' => '1', 'discount' => $discount]];
-        assert_same([['i' => 0, 'name' => 'فحم']], $svc->belowCost(['price_level' => 'retail', 'lines' => $kg('6'), 'invoice_discount' => '']));
+        assert_same([['i' => 0, 'name' => 'فحم', 'lowered' => true]], $svc->belowCost(['price_level' => 'retail', 'lines' => $kg('6'), 'invoice_discount' => '']));
         assert_same([], $svc->belowCost(['price_level' => 'retail', 'lines' => $kg('5'), 'invoice_discount' => '']), 'exactly at cost is not below it');
         assert_same(1, count($svc->belowCost(['price_level' => 'retail', 'lines' => $kg(''), 'invoice_discount' => '5.50'])), 'the invoice discount counts too');
         $two = [['product_id' => $s['charcoal'], 'unit_id' => $s['box'], 'qty' => '1'], $kg('6')[0]];
-        assert_same([['i' => 1, 'name' => 'فحم']], $svc->belowCost(['price_level' => 'retail', 'lines' => $two, 'invoice_discount' => '']), 'only the discounted line');
+        assert_same([['i' => 1, 'name' => 'فحم', 'lowered' => true]], $svc->belowCost(['price_level' => 'retail', 'lines' => $two, 'invoice_discount' => '']), 'only the discounted line');
 
         $r = $sale($s, $kg('6'), [['method' => 'cash', 'currency' => 'USD', 'amount' => '9']]);
         assert_contains('was sold below cost', implode(' ', $r['warnings']));
@@ -161,6 +161,30 @@ return [
         assert_same(['فحم'], json_decode((string) $audit, true)['products']);
         $fine = $sale($s, $kg('1'), [['method' => 'cash', 'currency' => 'USD', 'amount' => '14']]);
         assert_same([], $fine['warnings']);
+    },
+
+    'below cost needs the administrator even inside the allowed percentage; a list price under cost only warns' => function () use ($setup, $sale): void {
+        $s = $setup();   // 1 kg sells at $15 and costs $10
+        (new \App\Models\Setting())->setMany(['max_cashier_discount_pct' => '50']);
+        \App\Core\Settings::flush();
+        (new \App\Models\User())->setPin(TEST_ADMIN_ID, '2468');
+        Auth::login(make_user('cashier1'));
+        $kg = static fn (string $discount): array => [['product_id' => $s['charcoal'], 'unit_id' => $s['kg'], 'qty' => '1', 'discount' => $discount]];
+
+        $fine = $sale($s, $kg('3'), [['method' => 'cash', 'currency' => 'USD', 'amount' => '12']]);   // 20 %, still above cost
+        assert_same([], $fine['warnings']);
+
+        $refused = assert_throws(DomainException::class, fn () => $sale($s, $kg('6'), [['method' => 'cash', 'currency' => 'USD', 'amount' => '9']]));   // 40 % <= 50 %, but $9 < $10
+        assert_contains('Needs an Admin PIN: sale below cost', $refused->getMessage());
+        $approved = $sale($s, $kg('6'), [['method' => 'cash', 'currency' => 'USD', 'amount' => '9']], ['pin' => '2468']);
+        assert_contains('was sold below cost', implode(' ', $approved['warnings']));
+
+        Auth::login(TEST_ADMIN_ID);
+        (new ProductService())->setCost($s['charcoal'], '400', 20000);   // the cost rose to $20 per kg; the price is still $15
+        Auth::login((int) \App\Core\Database::pdo()->query("SELECT id FROM users WHERE username = 'cashier1'")->fetchColumn());
+        $list = $sale($s, $kg(''), [['method' => 'cash', 'currency' => 'USD', 'amount' => '15']]);
+        assert_contains('was sold below cost', implode(' ', $list['warnings']), 'warned, not blocked: the cashier lowered nothing');
+        assert_same([['i' => 0, 'name' => 'فحم', 'lowered' => false]], (new SaleService())->belowCost(['price_level' => 'retail', 'lines' => $kg(''), 'invoice_discount' => '']));
     },
 
     'blind close computes expected vs counted per currency and a Z number' => function () use ($setup, $sale): void {
