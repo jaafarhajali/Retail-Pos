@@ -4,6 +4,8 @@
   var P = window.POS, data = null, cart = [], selected = -1, level = 'retail', customer = null, tab = 0, filter = '';
   // Discounts are typed as a percentage (default) or in USD. approvedPin: the administrator's PIN once it was checked for this sale.
   var discMode = { line: 'pct', pay: 'pct' }, approvedPin = '', pinThen = null, pinCancel = null, pinOk = false, payTotal = 0;
+  // Cart positions the server reported as sold below cost, and the cart state that answer belongs to.
+  var low = [], lowSig = '', lowTimer = null;
   var $ = function (id) { return document.getElementById(id); };
   var modals = {};
   ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold', 'm-pin'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
@@ -71,13 +73,14 @@
     if (!cart.length) { c.innerHTML = '<div class="empty"><i class="bi bi-upc-scan"></i>Scan or tap a product to start.</div>'; selected = -1; }
     cart.forEach(function (l, i) {
       var t = lineTotals(l);
-      var d = document.createElement('div'); d.className = 'cart-line' + (i === selected ? ' active' : '');
+      var under = low.some(function (x) { return x.i === i; });
+      var d = document.createElement('div'); d.className = 'cart-line' + (i === selected ? ' active' : '') + (under ? ' is-low' : '');
       d.innerHTML = '<div class="q"><b></b><small dir="auto"></small></div><div class="n" dir="auto"></div><div class="t"></div><div class="d"></div><div class="x"></div>';
       d.querySelector('.q b').textContent = +t.qty.toFixed(3);
       d.querySelector('.q small').textContent = t.u.name;
       d.querySelector('.n').textContent = t.p.name;
       d.querySelector('.t').textContent = money(t.total);
-      d.querySelector('.d').textContent = '× ' + money(t.price) + (l.mode === 'amount' ? ', sold by amount' : '') + (l.price !== null ? ', price changed' : '');
+      d.querySelector('.d').textContent = '× ' + money(t.price) + (l.mode === 'amount' ? ', sold by amount' : '') + (l.price !== null ? ', price changed' : '') + (under ? ' · BELOW COST' : '');
       d.querySelector('.x').textContent = l.discount ? '-' + money(l.discount) : '';
       d.addEventListener('click', function () { selected = i; renderCart(); });
       c.appendChild(d);
@@ -86,7 +89,32 @@
     $('t-sub').textContent = money(t.sub); $('row-disc').hidden = t.disc <= 0; $('t-disc').textContent = '-' + money(t.disc);
     $('t-usd').textContent = money(t.total); $('t-lbp').textContent = lbp(roundLbp(t.total * P.rate));
     $('btn-pay').disabled = !cart.length; $('t-usd').classList.toggle('is-zero', !cart.length);
+    var names = low.map(function (x) { return x.name; }).filter(function (n, k, all) { return all.indexOf(n) === k; });
+    $('pay-low').hidden = !names.length; $('pay-low').textContent = names.length ? 'Below cost: ' + names.join(', ') : '';
+    var sig = cart.length ? JSON.stringify([level, t.disc, cartLines()]) : '';
+    if (sig !== lowSig) { lowSig = sig; clearTimeout(lowTimer); if (sig === '') { low = []; } else { lowTimer = setTimeout(checkCost, 300); } }
   }
+
+  // ---- below cost: the server says which lines are under their cost; the till never learns the cost itself
+  function cartLines() {
+    return cart.map(function (l) { return { product_id: l.p, unit_id: l.u, qty: l.mode === 'qty' ? String(l.qty) : '', amount_usd: l.mode === 'amount' ? String(l.amount) : '', price: l.price === null ? null : String(l.price), discount: l.discount ? String(l.discount) : '' }; });
+  }
+  function probeCost() {   // the cart as it is right now
+    if (!cart.length) return Promise.resolve([]);
+    return api(P.urls.check, { price_level: level, invoice_discount: totals().disc.toFixed(2), lines: cartLines() })
+      .then(function (j) { return j.below_cost || []; }).catch(function () { return []; });
+  }
+  function checkCost() {
+    var asked = lowSig;
+    probeCost().then(function (found) {
+      if (asked !== lowSig) return;   // the cart changed meanwhile; a newer check is on its way
+      var known = low.map(function (x) { return x.i + ':' + x.name; });
+      var fresh = found.filter(function (x) { return known.indexOf(x.i + ':' + x.name) < 0; });
+      low = found; renderCart();
+      if (fresh.length) msg('Below cost: ' + fresh.map(function (x) { return x.name; }).join(', '), true);
+    });
+  }
+  function lowNote(found) { return found.length ? ' — BELOW COST: ' + found.map(function (x) { return x.name; }).filter(function (n, k, all) { return all.indexOf(n) === k; }).join(', ') : ''; }
 
   // ---- line editor
   function openLine() {
@@ -114,7 +142,8 @@
     var apply = function () { l.discount = d; l.dmode = discMode.line; renderCart(); };
     if (d > before + 0.004 && needsApproval(d - before)) {
       renderCart();
-      swapModal('m-line', function () { askPin('Discount of ' + money(d) + ' on ' + p.name, apply); });
+      l.discount = d; var probe = probeCost(); l.discount = before;   // what the administrator is asked to approve
+      swapModal('m-line', function () { probe.then(function (found) { askPin('Discount of ' + money(d) + ' on ' + p.name + (found.some(function (x) { return x.name === p.name; }) ? ' — BELOW COST' : lowNote(found)), apply); }); });
       return;
     }
     modals['m-line'].hide(); apply();
@@ -197,10 +226,10 @@
   // Invoice discount typed by a cashier: ask for the PIN when the field is left; without it the discount is removed.
   $('pay-discount').addEventListener('change', function () {
     if (!needsApproval(0)) return;
-    var input = this, kept = input.value, usd = discountUsd('pay', subtotal());
+    var input = this, kept = input.value, usd = discountUsd('pay', subtotal()), probe = probeCost();
     input.value = ''; renderCart(); renderPay(); discountHint('pay', subtotal());
     var back = function () { renderCart(); renderPay(); discountHint('pay', subtotal()); modals['m-pay'].show(); };
-    swapModal('m-pay', function () { askPin('Invoice discount of ' + money(usd), function () { input.value = kept; back(); }, back); });
+    swapModal('m-pay', function () { probe.then(function (found) { askPin('Invoice discount of ' + money(usd) + lowNote(found), function () { input.value = kept; back(); }, back); }); });
   });
 
   // ---- price level and customer
@@ -275,14 +304,15 @@
   $('pay-ok').addEventListener('click', function () {
     var btn = this, again = function () { modals['m-pay'].show(); btn.click(); }, reopen = function () { modals['m-pay'].show(); };
     if (needsApproval(0)) {   // a discount typed with the keypad never left the field
-      swapModal('m-pay', function () { askPin('Discount of ' + money(totals().disc + cart.reduce(function (s, l) { return s + (l.discount || 0); }, 0)), again, reopen); });
+      var probe = probeCost();
+      swapModal('m-pay', function () { probe.then(function (found) { askPin('Discount of ' + money(totals().disc + cart.reduce(function (s, l) { return s + (l.discount || 0); }, 0)) + lowNote(found), again, reopen); }); });
       return;
     }
     btn.disabled = true;
     api(P.urls.complete, {
       customer_id: customer ? customer.id : 0, price_level: level, invoice_discount: totals().disc.toFixed(2), change_currency: $('pay-change').value,
       notes: $('pay-note').value, pin: approvedPin || $('pay-pin').value,
-      lines: cart.map(function (l) { return { product_id: l.p, unit_id: l.u, qty: l.mode === 'qty' ? String(l.qty) : '', amount_usd: l.mode === 'amount' ? String(l.amount) : '', price: l.price === null ? null : String(l.price), discount: l.discount ? String(l.discount) : '' }; }),
+      lines: cartLines(),
       payments: payments
     }).then(function (j) {
       modals['m-pay'].hide();

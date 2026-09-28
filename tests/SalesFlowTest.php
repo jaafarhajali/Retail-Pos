@@ -145,6 +145,24 @@ return [
         assert_same(177500, (int) (new Product())->find($s['charcoal'])['stock_base'], '180,000 − 2,500: the sale during the count is not lost');
     },
 
+    'a sale below cost is warned about before and after, and written to the audit log' => function () use ($setup, $sale): void {
+        $s = $setup();   // 1 kg sells at $15 and costs $10
+        $svc = new SaleService();
+        $kg = static fn (string $discount): array => [['product_id' => $s['charcoal'], 'unit_id' => $s['kg'], 'qty' => '1', 'discount' => $discount]];
+        assert_same([['i' => 0, 'name' => 'فحم']], $svc->belowCost(['price_level' => 'retail', 'lines' => $kg('6'), 'invoice_discount' => '']));
+        assert_same([], $svc->belowCost(['price_level' => 'retail', 'lines' => $kg('5'), 'invoice_discount' => '']), 'exactly at cost is not below it');
+        assert_same(1, count($svc->belowCost(['price_level' => 'retail', 'lines' => $kg(''), 'invoice_discount' => '5.50'])), 'the invoice discount counts too');
+        $two = [['product_id' => $s['charcoal'], 'unit_id' => $s['box'], 'qty' => '1'], $kg('6')[0]];
+        assert_same([['i' => 1, 'name' => 'فحم']], $svc->belowCost(['price_level' => 'retail', 'lines' => $two, 'invoice_discount' => '']), 'only the discounted line');
+
+        $r = $sale($s, $kg('6'), [['method' => 'cash', 'currency' => 'USD', 'amount' => '9']]);
+        assert_contains('was sold below cost', implode(' ', $r['warnings']));
+        $audit = \App\Core\Database::pdo()->query("SELECT details FROM audit_log WHERE action = 'sale.below_cost'")->fetchColumn();
+        assert_same(['فحم'], json_decode((string) $audit, true)['products']);
+        $fine = $sale($s, $kg('1'), [['method' => 'cash', 'currency' => 'USD', 'amount' => '14']]);
+        assert_same([], $fine['warnings']);
+    },
+
     'blind close computes expected vs counted per currency and a Z number' => function () use ($setup, $sale): void {
         $s = $setup();
         $sale($s, [['product_id' => $s['charcoal'], 'unit_id' => $s['kg'], 'qty' => '1']], [['method' => 'cash', 'currency' => 'USD', 'amount' => '15']]);

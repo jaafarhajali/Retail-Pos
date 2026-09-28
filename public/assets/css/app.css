@@ -687,3 +687,8 @@ body > .error-wrap .blocked { width: 100%; }
 .pin-for { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: .9rem; }
 .pin-error { min-height: 1.4em; margin: .5rem 0 0; color: #FFB4A8; font-weight: 600; }
 #pin-input { letter-spacing: .4em; font-size: 1.5rem; text-align: center; }
+
+/* Till: a line sold below its cost */
+.cart-line.is-low { box-shadow: inset 4px 0 0 var(--red); }
+.cart-line.is-low .d { color: var(--red); font-weight: 600; }
+.pay-low { margin: .5rem 0 .7rem; padding: .55rem .8rem; border-radius: 10px; background: rgba(224, 72, 58, .16); border: 1px solid rgba(255, 140, 125, .45); color: #FFC9C0; font-weight: 600; }

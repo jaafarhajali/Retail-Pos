@@ -112,6 +112,7 @@ return [
     ['GET',  'pos/customers',    [PosController::class, 'customers'], 'pos.use'],
     ['POST', 'pos/complete',     [PosController::class, 'complete'],  'sale.create'],
     ['POST', 'pos/pin',          [PosController::class, 'pin'],       'pos.use'],
+    ['POST', 'pos/check',        [PosController::class, 'check'],     'pos.use'],
     ['POST', 'pos/hold',         [PosController::class, 'hold'],      'pos.use'],
     ['GET',  'pos/held',         [PosController::class, 'held'],      'pos.use'],
     ['POST', 'pos/resume',       [PosController::class, 'resume'],    'pos.use'],

@@ -104,6 +104,23 @@ return [
         assert_contains('Approval PIN', $admin->get('users/edit', ['id' => TEST_ADMIN_ID])->body);
     },
 
+    'the till learns that a line is below cost, never the cost' => function (): void {
+        $p = make_product('Charcoal', 'g');
+        $kg = (new ProductService())->addUnit($p, 'kg', '1000', true, false);
+        (new ProductService())->setPrices($kg, '15', '');
+        (new ProductService())->setCost($p, '11.37', 1000);
+        make_user('cashier1');
+        $cashier = login_as('cashier1', 'password123');
+        $line = ['product_id' => $p, 'unit_id' => $kg, 'qty' => '1', 'amount_usd' => '', 'price' => null];
+        $low = $cashier->postJson('pos/check', ['price_level' => 'retail', 'invoice_discount' => '0.00', 'lines' => [$line + ['discount' => '4']]]);
+        assert_same(200, $low->status);
+        assert_same(['below_cost' => [['i' => 0, 'name' => 'Charcoal']]], json_decode($low->body, true));
+        assert_not_contains('11.37', $low->body);
+        $ok = $cashier->postJson('pos/check', ['price_level' => 'retail', 'invoice_discount' => '0.00', 'lines' => [$line + ['discount' => '3']]]);
+        assert_same(['below_cost' => []], json_decode($ok->body, true));
+        assert_same(['below_cost' => []], json_decode($cashier->postJson('pos/check', ['lines' => []])->body, true));
+    },
+
     'an SVG logo is kept as vector and served as SVG; an SVG with a script is refused' => function (): void {
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         $svg = '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="600pt" height="614pt" viewBox="0 0 600 614"><path d="M0 0h600v614H0z"/></svg>';

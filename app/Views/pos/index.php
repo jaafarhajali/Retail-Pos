@@ -94,6 +94,7 @@
       </div>
       <div id="pay-lines"></div>
       <p class="pay-result is-idle" id="pay-summary"></p>
+      <p class="pay-low" id="pay-low" role="status" dir="auto" hidden></p>
       <div class="pay-extra">
         <div><label class="form-label" for="pay-change">Give change in</label><select class="form-select" id="pay-change"><option value="LBP">LBP</option><option value="USD">USD (cents in LBP)</option></select></div>
         <div><label class="form-label" for="pay-discount">Invoice discount</label>
@@ -165,7 +166,7 @@ window.POS = {
   token: <?= json_encode($token) ?>, rate: <?= (int) $rate ?>, step: <?= (int) $step ?>,
   can: <?= json_encode($can) ?>, maxDiscount: <?= (float) $maxDiscount ?>,
   urls: { data: <?= json_encode(url('pos/data')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,
-          resume: <?= json_encode(url('pos/resume')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?> }
+          resume: <?= json_encode(url('pos/resume')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?>, check: <?= json_encode(url('pos/check')) ?> }
 };
 </script>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>

@@ -47,97 +47,12 @@ final class SaleService
             $customer = (new Customer())->find((int) $in['customer_id']) ?? throw new \DomainException('Customer not found.');
         }
 
-        // Lines
-        $units = new ProductUnit();
-        $products = new Product();
-        $lines = [];
-        $gross = 0.0;
-        $lineDiscounts = 0.0;
-        foreach ($in['lines'] as $l) {
-            $unit = $units->find((int) ($l['unit_id'] ?? 0));
-            if ($unit === null || (int) $unit['product_id'] !== (int) ($l['product_id'] ?? 0)) {
-                throw new \DomainException('A line refers to an unknown product or unit.');
-            }
-            $product = $products->find((int) $unit['product_id']);
-            if ($product === null || (int) $product['is_active'] !== 1) {
-                throw new \DomainException('Product ' . ($product['name'] ?? '') . ' is not active.');
-            }
-            $listPrice = $level === 'wholesale' ? $unit['wholesale_price'] : $unit['retail_price'];
-            if ($listPrice === null || (float) $listPrice <= 0) {
-                throw new \DomainException("{$product['name']} ({$unit['name']}) is not sold at the {$level} price.");
-            }
-            $price = $listPrice;
-            $overridden = false;
-            if (isset($l['price']) && $l['price'] !== null && trim((string) $l['price']) !== '') {
-                $override = Pricing::parse((string) $l['price']);
-                if (Money::cmp($override, $listPrice) !== 0) {
-                    if ((int) $product['allow_price_override'] !== 1) {
-                        throw new \DomainException("{$product['name']} does not allow a price override.");
-                    }
-                    if (!Gate::allows('sale.price_override')) {
-                        $needsPin[] = 'price override on ' . $product['name'];
-                    }
-                    $price = $override;
-                    $overridden = true;
-                }
-            }
-            $factor = (int) $unit['factor'];
-            $fraction = (int) $unit['allows_fraction'] === 1;
-            if (isset($l['amount_usd']) && trim((string) $l['amount_usd']) !== '') {
-                // Sell by amount (§4): the total stays what the customer pays; grams round down.
-                $amount = Pricing::parse((string) $l['amount_usd']);
-                $base = (int) floor((float) $amount / ((float) $price / $factor));
-                if ($base <= 0) {
-                    throw new \DomainException('The amount is too small for one ' . $product['base_unit'] . ' of ' . $product['name'] . '.');
-                }
-                $qty = Quantity::unitQty($base, $factor);
-                $lineGross = $amount;
-                $mode = 'amount';
-            } else {
-                $qty = Quantity::parse((string) ($l['qty'] ?? '1'), $fraction);
-                if ((float) $qty <= 0) {
-                    throw new \DomainException('Enter a quantity for ' . $product['name'] . '.');
-                }
-                $base = Quantity::toBase($qty, $factor, $fraction);
-                $lineGross = Money::mul($price, (float) $qty);
-                $mode = 'qty';
-            }
-            $discount = Pricing::parse((string) ($l['discount'] ?? ''), true) ?? '0.00';
-            if (Money::cmp($discount, $lineGross) > 0) {
-                throw new \DomainException('A line discount cannot exceed the line total.');
-            }
-            $lineTotal = Money::sub($lineGross, $discount);
-            $gross += (float) $lineGross;
-            $lineDiscounts += (float) $discount;
-            $lines[] = [
-                'product_id' => (int) $product['id'], 'product_unit_id' => (int) $unit['id'], 'product_name' => $product['name'], 'unit_name' => $unit['name'],
-                'qty' => $qty, 'base_qty' => $base, 'unit_price_usd' => $price, 'line_discount_usd' => $discount, 'line_total_usd' => $lineTotal,
-                'cost_per_base' => $product['cost_per_base'], 'line_cost_usd' => Money::fmt($base * (float) $product['cost_per_base']),
-                'entry_mode' => $mode, 'price_overridden' => $overridden, 'stock_base' => (int) $product['stock_base'],
-            ];
+        ['lines' => $lines, 'gross' => $gross, 'lineDiscounts' => $lineDiscounts, 'subtotal' => $subtotal, 'invoiceDiscount' => $invoiceDiscount, 'total' => $total]
+            = $this->priceLines($in, $level, $needsPin);
+        $belowCost = array_values(array_unique(array_column($this->belowCostLines($lines), 'name')));
+        foreach ($belowCost as $name) {
+            $warnings[] = $name . ' was sold below cost.';
         }
-        if ($lines === []) {
-            throw new \DomainException('The cart is empty.');
-        }
-
-        // Invoice discount, spread across lines in proportion (§6)
-        $subtotal = array_sum(array_map(static fn (array $l): float => (float) $l['line_total_usd'], $lines));
-        $invoiceDiscount = Pricing::parse((string) ($in['invoice_discount'] ?? ''), true) ?? '0.00';
-        if ((float) $invoiceDiscount > $subtotal + 0.0001) {
-            throw new \DomainException('The discount cannot exceed the subtotal.');
-        }
-        $spread = 0.0;
-        $last = count($lines) - 1;
-        foreach ($lines as $i => &$line) {
-            $share = $i === $last
-                ? (float) $invoiceDiscount - $spread
-                : ($subtotal > 0 ? round((float) $invoiceDiscount * (float) $line['line_total_usd'] / $subtotal, 2) : 0.0);
-            $spread += $share;
-            $line['line_discount_usd'] = Money::fmt((float) $line['line_discount_usd'] + $share);
-            $line['line_total_usd'] = Money::fmt((float) $line['line_total_usd'] - $share);
-        }
-        unset($line);
-        $total = Money::fmt($subtotal - (float) $invoiceDiscount);
         $totalDiscount = $lineDiscounts + (float) $invoiceDiscount;
         if ($totalDiscount > 0.004) {
             $maxPct = (float) Settings::get('max_cashier_discount_pct', '0');
@@ -273,6 +188,10 @@ final class SaleService
             return ['id' => $saleId, 'invoice_no' => $no];
         });
 
+        if ($belowCost !== []) {
+            Audit::log('sale.below_cost', 'sale', (int) $result['id'], ['no' => $result['invoice_no'], 'products' => $belowCost]);
+        }
+
         return $result + ['change_usd' => $changeUsd, 'change_lbp' => $changeLbp, 'warnings' => $warnings, 'total_usd' => $total, 'rounding_usd' => Money::fmt($rounding)];
     }
 
@@ -324,6 +243,142 @@ final class SaleService
     }
 
     /** An Admin types their PIN on the till to approve one action. Returns the approving user. */
+    /**
+     * Prices the cart: list or changed prices and line discounts, then the invoice discount spread across the lines (§6).
+     * Adds to $needsPin what the signed-in user may not do alone.
+     *
+     * @return array{lines: list<array<string, mixed>>, gross: float, lineDiscounts: float, subtotal: float, invoiceDiscount: string, total: string}
+     */
+    private function priceLines(array $in, string $level, array &$needsPin): array
+    {
+        // Lines
+        $units = new ProductUnit();
+        $products = new Product();
+        $lines = [];
+        $gross = 0.0;
+        $lineDiscounts = 0.0;
+        foreach ($in['lines'] as $l) {
+            $unit = $units->find((int) ($l['unit_id'] ?? 0));
+            if ($unit === null || (int) $unit['product_id'] !== (int) ($l['product_id'] ?? 0)) {
+                throw new \DomainException('A line refers to an unknown product or unit.');
+            }
+            $product = $products->find((int) $unit['product_id']);
+            if ($product === null || (int) $product['is_active'] !== 1) {
+                throw new \DomainException('Product ' . ($product['name'] ?? '') . ' is not active.');
+            }
+            $listPrice = $level === 'wholesale' ? $unit['wholesale_price'] : $unit['retail_price'];
+            if ($listPrice === null || (float) $listPrice <= 0) {
+                throw new \DomainException("{$product['name']} ({$unit['name']}) is not sold at the {$level} price.");
+            }
+            $price = $listPrice;
+            $overridden = false;
+            if (isset($l['price']) && $l['price'] !== null && trim((string) $l['price']) !== '') {
+                $override = Pricing::parse((string) $l['price']);
+                if (Money::cmp($override, $listPrice) !== 0) {
+                    if ((int) $product['allow_price_override'] !== 1) {
+                        throw new \DomainException("{$product['name']} does not allow a price override.");
+                    }
+                    if (!Gate::allows('sale.price_override')) {
+                        $needsPin[] = 'price override on ' . $product['name'];
+                    }
+                    $price = $override;
+                    $overridden = true;
+                }
+            }
+            $factor = (int) $unit['factor'];
+            $fraction = (int) $unit['allows_fraction'] === 1;
+            if (isset($l['amount_usd']) && trim((string) $l['amount_usd']) !== '') {
+                // Sell by amount (§4): the total stays what the customer pays; grams round down.
+                $amount = Pricing::parse((string) $l['amount_usd']);
+                $base = (int) floor((float) $amount / ((float) $price / $factor));
+                if ($base <= 0) {
+                    throw new \DomainException('The amount is too small for one ' . $product['base_unit'] . ' of ' . $product['name'] . '.');
+                }
+                $qty = Quantity::unitQty($base, $factor);
+                $lineGross = $amount;
+                $mode = 'amount';
+            } else {
+                $qty = Quantity::parse((string) ($l['qty'] ?? '1'), $fraction);
+                if ((float) $qty <= 0) {
+                    throw new \DomainException('Enter a quantity for ' . $product['name'] . '.');
+                }
+                $base = Quantity::toBase($qty, $factor, $fraction);
+                $lineGross = Money::mul($price, (float) $qty);
+                $mode = 'qty';
+            }
+            $discount = Pricing::parse((string) ($l['discount'] ?? ''), true) ?? '0.00';
+            if (Money::cmp($discount, $lineGross) > 0) {
+                throw new \DomainException('A line discount cannot exceed the line total.');
+            }
+            $lineTotal = Money::sub($lineGross, $discount);
+            $gross += (float) $lineGross;
+            $lineDiscounts += (float) $discount;
+            $lines[] = [
+                'product_id' => (int) $product['id'], 'product_unit_id' => (int) $unit['id'], 'product_name' => $product['name'], 'unit_name' => $unit['name'],
+                'qty' => $qty, 'base_qty' => $base, 'unit_price_usd' => $price, 'line_discount_usd' => $discount, 'line_total_usd' => $lineTotal,
+                'cost_per_base' => $product['cost_per_base'], 'line_cost_usd' => Money::fmt($base * (float) $product['cost_per_base']),
+                'entry_mode' => $mode, 'price_overridden' => $overridden, 'stock_base' => (int) $product['stock_base'],
+            ];
+        }
+        if ($lines === []) {
+            throw new \DomainException('The cart is empty.');
+        }
+
+        // Invoice discount, spread across lines in proportion (§6)
+        $subtotal = array_sum(array_map(static fn (array $l): float => (float) $l['line_total_usd'], $lines));
+        $invoiceDiscount = Pricing::parse((string) ($in['invoice_discount'] ?? ''), true) ?? '0.00';
+        if ((float) $invoiceDiscount > $subtotal + 0.0001) {
+            throw new \DomainException('The discount cannot exceed the subtotal.');
+        }
+        $spread = 0.0;
+        $last = count($lines) - 1;
+        foreach ($lines as $i => &$line) {
+            $share = $i === $last
+                ? (float) $invoiceDiscount - $spread
+                : ($subtotal > 0 ? round((float) $invoiceDiscount * (float) $line['line_total_usd'] / $subtotal, 2) : 0.0);
+            $spread += $share;
+            $line['line_discount_usd'] = Money::fmt((float) $line['line_discount_usd'] + $share);
+            $line['line_total_usd'] = Money::fmt((float) $line['line_total_usd'] - $share);
+        }
+        unset($line);
+        $total = Money::fmt($subtotal - (float) $invoiceDiscount);
+
+        return ['lines' => $lines, 'gross' => $gross, 'lineDiscounts' => $lineDiscounts, 'subtotal' => $subtotal, 'invoiceDiscount' => $invoiceDiscount, 'total' => $total];
+    }
+
+    /**
+     * The lines whose amount after every discount is under their cost, as [i => position in the cart, name].
+     *
+     * @param list<array<string, mixed>> $lines
+     * @return list<array{i: int, name: string}>
+     */
+    private function belowCostLines(array $lines): array
+    {
+        $low = [];
+        foreach ($lines as $i => $l) {
+            if ((float) $l['line_cost_usd'] > 0 && (float) $l['line_total_usd'] < (float) $l['line_cost_usd'] - 0.004) {
+                $low[] = ['i' => $i, 'name' => (string) $l['product_name']];
+            }
+        }
+
+        return $low;
+    }
+
+    /**
+     * For the till, before the sale is completed: which lines would be sold below cost. It answers yes or no per line
+     * and never the cost itself, so a cashier who may not see costs still gets the warning.
+     *
+     * @return list<array{i: int, name: string}>
+     */
+    public function belowCost(array $in): array
+    {
+        $needsPin = [];
+        $level = ($in['price_level'] ?? 'retail') === 'wholesale' ? 'wholesale' : 'retail';
+        $in['lines'] = is_array($in['lines'] ?? null) ? $in['lines'] : [];
+
+        return $this->belowCostLines($this->priceLines($in, $level, $needsPin)['lines']);
+    }
+
     public function verifyPin(string $pin, array $for): array
     {
         if ($pin === '') {

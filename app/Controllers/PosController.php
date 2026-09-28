@@ -100,6 +100,21 @@ final class PosController extends Controller
         $this->json($result + ['receipt' => url('sales/receipt', ['id' => $result['id']])]);
     }
 
+    /** Which cart lines would be sold below cost (after line and invoice discounts). The cost itself is never sent. */
+    public function check(): void
+    {
+        $in = $this->jsonInput();
+        try {
+            $low = (new SaleService())->belowCost([
+                'price_level' => (string) ($in['price_level'] ?? 'retail'), 'lines' => is_array($in['lines'] ?? null) ? $in['lines'] : [],
+                'invoice_discount' => (string) ($in['invoice_discount'] ?? ''),
+            ]);
+        } catch (\DomainException) {
+            $low = [];   // an unfinished line (no quantity yet…): nothing to warn about
+        }
+        $this->json(['below_cost' => $low]);
+    }
+
     /** The till checks an administrator's PIN as soon as a cashier asks for something restricted (a discount), not only at the end. */
     public function pin(): void
     {
