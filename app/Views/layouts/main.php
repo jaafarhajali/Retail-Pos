@@ -9,6 +9,14 @@ $userName = (string) ($authUser['full_name'] ?? '');
 $userInitial = $userName === '' ? '?' : mb_strtoupper(mb_substr($userName, 0, 1));
 // Until a forced password change is done every other page bounces back here, so the menu and shortcuts stay hidden.
 $navLocked = (int) ($authUser['must_change_password'] ?? 0) === 1;
+// Back: a page inside a section goes to the section (products/edit → products); a section page with filters goes to
+// the section without them; a plain section page goes to the dashboard. The dashboard has none.
+$backRoute = trim(is_string($_GET['r'] ?? null) ? $_GET['r'] : 'dashboard', '/');
+$backParts = explode('/', $backRoute);
+$backTo = null;
+if (!$navLocked && $backRoute !== '' && $backRoute !== 'dashboard') {
+    $backTo = (count($backParts) > 1 || array_diff_key($_GET, ['r' => 1]) !== []) && $backParts[0] !== 'auth' ? $backParts[0] : 'dashboard';
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -25,7 +33,10 @@ $navLocked = (int) ($authUser['must_change_password'] ?? 0) === 1;
   <?php require APP_PATH . '/Views/partials/sidebar.php'; ?>
   <main class="app-main">
     <header class="app-top">
-      <h1 dir="auto"><?= e($pageTitle ?? '') ?></h1>
+      <div class="app-top-title">
+        <?php if ($backTo !== null): ?><a class="back-link" href="<?= url($backTo) ?>" title="Back"><i class="bi bi-arrow-left"></i><span>Back</span></a><?php endif; ?>
+        <h1 dir="auto"><?= e($pageTitle ?? '') ?></h1>
+      </div>
       <div class="app-top-actions">
         <?php if ($headerRate !== null && !$navLocked): ?>
           <?php if (\App\Core\Gate::allows('rate.manage')): ?>

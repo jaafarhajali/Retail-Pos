@@ -692,3 +692,19 @@ body > .error-wrap .blocked { width: 100%; }
 .cart-line.is-low { box-shadow: inset 4px 0 0 var(--red); }
 .cart-line.is-low .d { color: var(--red); font-weight: 600; }
 .pay-low { margin: .5rem 0 .7rem; padding: .55rem .8rem; border-radius: 10px; background: rgba(224, 72, 58, .16); border: 1px solid rgba(255, 140, 125, .45); color: #FFC9C0; font-weight: 600; }
+
+/* Page header: a small Back before the title */
+.app-top-title { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.back-link { flex-shrink: 0; display: inline-flex; align-items: center; gap: .35rem; height: 34px; padding: 0 .7rem 0 .55rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink-2); font-size: .88rem; font-weight: 600; text-decoration: none; }
+.back-link:hover, .back-link:focus-visible { color: var(--enamel); border-color: var(--enamel); }
+.back-link i { font-size: 1rem; }
+@media (max-width: 800px) { .back-link span { display: none; } .back-link { padding: 0; width: 34px; justify-content: center; } }
+@media print { .back-link { display: none; } }
+
+/* Password fields: the eye */
+.pw-field { position: relative; }
+.pw-field > .form-control { padding-right: 3rem; }
+.pw-eye { position: absolute; top: 50%; right: .3rem; transform: translateY(-50%); width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); font-size: 1.15rem; }
+.pw-eye:hover, .pw-eye:focus-visible { color: var(--enamel); background: rgba(0, 0, 0, .05); }
+.pw-eye[aria-pressed="true"] { color: var(--enamel); }
+.blocked .pw-eye { color: inherit; }

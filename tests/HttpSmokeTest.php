@@ -121,6 +121,18 @@ return [
         assert_same(['below_cost' => []], json_decode($cashier->postJson('pos/check', ['lines' => []])->body, true));
     },
 
+    'every page but the dashboard has a Back to where it came from' => function (): void {
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        assert_not_contains('class="back-link"', $client->get('dashboard')->body);
+        $back = static fn (string $to): string => 'class="back-link" href="' . e(url($to)) . '"';
+        assert_contains($back('dashboard'), $client->get('products')->body);
+        assert_contains($back('products'), $client->get('products/create')->body);
+        assert_contains($back('users'), $client->get('users/edit', ['id' => TEST_ADMIN_ID])->body);
+        assert_contains($back('reports'), $client->get('reports', ['type' => 'profit'])->body);
+        assert_contains($back('dashboard'), $client->get('reports')->body);
+        assert_contains($back('dashboard'), $client->get('auth/password')->body);
+    },
+
     'an SVG logo is kept as vector and served as SVG; an SVG with a script is refused' => function (): void {
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         $svg = '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="600pt" height="614pt" viewBox="0 0 600 614"><path d="M0 0h600v614H0z"/></svg>';

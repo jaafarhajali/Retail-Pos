@@ -31,6 +31,35 @@
     var open = side.classList.toggle('open');
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
+  // Password fields get an eye to show what was typed. Not the approval PIN: an administrator types that on a cashier's screen.
+  document.querySelectorAll('input[type="password"]').forEach(function (input) {
+    if (input.name === 'pin' || input.hasAttribute('data-no-reveal')) { return; }
+    var wrap = document.createElement('div');
+    wrap.className = 'pw-field';
+    Array.prototype.slice.call(input.classList).forEach(function (c) {   // the spacing belongs to the pair, not to the field inside it
+      if (/^m[tbxyse]?-/.test(c)) { wrap.classList.add(c); input.classList.remove(c); }
+    });
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    var eye = document.createElement('button');
+    eye.type = 'button';
+    eye.className = 'pw-eye';
+    eye.setAttribute('aria-label', 'Show password');
+    eye.setAttribute('aria-pressed', 'false');
+    eye.innerHTML = '<i class="bi bi-eye"></i>';
+    eye.addEventListener('click', function () {
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      eye.setAttribute('aria-pressed', show ? 'true' : 'false');
+      eye.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      eye.firstChild.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+      input.focus();
+    });
+    wrap.appendChild(eye);
+    if (input.form) { input.form.addEventListener('submit', function () { input.type = 'password'; }); }   // never submit or remember it as plain text
+    if (input.autofocus) { input.focus(); }
+  });
+
   // Unit pickers on the product form. The type comes from a list: plain measures (Piece, kg…) fix the
   // factor; containers (Box, Pack…) ask how many base units they hold. A preview shows the unit's name.
   function unitLabel(type, n, base, fixed) {
