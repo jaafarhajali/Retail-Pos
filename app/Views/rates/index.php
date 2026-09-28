@@ -6,7 +6,7 @@
       <form method="post" action="<?= url('rates/store') ?>">
         <?= csrf_field() ?>
         <label class="form-label" for="rate">New rate (LBP per 1 USD)</label>
-        <input class="form-control form-control-lg mb-3" id="rate" name="rate" inputmode="numeric" required placeholder="e.g. 89500" value="<?= old('rate') ?>">
+        <input class="form-control form-control-lg mb-3" id="rate" name="rate" inputmode="numeric" data-lbp="always" required placeholder="e.g. 89,500" value="<?= old('rate') ?>">
         <button class="btn btn-primary w-100" type="submit">Set new rate</button>
         <div class="form-text">New sales use the new rate. Past sales keep the rate they were made with.</div>
       </form>

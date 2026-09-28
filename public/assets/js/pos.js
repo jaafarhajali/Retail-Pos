@@ -19,6 +19,19 @@
     return fetch(url, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': P.token }, body: body ? JSON.stringify(body) : undefined })
       .then(function (r) { return r.json().then(function (j) { if (!r.ok) { throw j; } return j; }); });
   }
+  // LBP amounts get thousands separators while they are typed: 10000000 becomes 10,000,000. The server reads them with or without.
+  function groupDigits(value) {
+    return String(value).replace(/\D/g, '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function groupField(input) {
+    var before = input.value, after = groupDigits(before);
+    if (after === before) { return; }
+    var caret = input.selectionStart === null ? before.length : input.selectionStart;
+    var digits = before.slice(0, caret).replace(/\D/g, '').length, pos = 0, seen = 0;   // the caret stays after the same digit
+    input.value = after;
+    while (pos < after.length && seen < digits) { if (/\d/.test(after.charAt(pos))) { seen++; } pos++; }
+    try { input.setSelectionRange(pos, pos); } catch (e) { /* not a text field */ }
+  }
   function unitPrice(u) { var p = level === 'wholesale' ? u.wholesale : u.retail; return p === null ? null : parseFloat(p); }
   function product(id) { return data.products.find(function (p) { return p.id === id; }); }
 
@@ -129,7 +142,7 @@
     discountHint('line', t.gross);
     modals['m-line'].show(); setTimeout(function () { $('line-qty').focus(); $('line-qty').select(); }, 300);
   }
-  $('line-amount-lbp').addEventListener('input', function () { var v = num(this.value); $('line-amount').value = v ? (v / P.rate).toFixed(2) : ''; });
+  $('line-amount-lbp').addEventListener('input', function () { groupField(this); var v = num(this.value); $('line-amount').value = v ? (v / P.rate).toFixed(2) : ''; });
   $('line-ok').addEventListener('click', function () {
     var l = cart[selected], p = product(l.p); l.u = parseInt($('line-unit').value, 10);
     var u = p.units.find(function (x) { return x.id === l.u; });
@@ -275,6 +288,10 @@
     if (!c || !(parseFloat(c.balance) > 0)) modals['m-customer'].hide();
   }
   $('cust-clear').addEventListener('click', function () { setCustomer(null); });
+  if ($('debt-amount')) {
+    $('debt-amount').addEventListener('input', function () { if ($('debt-cur').value === 'LBP') { groupField(this); } });
+    $('debt-cur').addEventListener('change', function () { var f = $('debt-amount'); f.value = this.value === 'LBP' ? groupDigits(f.value.split('.')[0]) : f.value.replace(/,/g, ''); });
+  }
   if ($('debt-ok')) $('debt-ok').addEventListener('click', function () {
     api(P.urls.debt, { customer_id: customer.id, currency: $('debt-cur').value, amount: $('debt-amount').value }).then(function (j) {
       msg('Collected ' + money(j.usd) + '. Balance now ' + money(j.balance)); customer.balance = j.balance; $('debt-amount').value = ''; setCustomer(customer);
@@ -291,10 +308,14 @@
       var d = document.createElement('div'); d.className = 'pay-line';
       d.innerHTML = '<select class="form-select" aria-label="Method"><option value="cash">Cash</option><option value="card">Card</option>' + (P.can.credit || true ? '<option value="credit">Credit</option>' : '') + '</select>' +
         '<select class="form-select" aria-label="Currency"><option>USD</option><option>LBP</option></select><input class="form-control" inputmode="decimal" aria-label="Amount"><button class="btn btn-outline-light" type="button" aria-label="Remove payment"><i class="bi bi-x-lg"></i></button>';
-      d.children[0].value = p.method; d.children[1].value = p.currency; d.children[1].disabled = p.method !== 'cash'; d.children[2].value = p.amount;
+      d.children[0].value = p.method; d.children[1].value = p.currency; d.children[1].disabled = p.method !== 'cash'; d.children[2].value = p.currency === 'LBP' ? groupDigits(p.amount) : p.amount;
       d.children[0].addEventListener('change', function () { p.method = this.value; if (p.method !== 'cash') p.currency = 'USD'; renderPay(); });
-      d.children[1].addEventListener('change', function () { p.currency = this.value; summary(); });
-      d.children[2].addEventListener('input', function () { p.amount = this.value; summary(); });
+      d.children[1].addEventListener('change', function () {
+        p.currency = this.value;
+        d.children[2].value = p.amount = p.currency === 'LBP' ? groupDigits(String(p.amount).split('.')[0]) : String(p.amount).replace(/,/g, '');
+        summary();
+      });
+      d.children[2].addEventListener('input', function () { if (p.currency === 'LBP') { groupField(this); } p.amount = this.value; summary(); });
       d.children[3].addEventListener('click', function () { payments.splice(i, 1); renderPay(); });
       box.appendChild(d);
     });

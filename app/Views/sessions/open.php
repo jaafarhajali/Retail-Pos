@@ -28,7 +28,7 @@
       <?= csrf_field() ?>
       <div class="row g-3 mb-3">
         <div class="col-sm-6"><label class="form-label" for="opening_usd">Opening USD</label><div class="input-group input-group-lg"><span class="input-group-text">$</span><input class="form-control form-control-lg" id="opening_usd" name="opening_usd" inputmode="decimal" placeholder="0.00" value="<?= old('opening_usd') ?>" autofocus></div></div>
-        <div class="col-sm-6"><label class="form-label" for="opening_lbp">Opening LBP</label><div class="input-group input-group-lg"><input class="form-control form-control-lg" id="opening_lbp" name="opening_lbp" inputmode="numeric" placeholder="0" value="<?= old('opening_lbp') ?>"><span class="input-group-text">LBP</span></div></div>
+        <div class="col-sm-6"><label class="form-label" for="opening_lbp">Opening LBP</label><div class="input-group input-group-lg"><input class="form-control form-control-lg" id="opening_lbp" name="opening_lbp" inputmode="numeric" data-lbp="always" placeholder="0" value="<?= old('opening_lbp') ?>"><span class="input-group-text">LBP</span></div></div>
       </div>
       <button class="btn btn-primary btn-lg w-100" type="submit">Open the session</button>
     </form>

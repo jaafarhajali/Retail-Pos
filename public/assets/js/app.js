@@ -31,6 +31,30 @@
     var open = side.classList.toggle('open');
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
+  // LBP amounts get thousands separators while they are typed: 10000000 becomes 10,000,000. The server reads them with or without.
+  function groupDigits(value) {
+    return String(value).replace(/\D/g, '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function groupField(input) {
+    var before = input.value, after = groupDigits(before);
+    if (after === before) { return; }
+    var caret = input.selectionStart === null ? before.length : input.selectionStart;
+    var digits = before.slice(0, caret).replace(/\D/g, '').length, pos = 0, seen = 0;   // the caret stays after the same digit
+    input.value = after;
+    while (pos < after.length && seen < digits) { if (/\d/.test(after.charAt(pos))) { seen++; } pos++; }
+    try { input.setSelectionRange(pos, pos); } catch (e) { /* not a text field */ }
+  }
+  // data-lbp="always": the field is always LBP. data-lbp-when="#select": only while that currency select says LBP.
+  document.querySelectorAll('input[data-lbp], input[data-lbp-when]').forEach(function (input) {
+    var currency = input.dataset.lbpWhen ? document.querySelector(input.dataset.lbpWhen) : null;
+    function isLbp() { return input.dataset.lbp === 'always' || (currency !== null && currency.value === 'LBP'); }
+    input.addEventListener('input', function () { if (isLbp()) { groupField(input); } });
+    if (currency) {
+      currency.addEventListener('change', function () { if (isLbp()) { groupField(input); } else { input.value = input.value.replace(/,/g, ''); } });
+    }
+    if (isLbp()) { groupField(input); }
+  });
+
   // Password fields get an eye to show what was typed. Not the approval PIN: an administrator types that on a cashier's screen.
   document.querySelectorAll('input[type="password"]').forEach(function (input) {
     if (input.name === 'pin' || input.hasAttribute('data-no-reveal')) { return; }

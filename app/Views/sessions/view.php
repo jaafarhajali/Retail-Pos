@@ -35,7 +35,7 @@ $verdict = static function (float $diff, string $shown): string {
           <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $s['id'] ?>">
           <div class="col-7"><label class="form-label" for="cash-direction">Movement</label><select class="form-select" id="cash-direction" name="direction"><option value="in">Cash in (float)</option><option value="out">Cash out (to safe)</option></select></div>
           <div class="col-5"><label class="form-label" for="cash-currency">Currency</label><select class="form-select" id="cash-currency" name="currency"><option>USD</option><option>LBP</option></select></div>
-          <div class="col-5"><label class="form-label" for="cash-amount">Amount</label><input class="form-control" id="cash-amount" name="amount" inputmode="decimal" placeholder="0" required></div>
+          <div class="col-5"><label class="form-label" for="cash-amount">Amount</label><input class="form-control" id="cash-amount" name="amount" inputmode="decimal" data-lbp-when="#cash-currency" placeholder="0" required></div>
           <div class="col-7"><label class="form-label" for="cash-note">Reason</label><input class="form-control" id="cash-note" name="note" dir="auto" placeholder="e.g. to the safe" required></div>
           <div class="col-12 pt-1"><button class="btn btn-outline-primary w-100" type="submit">Record cash movement</button></div>
         </form>

@@ -8,8 +8,8 @@
           <datalist id="cats"><?php foreach ($categories as $c): ?><option value="<?= e($c) ?>"><?php endforeach; ?></datalist></div>
         <div class="mb-2"><label class="form-label">Description</label><input class="form-control" name="description" dir="auto" value="<?= old('description') ?>"></div>
         <div class="row g-2 mb-2">
-          <div class="col-7"><label class="form-label">Amount</label><input class="form-control" name="amount" inputmode="decimal" required value="<?= old('amount') ?>"></div>
-          <div class="col-5"><label class="form-label">Currency</label><select class="form-select" name="currency"><option>USD</option><option <?= old('currency') === 'LBP' ? 'selected' : '' ?>>LBP</option></select></div>
+          <div class="col-7"><label class="form-label" for="expense-amount">Amount</label><input class="form-control" id="expense-amount" name="amount" inputmode="decimal" data-lbp-when="#expense-currency" required value="<?= old('amount') ?>"></div>
+          <div class="col-5"><label class="form-label" for="expense-currency">Currency</label><select class="form-select" id="expense-currency" name="currency"><option>USD</option><option <?= old('currency') === 'LBP' ? 'selected' : '' ?>>LBP</option></select></div>
         </div>
         <div class="row g-2 mb-2">
           <div class="col-6"><label class="form-label">Date</label><input class="form-control" type="date" name="expense_date" value="<?= old('expense_date', date('Y-m-d')) ?>" required></div>
