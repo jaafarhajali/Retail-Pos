@@ -1,10 +1,14 @@
+<?php foreach ($problems as $problem): ?>
+  <div class="alert alert-danger"><strong>Backups are not working.</strong> <?= e($problem) ?></div>
+<?php endforeach; ?>
 <div class="row g-3">
   <div class="col-lg-5">
     <div class="card"><div class="card-body">
       <p>A backup is one zip: the database dump plus the product images. Keep copies on a USB stick or another PC.</p>
-      <form method="post" action="<?= url('backup/run') ?>"><?= csrf_field() ?><button class="btn btn-primary" type="submit">Back up now</button></form>
+      <form method="post" action="<?= url('backup/run') ?>"><?= csrf_field() ?><button class="btn btn-primary" type="submit" <?= $problems === [] ? '' : 'disabled' ?>>Back up now</button></form>
       <hr>
       <p class="small text-muted mb-1 wrap-code">Daily automatic backup: in Windows Task Scheduler run<br><code><?= e(PHP_BINARY) ?> "<?= e(BASE_PATH) ?>\bin\backup.php"</code> every night. Uses <code><?= e($mysqldump) ?></code>.</p>
+      <p class="small text-muted mb-1 wrap-code">Check that a backup really restores (the live data is only read): <code><?= e(PHP_BINARY) ?> "<?= e(BASE_PATH) ?>\bin\restore-drill.php"</code>. Do it after installing and once a month.</p>
       <p class="small text-muted mb-0 wrap-code">Restore: unzip, import the .sql into MySQL (phpMyAdmin or <code>mysql retail_pos &lt; file.sql</code>), copy the <code>uploads</code> folder to <code>public/uploads</code>.</p>
     </div></div>
   </div>

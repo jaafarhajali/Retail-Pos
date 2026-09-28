@@ -12,7 +12,7 @@ final class BackupController extends Controller
 {
     public function index(): void
     {
-        $this->render('backup/index', ['backups' => (new BackupService())->list(), 'mysqldump' => BackupService::mysqldumpPath()], 'Backups');
+        $this->render('backup/index', ['backups' => (new BackupService())->list(), 'mysqldump' => BackupService::mysqldumpPath(), 'problems' => BackupService::problems()], 'Backups');
     }
 
     public function run(): void
