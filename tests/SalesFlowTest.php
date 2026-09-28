@@ -119,6 +119,25 @@ return [
         assert_throws(DomainException::class, fn () => (new ReturnService())->create($r['id'], [['sale_item_id' => (int) $items[1]['id'], 'qty' => '1', 'condition' => 'restock']], 'USD', '', $s['session'], $s['register'], TEST_ADMIN_ID));
     },
 
+    'profit report: a return with 2 items is counted once' => function () use ($setup, $sale): void {
+        $s = $setup();   // 1 kg sells at $15 and costs $10; 1 Box sells at $280 and costs $200
+        $r = $sale($s, [['product_id' => $s['charcoal'], 'unit_id' => $s['kg'], 'qty' => '2'], ['product_id' => $s['charcoal'], 'unit_id' => $s['box'], 'qty' => '1']],
+            [['method' => 'cash', 'currency' => 'USD', 'amount' => '310']]);
+        $items = (new Sale())->items($r['id']);
+        $ret = (new ReturnService())->create($r['id'], [
+            ['sale_item_id' => (int) $items[0]['id'], 'qty' => '1', 'condition' => 'restock'],
+            ['sale_item_id' => (int) $items[1]['id'], 'qty' => '1', 'condition' => 'restock'],
+        ], 'USD', 'changed mind', $s['session'], $s['register'], TEST_ADMIN_ID);
+        assert_same('295.00', $ret['total_usd']);
+
+        $p = (new \App\Services\ReportService())->profit(date('Y-m-d'), date('Y-m-d'));
+        assert_same('310.00', $p['gross_sales']);
+        assert_same('295.00', $p['returns'], 'the refund is counted once, not once per item');
+        assert_same('15.00', $p['net_sales'], 'one kg stays sold');
+        assert_same('10.00', $p['cogs'], 'the cost of both returned items comes back: 220 − 10 − 200');
+        assert_same('5.00', $p['gross_profit']);
+    },
+
     'credit sale adds debt, debt collection at the till reduces it and enters the drawer (§10)' => function () use ($setup, $sale): void {
         $s = $setup();
         $cust = (new Customer())->create(['name' => 'أحمد', 'phone' => null, 'notes' => null, 'default_price_level' => 'retail', 'credit_limit_usd' => null]);

@@ -59,8 +59,13 @@ final class ReportService
         $p = $this->range($from, $to);
         $s = $this->rows("SELECT COALESCE(SUM(total_usd), 0) AS gross, COALESCE(SUM(rounding_usd), 0) AS rounding, COALESCE(SUM(cost_total_usd), 0) AS cogs, COUNT(*) AS invoices
                           FROM sales WHERE status = 'completed' AND created_at BETWEEN :f AND :t", $p)[0];
-        $r = $this->rows("SELECT COALESCE(SUM(r.total_usd), 0) AS refunds, COALESCE(SUM(ri.cost_usd), 0) AS cost FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id
-                          WHERE r.created_at BETWEEN :f AND :t", $p)[0];
+        // Two separate sums. Joining returns to their items repeats a return's total once per item,
+        // so a refund of $10.22 with 2 items was reported as more than it was.
+        $r = [
+            'refunds' => $this->rows("SELECT COALESCE(SUM(total_usd), 0) AS refunds FROM returns WHERE created_at BETWEEN :f AND :t", $p)[0]['refunds'],
+            'cost' => $this->rows("SELECT COALESCE(SUM(ri.cost_usd), 0) AS cost FROM return_items ri JOIN returns r ON r.id = ri.return_id
+                                   WHERE r.created_at BETWEEN :f AND :t", $p)[0]['cost'],
+        ];
         $waste = (new StockMovement())->wasteCost($from, $to);
         $expenses = (new Expense())->totalUsd($from, $to);
         $net = (float) $s['gross'] - (float) $r['refunds'] + (float) $s['rounding'];
