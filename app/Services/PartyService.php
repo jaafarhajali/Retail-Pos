@@ -35,6 +35,49 @@ final class PartyService
         return $id;
     }
 
+    /** Code of the exception that says "this name exists": the form then offers "different person, save anyway". */
+    public const SAME_NAME = 2;
+
+    /** "03 111 222", "03-111222" and "+961 3 111 222" are one number. */
+    public static function phoneKey(?string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
+        if (str_starts_with($digits, '00961')) {
+            $digits = substr($digits, 5);
+        } elseif (str_starts_with($digits, '961') && strlen($digits) > 8) {
+            $digits = substr($digits, 3);
+        }
+
+        return ltrim($digits, '0');
+    }
+
+    /**
+     * Two people rarely share one number, so a phone that another customer has is refused. The same name happens
+     * (two Ahmad Saleh), so it is only asked about. Editing a customer checks only what was changed.
+     */
+    private function refuseDuplicate(Customer $customers, ?array $existing, string $name, ?string $phone, bool $allowSameName): void
+    {
+        $key = self::phoneKey($phone);
+        $checkPhone = $key !== '' && ($existing === null || self::phoneKey($existing['phone']) !== $key);
+        $checkName = $existing === null || mb_strtolower(trim((string) $existing['name'])) !== mb_strtolower($name);
+        $sameName = null;
+        foreach ($customers->all() as $c) {
+            if ($existing !== null && (int) $c['id'] === (int) $existing['id']) {
+                continue;
+            }
+            if ($checkPhone && self::phoneKey($c['phone']) === $key) {
+                throw new \DomainException("The phone {$phone} belongs to {$c['name']}. Open that customer instead of adding a second one.");
+            }
+            if ($checkName && $sameName === null && mb_strtolower(trim((string) $c['name'])) === mb_strtolower($name)) {
+                $sameName = $c;
+            }
+        }
+        if ($sameName !== null && !$allowSameName) {
+            $known = $sameName['phone'] !== null && $sameName['phone'] !== '' ? " (phone {$sameName['phone']})" : ' (no phone)';
+            throw new \DomainException("A customer named {$sameName['name']} already exists{$known}. If this is a different person, tick \"Different person with the same name\" and save again.", self::SAME_NAME);
+        }
+    }
+
     public function saveCustomer(int $id, array $in): int
     {
         $name = trim((string) ($in['name'] ?? ''));
@@ -52,8 +95,9 @@ final class PartyService
             'default_price_level' => $level, 'credit_limit_usd' => $limit, 'is_active' => (bool) ($in['is_active'] ?? true),
         ];
         $customers = new Customer();
+        $existing = $id > 0 ? ($customers->find($id) ?? throw new \DomainException('Customer not found.')) : null;
+        $this->refuseDuplicate($customers, $existing, $name, $f['phone'], (bool) ($in['allow_same_name'] ?? false));
         if ($id > 0) {
-            $customers->find($id) ?? throw new \DomainException('Customer not found.');
             $customers->update($id, $f);
             Audit::log('customer.updated', 'customer', $id, ['name' => $name]);
 

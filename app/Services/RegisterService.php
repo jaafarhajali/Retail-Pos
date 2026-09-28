@@ -49,9 +49,24 @@ final class RegisterService
         return $token;
     }
 
+    /** A deactivated register comes back without a device; it is linked again with "Use this device". */
+    public function activate(int $id): void
+    {
+        $register = $this->registers->find($id) ?? throw new \DomainException('Register not found.');
+        if ((int) $register['is_active'] === 1) {
+            throw new \DomainException('This register is already active.');
+        }
+        $this->registers->activate($id);
+        Audit::log('register.activated', 'register', $id, ['name' => $register['name']]);
+    }
+
     public function deactivate(int $id): void
     {
         $register = $this->registers->find($id) ?? throw new \DomainException('Register not found.');
+        $open = (new \App\Models\CashSession())->openForRegister($id);
+        if ($open !== null) {
+            throw new \DomainException("Session {$open['session_no']} is open on {$register['name']}. Count and close it first.");
+        }
         $this->registers->deactivate($id);
         Audit::log('register.deactivated', 'register', $id, ['name' => $register['name']]);
     }

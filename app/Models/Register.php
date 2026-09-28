@@ -42,6 +42,11 @@ final class Register extends Model
         $this->execute('UPDATE registers SET is_active = 0, device_token_hash = NULL WHERE id = :id', ['id' => $id]);
     }
 
+    public function activate(int $id): void
+    {
+        $this->execute('UPDATE registers SET is_active = 1 WHERE id = :id', ['id' => $id]);
+    }
+
     public function findActiveByTokenHash(string $hash): ?array
     {
         return $this->fetch('SELECT * FROM registers WHERE device_token_hash = :h AND is_active = 1', ['h' => $hash]);

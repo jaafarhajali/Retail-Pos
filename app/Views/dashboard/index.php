@@ -17,7 +17,10 @@
     <h2 class="dash-label">This device</h2>
     <?php if ($register !== null): ?>
       <div class="dash-name" dir="auto"><?= e($register['name']) ?></div>
-      <?php if ($session === null): ?>
+      <?php $busy = $session === null && $registerOpen !== null ? $registerOpen : null;   // somebody else's shift is open on this register ?>
+      <?php if ($busy !== null): ?>
+        <div class="dash-status is-warn"><span class="dot"></span>In use by <span dir="auto"><?= e($busy['full_name']) ?></span>: session <?= e($busy['session_no']) ?> is open</div>
+      <?php elseif ($session === null): ?>
         <div class="dash-status"><span class="dot"></span>No open session</div>
       <?php else: ?>
         <div class="dash-status is-open"><span class="dot"></span>Session <?= e($session['session_no']) ?> open</div>
@@ -27,7 +30,13 @@
       <div class="dash-status is-warn"><span class="dot"></span>An administrator links it on the Registers page.</div>
     <?php endif; ?>
     <div class="dash-actions">
-      <?php if ($canSell): ?>
+      <?php if ($canSell && ($busy ?? null) !== null): ?>
+        <?php if (\App\Core\Gate::allows('session.view_all')): ?>
+          <a class="btn btn-primary btn-lg" href="<?= url('sessions/view', ['id' => $busy['id']]) ?>"><i class="bi bi-cash-stack"></i> Count and close <?= e($busy['session_no']) ?></a>
+        <?php else: ?>
+          <p class="dash-wait">Ask the administrator to count and close <?= e($busy['session_no']) ?> before you can start your shift.</p>
+        <?php endif; ?>
+      <?php elseif ($canSell): ?>
         <?php if ($session === null): ?>
           <a class="btn btn-primary btn-lg" href="<?= url('sessions/open') ?>"><i class="bi bi-unlock"></i> Open a cash session</a>
         <?php else: ?>

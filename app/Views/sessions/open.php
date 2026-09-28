@@ -9,8 +9,15 @@
   <div class="blocked">
     <div class="blocked-icon is-warn"><i class="bi bi-person-lock"></i></div>
     <h2><span dir="auto"><?= e($register['name']) ?></span> already has an open session</h2>
-    <p class="mb-0">Session <code><?= e($registerOpen['session_no']) ?></code> of <?= e($registerOpen['username']) ?> is still open. It must be counted and closed before a new one starts.</p>
-    <div class="blocked-actions"><a class="btn btn-outline-primary" href="<?= url('sessions/view', ['id' => $registerOpen['id']]) ?>">Open <?= e($registerOpen['session_no']) ?></a></div>
+    <?php if ((int) $registerOpen['user_id'] === \App\Core\Auth::id()): ?>
+      <p class="mb-0">It is yours: session <code><?= e($registerOpen['session_no']) ?></code> is open. Keep selling, or have it counted and closed at the end of the shift.</p>
+      <div class="blocked-actions"><a class="btn btn-primary" href="<?= url('pos') ?>">Open the till</a> <a class="btn btn-outline-primary" href="<?= url('sessions/view', ['id' => $registerOpen['id']]) ?>">Open <?= e($registerOpen['session_no']) ?></a></div>
+    <?php elseif (\App\Core\Gate::allows('session.view_all')): ?>
+      <p class="mb-0">Session <code><?= e($registerOpen['session_no']) ?></code> of <?= e($registerOpen['username']) ?> is still open. It must be counted and closed before a new one starts.</p>
+      <div class="blocked-actions"><a class="btn btn-outline-primary" href="<?= url('sessions/view', ['id' => $registerOpen['id']]) ?>">Open <?= e($registerOpen['session_no']) ?></a></div>
+    <?php else: ?>
+      <p class="mb-0">Session <code><?= e($registerOpen['session_no']) ?></code> of <?= e($registerOpen['username']) ?> is still open. Ask the administrator to count and close <code><?= e($registerOpen['session_no']) ?></code> before you can start your shift.</p>
+    <?php endif; ?>
   </div>
 <?php else: ?>
   <div class="blocked">

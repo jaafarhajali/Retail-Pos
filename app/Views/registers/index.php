@@ -1,7 +1,11 @@
+<?php $currentOpen = $current !== null ? ($inUse[(int) $current['id']] ?? null) : null;   // the shift open on this device's register ?>
 <?php if ($current === null): ?>
   <div class="alert alert-warning">This device is not a POS register yet. Press “Use this device” next to one of the registers below.</div>
 <?php else: ?>
   <div class="alert alert-success">This device is <strong dir="auto"><?= e($current['name']) ?></strong>.</div>
+  <?php if ($currentOpen !== null): ?>
+    <div class="alert alert-info">Session <strong><?= e($currentOpen['session_no']) ?></strong> of <span dir="auto"><?= e($currentOpen['full_name']) ?></span> is open on this device. It has to be counted and closed before this device can move to another register.</div>
+  <?php endif; ?>
 <?php endif; ?>
 <form method="post" action="<?= url('registers/store') ?>" class="filters mb-3">
   <?= csrf_field() ?>
@@ -25,15 +29,21 @@
         <td class="text-end">
           <?php if ((int) $r['is_active']): ?>
             <form method="post" action="<?= url('registers/bind') ?>" class="d-inline"
-                  data-confirm="Use THIS device as <?= e($r['name']) ?>? Any other device linked to it stops working as this register.">
+                  data-confirm="Use THIS device as <?= e($r['name']) ?>? Any other device linked to it stops working as this register.<?= $s !== null && !$isThis ? ' ' . e($s['full_name']) . ' has session ' . e($s['session_no']) . ' open on it: that shift will continue on THIS device.' : '' ?>">
               <?= csrf_field() ?>
               <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
-              <button class="btn btn-sm btn-outline-primary" type="submit">Use this device</button>
+              <button class="btn btn-sm btn-outline-primary" type="submit" <?= $currentOpen !== null && !$isThis ? 'disabled title="Close session ' . e($currentOpen['session_no']) . ' on this device first"' : '' ?>>Use this device</button>
             </form>
             <form method="post" action="<?= url('registers/deactivate') ?>" class="d-inline" data-confirm="Deactivate <?= e($r['name']) ?>?">
               <?= csrf_field() ?>
               <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
               <button class="btn btn-sm btn-outline-danger" type="submit" <?= $s !== null ? 'disabled title="Close its session first"' : '' ?>>Deactivate</button>
+            </form>
+          <?php else: ?>
+            <form method="post" action="<?= url('registers/activate') ?>" class="d-inline">
+              <?= csrf_field() ?>
+              <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+              <button class="btn btn-sm btn-outline-primary" type="submit">Reactivate</button>
             </form>
           <?php endif; ?>
         </td>

@@ -153,7 +153,7 @@
     <div>
       <p class="pin-for" id="pin-for" dir="auto"></p>
       <label class="form-label" for="pin-input">Administrator's PIN</label>
-      <input class="form-control" id="pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="6">
+      <input class="form-control pin-mask" id="pin-input" type="text" inputmode="numeric" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="6">
       <p class="pin-error" id="pin-error" role="alert"></p>
     </div>
     <?php require APP_PATH . '/Views/pos/_keypad.php'; ?>

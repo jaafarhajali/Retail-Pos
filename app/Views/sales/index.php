@@ -17,7 +17,11 @@
       <tr class="<?= $s['status'] === 'voided' ? 'table-secondary' : '' ?>">
         <td class="text-nowrap"><code><?= e($s['invoice_no']) ?></code></td><td class="text-nowrap"><?= e(date('d/m/Y H:i', strtotime($s['created_at']))) ?></td><td><?= e($s['username']) ?></td>
         <td dir="auto" class="<?= $s['customer_name'] === null ? 'is-walkin' : '' ?>"><?= e($s['customer_name'] ?? 'Walk-in') ?></td><td><?= $s['price_level'] === 'wholesale' ? '<span class="badge text-bg-info">Wholesale</span>' : 'Retail' ?></td><td class="text-end"><?= usd($s['total_usd']) ?></td>
-        <td><?= $s['status'] === 'voided' ? '<span class="badge text-bg-danger">voided</span>' : '' ?></td>
+        <td><?php $back = (float) $s['returned_usd']; ?>
+          <?php if ($s['status'] === 'voided'): ?><span class="badge text-bg-danger">voided</span>
+          <?php elseif ($back > 0.004 && $back >= (float) $s['total_usd'] - 0.004): ?><span class="badge text-bg-warning" title="<?= usd($back) ?> refunded">returned</span>
+          <?php elseif ($back > 0.004): ?><span class="badge text-bg-warning" title="<?= usd($back) ?> of <?= usd($s['total_usd']) ?> refunded">part returned</span>
+          <?php endif; ?></td>
         <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('sales/view', ['id' => $s['id']]) ?>">Open</a></td>
       </tr>
     <?php endforeach; ?>

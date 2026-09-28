@@ -33,10 +33,10 @@ final class CustomerController extends Controller
             $id = (new PartyService())->saveCustomer($id, [
                 'name' => $this->input('name'), 'phone' => $this->input('phone'), 'notes' => $this->input('notes'),
                 'default_price_level' => $this->input('default_price_level'), 'credit_limit_usd' => $this->input('credit_limit_usd'),
-                'is_active' => $id === 0 || isset($_POST['is_active']),
+                'is_active' => $id === 0 || isset($_POST['is_active']), 'allow_same_name' => isset($_POST['allow_same_name']),
             ]);
         } catch (\DomainException $e) {
-            $this->failBack('customers/edit', $id > 0 ? ['id' => $id] : [], ['name' => $e->getMessage()]);
+            $this->failBack('customers/edit', $id > 0 ? ['id' => $id] : [], [$e->getCode() === PartyService::SAME_NAME ? 'same_name' : 'name' => $e->getMessage()]);
         }
         Flash::set('success', 'Customer saved.');
         redirect('customers/edit', ['id' => $id]);

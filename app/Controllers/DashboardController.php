@@ -15,9 +15,12 @@ final class DashboardController extends Controller
 {
     public function index(): void
     {
+        $register = RegisterDevice::current();
         $this->render('dashboard/index', [
             'user'     => Auth::user(),
-            'register' => RegisterDevice::current(),
+            'register' => $register,
+            // Whoever has the drawer of this device's register: one register, one open session.
+            'registerOpen' => $register === null ? null : (new CashSession())->openForRegister((int) $register['id']),
             'rate'     => (new ExchangeRate())->current(),
             'session'  => (new CashSession())->openForUser(Auth::id()),
             'today'    => Gate::allows('report.sales') ? (new ReportService())->today() : null,

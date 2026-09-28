@@ -40,6 +40,14 @@ final class RegisterController extends Controller
     public function bind(): void
     {
         try {
+            // A device in the middle of a shift stays where it is: moving it would leave that drawer without its till.
+            $current = RegisterDevice::current();
+            if ($current !== null && (int) $current['id'] !== $this->inputInt('id')) {
+                $open = (new \App\Models\CashSession())->openForRegister((int) $current['id']);
+                if ($open !== null) {
+                    throw new \DomainException("This device is {$current['name']} and session {$open['session_no']} of {$open['username']} is still open on it. Count and close it before this device moves to another register.");
+                }
+            }
             $token = (new RegisterService())->bindThisDevice($this->inputInt('id'));
         } catch (\DomainException $e) {
             $this->failBack('registers', [], ['id' => $e->getMessage()]);
@@ -84,6 +92,17 @@ final class RegisterController extends Controller
             $this->failBack('registers', [], ['id' => $e->getMessage()]);
         }
         Flash::set('success', 'Register deactivated.');
+        redirect('registers');
+    }
+
+    public function activate(): void
+    {
+        try {
+            (new RegisterService())->activate($this->inputInt('id'));
+        } catch (\DomainException $e) {
+            $this->failBack('registers', [], ['id' => $e->getMessage()]);
+        }
+        Flash::set('success', 'Register active again. Link a device to it with "Use this device".');
         redirect('registers');
     }
 }

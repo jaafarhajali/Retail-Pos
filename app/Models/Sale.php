@@ -8,7 +8,8 @@ use App\Core\Model;
 /** Sales, their lines and payments (spec §3.7). Append-only except the void status. */
 final class Sale extends Model
 {
-    private const SELECT = 'SELECT s.*, u.username, r.name AS register_name, c.name AS customer_name, cs.session_no FROM sales s
+    private const SELECT = 'SELECT s.*, u.username, r.name AS register_name, c.name AS customer_name, cs.session_no,
+                            (SELECT COALESCE(SUM(rt.total_usd), 0) FROM returns rt WHERE rt.sale_id = s.id) AS returned_usd FROM sales s
                             JOIN users u ON u.id = s.user_id JOIN registers r ON r.id = s.register_id
                             LEFT JOIN customers c ON c.id = s.customer_id JOIN cash_sessions cs ON cs.id = s.session_id';
 

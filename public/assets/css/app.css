@@ -708,3 +708,9 @@ body > .error-wrap .blocked { width: 100%; }
 .pw-eye:hover, .pw-eye:focus-visible { color: var(--enamel); background: rgba(0, 0, 0, .05); }
 .pw-eye[aria-pressed="true"] { color: var(--enamel); }
 .blocked .pw-eye { color: inherit; }
+
+/* The administrator's PIN: shown as dots, but not a password field, so browsers never offer to save or fill it */
+.pin-mask { -webkit-text-security: disc; }
+/* Dashboard: the register is busy with somebody else's shift */
+.dash-wait { margin: 0; padding: .7rem .9rem; border-radius: 10px; background: rgba(224, 172, 72, .16); border: 1px solid rgba(224, 172, 72, .5); font-weight: 600; }
+.same-name { padding: .6rem .8rem .6rem 2.3rem; border-radius: 8px; background: rgba(224, 172, 72, .16); border: 1px solid rgba(224, 172, 72, .5); }

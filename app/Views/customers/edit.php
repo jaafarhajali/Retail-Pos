@@ -6,6 +6,9 @@
         <input type="hidden" name="id" value="<?= (int) ($customer['id'] ?? 0) ?>">
         <div class="mb-3"><label class="form-label" for="name">Name</label><input class="form-control" id="name" name="name" dir="auto" required maxlength="120" value="<?= old('name', $customer['name'] ?? '') ?>"></div>
         <div class="mb-3"><label class="form-label" for="phone">Phone</label><input class="form-control" id="phone" name="phone" maxlength="30" value="<?= old('phone', $customer['phone'] ?? '') ?>"></div>
+        <?php if (isset($_SESSION['_errors']['same_name'])): ?>
+          <div class="form-check mb-3 same-name"><input class="form-check-input" type="checkbox" id="allow_same_name" name="allow_same_name" value="1"><label class="form-check-label" for="allow_same_name">Different person with the same name: save anyway</label></div>
+        <?php endif; ?>
         <div class="row g-2 mb-3">
           <div class="col-6"><label class="form-label" for="default_price_level">Price level</label>
             <select class="form-select" id="default_price_level" name="default_price_level">

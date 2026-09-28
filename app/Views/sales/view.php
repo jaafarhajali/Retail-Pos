@@ -24,7 +24,7 @@
           <label class="form-label" for="void-reason">Reason</label>
           <input class="form-control mb-2" id="void-reason" name="reason" dir="auto" placeholder="e.g. customer changed their mind" required>
           <label class="form-label" for="void-pin">Admin PIN <span class="text-muted fw-normal">(only if you lack the permission)</span></label>
-          <input class="form-control mb-3" id="void-pin" name="pin" type="password" inputmode="numeric" autocomplete="off">
+          <input class="form-control mb-3 pin-mask" id="void-pin" name="pin" type="text" inputmode="numeric" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="6">
           <button class="btn btn-outline-danger w-100" type="submit">Void sale</button>
         </form>
       </div></div>
