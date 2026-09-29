@@ -725,25 +725,31 @@ body > .error-wrap .blocked { width: 100%; }
 .blocked-note { padding: .7rem .9rem; border-radius: 10px; background: rgba(224, 172, 72, .16); border: 1px solid rgba(224, 172, 72, .5); }
 
 /* The product page: one form, one Save */
-.product-form { padding-bottom: 5.5rem; }
+.product-form { padding-bottom: 4.25rem; }
+.product-form h2.form-label { line-height: 1.5; letter-spacing: 0; }
+.pf-three .form-label { display: block; }
+.product-form .form-check-label small, .pf-how-option small { display: block; color: var(--ink-2); font-size: .84rem; line-height: 1.4; }
 .pf-how { margin: .2rem 0 1rem; }
-.pf-how-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .6rem; margin: .4rem 0 1.1rem; }
+.pf-how-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .6rem; margin: .4rem 0 1rem; }
 .pf-how-option { display: flex; gap: .7rem; align-items: flex-start; padding: .8rem .9rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
 .pf-how-option:has(input:checked) { border-color: var(--enamel); box-shadow: inset 0 0 0 1px var(--enamel); background: rgba(24, 90, 122, .05); }
 .pf-how-option .form-check-input { margin-top: .2rem; flex-shrink: 0; }
-.pf-how-option small { display: block; color: var(--ink-2); font-size: .82rem; line-height: 1.3; margin-top: .1rem; }
-.pf-table { margin-bottom: .9rem; min-width: 900px; }
-.pf-table > thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); font-weight: 600; border-bottom-width: 1px; white-space: nowrap; }
+.pf-how-option small { margin-top: .1rem; }
+.pf-table { margin-bottom: .75rem; min-width: 900px; }
+.pf-table > :not(caption) > * > * { padding-left: .55rem; padding-right: .55rem; }
 .pf-table > tbody td { vertical-align: top; padding-top: .7rem; padding-bottom: .7rem; }
-.pf-table .pf-main { width: 3rem; text-align: center; }
+.pf-table .pf-main { width: 6rem; text-align: center; }
 .pf-table td.pf-main { padding-top: 1.2rem; }
 .pf-table .pf-main .form-check-input { width: 1.2rem; height: 1.2rem; }
 .pf-type { width: 10.5rem; }
-.pf-size { width: 13rem; }
+.pf-type .form-select { min-width: 7.5rem; }
+.pf-size { width: 12rem; }
 .pf-price { width: 10.5rem; }
-.pf-price .input-group { min-width: 9rem; flex-wrap: nowrap; }
+.pf-price .input-group { min-width: 8.5rem; flex-wrap: nowrap; }
 .pf-remove { width: 3rem; text-align: right; }
-.pf-name { min-height: 1.2em; margin-top: .25rem; font-size: .82rem; font-weight: 600; color: var(--enamel); }
+.pf-remove .btn { margin-top: .2rem; }
+.pf-remove .btn:not(:hover):not(:focus-visible):not(:active) { border-color: transparent; background: transparent; color: var(--ink-3); }
+.pf-name { min-height: 1.2em; white-space: nowrap; margin-top: .25rem; font-size: .84rem; font-weight: 600; color: var(--enamel); }
 .pf-size-edit { display: flex; gap: .35rem; align-items: center; }
 .pf-size-edit[hidden] { display: none; }
 .pf-size-edit .form-control { min-width: 5rem; flex: 1 1 5rem; }
@@ -751,21 +757,34 @@ body > .error-wrap .blocked { width: 100%; }
 .pf-pieces { color: var(--ink-2); font-size: .9rem; }
 .pf-size-fixed { padding: .45rem 0; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .pf-size-fixed.is-locked::after { content: "\F47B"; font-family: "bootstrap-icons"; margin-left: .4rem; font-size: .85em; }
-.pf-profit { min-height: 1.2em; margin-top: .25rem; font-size: .8rem; color: var(--green); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pf-profit { min-height: 1.2em; margin-top: .25rem; font-size: .84rem; color: var(--green); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pf-profit div + div { color: var(--ink-2); }
 .pf-profit.is-loss { color: var(--red); font-weight: 600; }
-.pf-codes .form-control { min-width: 11rem; font-variant-numeric: tabular-nums; }
+.pf-codes .form-control { min-width: 10rem; font-variant-numeric: tabular-nums; }
+.pf-add { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.pf-add .form-text { margin: 0; }
+.pf-three { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); gap: 1.1rem 1.5rem; align-items: start; }
+.pf-three .input-group { flex-wrap: nowrap; }
 .pf-now { margin-bottom: .7rem; font-variant-numeric: tabular-nums; }
-.pf-now .d-block { font-size: .85rem; }
+.pf-now .d-block { font-size: .84rem; }
+.pf-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .pf-side .card { margin-bottom: 0; }
-.pf-photo { aspect-ratio: 1; width: 100%; max-width: 220px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); color: #A9B5BC; font-size: 2.6rem; overflow: hidden; }
+.pf-photo-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .75rem 1rem; }
+.pf-photo { flex: 0 0 8.5rem; width: 8.5rem; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); color: #A9B5BC; font-size: 2rem; overflow: hidden; }
 .pf-photo img { width: 100%; height: 100%; object-fit: cover; }
-.product-form .form-check-label small { font-size: .8rem; line-height: 1.3; }
-.pf-bar { position: fixed; left: 232px; right: 0; bottom: 0; z-index: 20; display: flex; align-items: center; gap: .6rem; padding: .75rem 2rem; background: rgba(255, 255, 255, .96); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px rgba(14, 42, 58, .07); }
-.pf-unsaved { margin-left: auto; color: #9A6A00; font-size: .88rem; font-weight: 600; }
+.pf-photo-pick { flex: 1 1 13rem; min-width: 0; }
+.pf-switches { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr)); gap: .7rem 1.5rem; margin-bottom: 1.1rem; }
+.pf-switches .form-check { margin-bottom: 0; }
+.pf-extras { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr)); gap: 1rem 1.25rem; align-items: start; }
+.pf-pct { max-width: 9rem; }
+@media (min-width: 1040px) and (max-width: 1399.98px) { .pf-side { grid-template-columns: 18rem minmax(0, 1fr); } .pf-delete { grid-column: 1 / -1; } }
+.pf-bar { position: fixed; left: 232px; right: 0; bottom: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; padding: .75rem 2rem; background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px rgba(14, 42, 58, .07); }
+.pf-bar .btn { white-space: nowrap; }
+.pf-unsaved { display: inline-flex; align-items: center; gap: .45rem; margin-left: .4rem; padding: .3rem .75rem; border-radius: 999px; background: var(--amber-soft); color: var(--amber); font-size: .84rem; font-weight: 600; white-space: nowrap; }
 .pf-unsaved[hidden] { display: none; }
-.pf-unsaved i { font-size: .55rem; vertical-align: .15em; margin-right: .3rem; }
-@media (max-width: 800px) { .pf-bar { left: 0; padding: .6rem 1rem; flex-wrap: wrap; } .pf-bar .btn-lg { flex: 1 1 auto; } .pf-unsaved { margin-left: 0; width: 100%; } }
+.pf-unsaved i { font-size: .5rem; }
+@media (max-width: 1000px) { .product-form { padding-bottom: 7rem; } }
+@media (max-width: 800px) { .pf-bar { left: 0; padding: .6rem 1rem; } .pf-bar .btn-lg { flex: 1 1 auto; } .pf-unsaved { margin-left: 0; } }
 @media print { .pf-bar { display: none; } }
 
 /* The product list */

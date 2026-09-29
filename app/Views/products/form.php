@@ -169,7 +169,7 @@ $natural = ['piece' => ['piece', 1], 'g' => ['kg', 1000], 'ml' => ['L', 1000]][$
         <div class="table-responsive">
           <table class="table align-middle pf-table">
             <thead><tr>
-              <th class="pf-main" title="The till shows this one on the product's button">Till</th><th>Sold as</th><th>Holds</th><th>Retail</th><th>Wholesale</th><th>Barcodes</th><th></th>
+              <th class="pf-main" title="The till shows this one on the product's button">Till button</th><th>Sold as</th><th>Holds</th><th>Retail</th><th>Wholesale</th><th>Barcodes</th><th></th>
             </tr></thead>
             <tbody data-rows>
               <?php foreach ($rows as $key => $row): ?><?= $renderRow((string) $key, $row, $unitsById[$row['id']] ?? null) ?><?php endforeach; ?>
@@ -177,45 +177,48 @@ $natural = ['piece' => ['piece', 1], 'g' => ['kg', 1000], 'ml' => ['L', 1000]][$
           </table>
         </div>
         <?php if (!$readonly): ?>
-          <button class="btn btn-outline-primary" type="button" data-add-row><i class="bi bi-plus-lg"></i> Add another way to sell it</button>
-          <span class="form-text ms-2">Example: a Piece at $2 and a Box of 6 at $11. Selling one box takes 6 pieces from the stock.</span>
+          <div class="pf-add">
+            <button class="btn btn-outline-primary" type="button" data-add-row><i class="bi bi-plus-lg"></i> Add another way to sell it</button>
+            <span class="form-text">For example a Box of 6. Selling one box takes 6 pieces from the stock.</span>
+          </div>
         <?php endif; ?>
         <template id="unit-row-template"><?= $renderRow('__KEY__', ['id' => 0, 'type' => 'Box', 'size' => '', 'size_unit' => '', 'retail' => '', 'wholesale' => '', 'barcodes' => ''], null) ?></template>
       </div></div>
 
-      <div class="card mb-3"><div class="card-body">
-        <div class="row g-4">
+      <div class="card"><div class="card-body">
+        <div class="pf-three">
           <?php if ($showCost): ?>
-            <div class="col-md-4" id="cost-card">
-              <h2 class="h5">Cost</h2>
+            <div id="cost-card">
               <?php if ($isEdit && (float) $product['cost_per_base'] > 0): ?>
+                <h2 class="form-label">What it costs you</h2>
                 <p class="pf-now">Now <strong><?= usd(Pricing::unitCost($product['cost_per_base'], $natural[1])) ?></strong> per <?= e($natural[0]) ?>
                   <?php foreach ($units as $u): if ((int) $u['factor'] !== $natural[1]): ?><span class="text-muted d-block"><?= usd(Pricing::unitCost($product['cost_per_base'], (int) $u['factor'])) ?> per <?= e($u['name']) ?></span><?php endif; endforeach; ?></p>
+                <label class="form-label" for="cost">New cost</label>
+              <?php else: ?>
+                <label class="form-label" for="cost">What it costs you</label>
               <?php endif; ?>
-              <label class="form-label" for="cost"><?= $isEdit ? 'New cost' : 'What it costs you' ?></label>
               <div class="input-group"><span class="input-group-text">$</span>
                 <input class="form-control" id="cost" name="cost" inputmode="decimal" value="<?= old('cost') ?>" placeholder="<?= $isEdit ? 'unchanged' : '0.00' ?>" <?= $dis ?>>
                 <span class="input-group-text">per</span><?= $unitPick('cost_unit', $text($stash['cost_unit'] ?? null)) ?></div>
               <?php if ($isEdit): ?><div class="form-text">Purchases update the cost by themselves. Type here only to correct it.</div><?php endif; ?>
             </div>
           <?php endif; ?>
-          <div class="col-md-4">
-            <h2 class="h5">Stock</h2>
+          <div>
             <?php if ($locked): ?>
+              <h2 class="form-label">Stock</h2>
               <p class="pf-now">Now <strong><?= e($stockText) ?></strong></p>
               <?php if ($canStock): ?><a class="btn btn-outline-primary" href="<?= url('stock/adjust', ['product_id' => $pid]) ?>"><i class="bi bi-plus-slash-minus"></i> Add or correct stock</a><?php endif; ?>
               <a class="btn btn-link" href="<?= url('stock', ['product_id' => $pid]) ?>">History</a>
             <?php else: ?>
-              <label class="form-label" for="opening_qty">In the shop now</label>
+              <label class="form-label" for="opening_qty">Stock in the shop now</label>
               <div class="input-group">
                 <input class="form-control" id="opening_qty" name="opening_qty" inputmode="decimal" value="<?= old('opening_qty') ?>" placeholder="0" <?= $canStock && !$readonly ? '' : 'disabled' ?>>
                 <?= $unitPick('opening_unit', $text($stash['opening_unit'] ?? null)) ?></div>
-              <div class="form-text">Only for a product that has no stock history yet. Later, stock comes from purchases.</div>
+              <div class="form-text"><?= $isEdit ? 'Only for a product that has no stock history yet. Later, stock comes from purchases.' : 'Later, stock comes from purchases.' ?></div>
             <?php endif; ?>
           </div>
-          <div class="col-md-4">
-            <h2 class="h5">Warn me</h2>
-            <label class="form-label" for="min_qty">When the stock goes below</label>
+          <div>
+            <label class="form-label" for="min_qty">Warn me when stock goes below</label>
             <div class="input-group">
               <input class="form-control" id="min_qty" name="min_qty" inputmode="decimal" value="<?= e($minQty) ?>" placeholder="no warning" <?= $dis ?>>
               <?= $unitPick('min_unit', $minKey) ?></div>
@@ -224,68 +227,76 @@ $natural = ['piece' => ['piece', 1], 'g' => ['kg', 1000], 'ml' => ['L', 1000]][$
       </div></div>
     </div>
 
-    <div class="col-xxl-3"><div class="row g-3 pf-side">
-      <div class="col-md-4 col-xxl-12"><div class="card h-100"><div class="card-body">
+    <div class="col-xxl-3"><div class="pf-side">
+      <div class="card"><div class="card-body">
         <h2 class="h5">Photo</h2>
         <?php $photo = $isEdit ? \App\Services\ProductImageService::url($product['image_file']) : null; ?>
-        <div class="pf-photo" data-photo>
-          <?php if ($photo !== null): ?><img src="<?= e($photo) ?>" alt=""><?php else: ?><i class="bi bi-image"></i><?php endif; ?>
-        </div>
-        <?php if (!$readonly): ?>
-          <input class="form-control mt-2" type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" data-photo-input aria-label="Photo">
-          <div class="form-text">Shown on the till. JPG, PNG or WEBP up to 5 MB.</div>
-          <?php if ($photo !== null): ?>
-            <div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="remove_image" name="remove_image" value="1"><label class="form-check-label" for="remove_image">Remove the photo</label></div>
+        <div class="pf-photo-row">
+          <div class="pf-photo" data-photo>
+            <?php if ($photo !== null): ?><img src="<?= e($photo) ?>" alt=""><?php else: ?><i class="bi bi-image"></i><?php endif; ?>
+          </div>
+          <?php if (!$readonly): ?>
+            <div class="pf-photo-pick">
+              <input class="form-control" type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" data-photo-input aria-label="Photo">
+              <div class="form-text">Shown on the till. JPG, PNG or WEBP up to 5 MB.</div>
+              <?php if ($photo !== null): ?>
+                <div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="remove_image" name="remove_image" value="1"><label class="form-check-label" for="remove_image">Remove the photo</label></div>
+              <?php endif; ?>
+            </div>
           <?php endif; ?>
-        <?php endif; ?>
-      </div></div></div>
-
-      <div class="col-md-<?= $isEdit && $canManage ? '5' : '8' ?> col-xxl-12"><div class="card h-100"><div class="card-body">
-        <h2 class="h5">Options</h2>
-        <div class="form-check form-switch mb-2">
-          <input class="form-check-input" type="checkbox" role="switch" id="show_on_pos_grid" name="show_on_pos_grid" value="1" <?= (isset($stash['name']) ? isset($stash['show_on_pos_grid']) : ($isEdit ? (int) $product['show_on_pos_grid'] : 1)) ? 'checked' : '' ?> <?= $dis ?>>
-          <label class="form-check-label" for="show_on_pos_grid">Button on the till<small class="d-block text-muted">Off: found only by scanning or searching.</small></label>
         </div>
-        <div class="form-check form-switch mb-2">
+      </div></div>
+
+      <div class="card"><div class="card-body">
+        <h2 class="h5">Options</h2>
+        <div class="pf-switches">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="show_on_pos_grid" name="show_on_pos_grid" value="1" <?= (isset($stash['name']) ? isset($stash['show_on_pos_grid']) : ($isEdit ? (int) $product['show_on_pos_grid'] : 1)) ? 'checked' : '' ?> <?= $dis ?>>
+          <label class="form-check-label" for="show_on_pos_grid">Button on the till<small>Off: found only by scanning or searching.</small></label>
+        </div>
+        <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" role="switch" id="allow_price_override" name="allow_price_override" value="1" <?= (isset($stash['name']) ? isset($stash['allow_price_override']) : ($isEdit && (int) $product['allow_price_override'])) ? 'checked' : '' ?> <?= $dis ?>>
-          <label class="form-check-label" for="allow_price_override">The price can be changed at the till<small class="d-block text-muted">A cashier still needs the administrator's PIN.</small></label>
+          <label class="form-check-label" for="allow_price_override">The price can be changed at the till<small>A cashier still needs the administrator's PIN.</small></label>
         </div>
         <?php if ($isEdit): ?>
-          <div class="form-check form-switch mb-3">
+          <div class="form-check form-switch">
             <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" value="1" <?= (isset($stash['name']) ? isset($stash['is_active']) : (int) $product['is_active']) ? 'checked' : '' ?> <?= $dis ?>>
-            <label class="form-check-label" for="is_active">Active<small class="d-block text-muted">Off: it cannot be sold, its history stays.</small></label>
+            <label class="form-check-label" for="is_active">Active<small>Off: it cannot be sold, its history stays.</small></label>
           </div>
         <?php endif; ?>
-        <div class="mb-3">
+        </div>
+        <div class="pf-extras">
+        <div>
           <label class="form-label" for="internal_code">Code</label>
           <input class="form-control" id="internal_code" name="internal_code" maxlength="30" autocomplete="off" value="<?= old('internal_code', $product['internal_code'] ?? '') ?>" placeholder="automatic" <?= $dis ?>>
           <div class="form-text">Typed at the till when there is no barcode.</div>
         </div>
-        <div class="mb-3">
+        <div>
           <label class="form-label" for="description">Note</label>
           <input class="form-control" id="description" name="description" dir="auto" maxlength="1000" value="<?= old('description', $product['description'] ?? '') ?>" <?= $dis ?>>
         </div>
         <?php if ($showCost): ?>
           <div>
             <label class="form-label" for="target_margin_pct">Profit I aim for</label>
-            <div class="input-group" style="max-width: 9rem"><input class="form-control" id="target_margin_pct" name="target_margin_pct" inputmode="decimal" value="<?= old('target_margin_pct', $product['target_margin_pct'] ?? '') ?>" placeholder="40" data-target <?= $dis ?>><span class="input-group-text">%</span></div>
-            <div class="form-text">Shows a suggested price under each retail price. Prices never change by themselves.</div>
+            <div class="input-group pf-pct"><input class="form-control" id="target_margin_pct" name="target_margin_pct" inputmode="decimal" value="<?= old('target_margin_pct', $product['target_margin_pct'] ?? '') ?>" placeholder="40" data-target <?= $dis ?>><span class="input-group-text">%</span></div>
+            <div class="form-text">Only suggests a price under each retail price.</div>
           </div>
         <?php else: ?>
           <input type="hidden" name="target_margin_pct" value="<?= e((string) ($product['target_margin_pct'] ?? '')) ?>">
         <?php endif; ?>
-      </div></div></div>
+        </div>
+      </div></div>
 
       <?php if ($isEdit && $canManage): ?>
-        <div class="col-md-3 col-xxl-12"><div class="card h-100"><div class="card-body">
+        <div class="card pf-delete"><div class="card-body">
           <h2 class="h5">Remove</h2>
           <?php if ($used): ?>
-            <p class="text-muted small mb-0">This product has sales, purchases or stock history, so it cannot be deleted. Switch off <strong>Active</strong> to stop selling it.</p>
+            <p class="form-text mb-0">This product has sales, purchases or stock history, so it cannot be deleted. Switch off <strong>Active</strong> to stop selling it.</p>
           <?php else: ?>
-            <p class="text-muted small">Never sold, purchased or counted: it can be deleted.</p>
+            <p class="form-text">Never sold, purchased or counted: it can be deleted.</p>
             <button class="btn btn-outline-danger" type="submit" form="product-delete"><i class="bi bi-trash"></i> Delete this product</button>
           <?php endif; ?>
-        </div></div></div>
+        </div></div>
       <?php endif; ?>
     </div></div>
   </div>
