@@ -5,6 +5,7 @@ namespace App\Services;
 
 use App\Core\Audit;
 use App\Core\Database;
+use App\Core\Gate;
 use App\Models\Barcode;
 use App\Models\Category;
 use App\Models\Counter;
@@ -53,7 +54,8 @@ final class ProductService
         }
         $big = $base === 'g' ? 'kg' : 'L';
 
-        return $factor % 1000 === 0 ? "{$type} " . intdiv($factor, 1000) . $big : "{$type} {$factor}{$base}";
+        // From a thousand up it reads in kg or L: 1500 g is "1.5kg", 250 g stays "250g".
+        return $factor >= 1000 ? "{$type} " . rtrim(rtrim(number_format($factor / 1000, 3, '.', ''), '0'), '.') . $big : "{$type} {$factor}{$base}";
     }
 
     /** The type a stored unit name was made from ("Pack 250g" → "Pack"), to preselect the dropdown. */
@@ -128,10 +130,277 @@ final class ProductService
         return $new;
     }
 
+    /** Code of the exception that says "this name exists": the page then offers "save with the same name". */
+    public const SAME_NAME = 2;
+
+    /** The type sent for a unit whose name was typed by hand before the list existed: it is left exactly as it is. */
+    public const KEEP_TYPE = '__keep';
+
+    /** Only what is weighed or poured is sold in parts: 2.5 kg, 0.75 L. Half a piece or half a box is not a sale. */
+    public static function soldInFractions(string $type): bool
+    {
+        return in_array($type, ['kg', 'L'], true);
+    }
+
+    /**
+     * Everything the product page holds, saved at once: the product, the ways it is sold with their prices and
+     * barcodes, the cost, the minimum stock and, while the product has no stock history, its opening stock.
+     * Nothing is saved when any part is refused.
+     *
+     * units: rows keyed by the page ("u12" an existing unit, "n1" a new one), each with id, type, size,
+     * size_unit, retail, wholesale, barcodes (several separated by spaces or commas). main_unit, cost_unit,
+     * min_unit and opening_unit name a row by its key.
+     *
+     * @param array<string, mixed> $in
+     * @return int the product's id
+     */
+    public function save(int $id, array $in, int $userId): int
+    {
+        $rows = $this->unitRows($in['units'] ?? null);
+        if ($rows === []) {
+            throw new \DomainException('Add at least one way to sell the product: Piece, kg, Box…');
+        }
+        $name = trim((string) ($in['name'] ?? ''));
+        $current = $id > 0 ? ($this->products->find($id) ?? throw new \DomainException('Product not found.')) : null;
+        $renamed = $current === null || mb_strtolower(trim((string) $current['name'])) !== mb_strtolower($name);   // saving under its own name asks nothing
+        if ($name !== '' && $renamed && !($in['allow_same_name'] ?? false)) {
+            $twin = $this->products->findByName($name, $id);
+            if ($twin !== null) {
+                throw new \DomainException("Another product is called {$twin['name']} (code {$twin['internal_code']}). If this one is different, for example another size, tick \"Save with the same name\" and save again.", self::SAME_NAME);
+            }
+        }
+
+        return Database::transaction(function () use ($id, $in, $rows, $userId): int {
+            if ($id === 0) {
+                $id = $this->create($in);
+            } else {
+                $this->update($id, $in);
+            }
+            $product = $this->products->find($id) ?? throw new \DomainException('Product not found.');
+            $ids = $this->saveUnits($product, $rows, (string) ($in['main_unit'] ?? ''));
+            $factorOf = fn (string $key): ?int => isset($ids[$key]) ? (int) $this->units->find($ids[$key])['factor'] : null;
+
+            $cost = trim((string) ($in['cost'] ?? ''));
+            if ($cost !== '' && Gate::allows('product.view_cost')) {
+                $this->setCost($id, $cost, $factorOf((string) ($in['cost_unit'] ?? '')) ?? 1);
+            }
+
+            $minKey = (string) ($in['min_unit'] ?? '');
+            $minQty = trim((string) ($in['min_qty'] ?? ''));
+            $minUnit = isset($ids[$minKey]) ? $this->units->find($ids[$minKey]) : null;
+            $minBase = $minQty === '' ? null
+                : Quantity::toBase($minQty, $minUnit === null ? 1 : (int) $minUnit['factor'], $minUnit !== null && (int) $minUnit['allows_fraction'] === 1);
+            if ($minBase !== ($product['min_stock_base'] === null ? null : (int) $product['min_stock_base'])) {
+                $this->setMinStock($id, $minQty, $minUnit === null ? 0 : (int) $minUnit['id']);
+            }
+
+            $opening = trim((string) ($in['opening_qty'] ?? ''));
+            if ($opening !== '' && (float) str_replace(',', '.', $opening) > 0) {
+                if ((new \App\Models\StockMovement())->hasMovements($id)) {
+                    throw new \DomainException('This product already has stock history. Use "Add or correct stock" instead of an opening stock.');
+                }
+                if (Gate::allows('stock.adjust')) {
+                    $key = (string) ($in['opening_unit'] ?? '');
+                    (new StockService())->adjust($id, $ids[$key] ?? (int) array_values($ids)[0], $opening, 'opening', '', null, $userId);
+                }
+            }
+
+            return $id;
+        });
+    }
+
+    /** A product that was never sold, purchased, counted or moved is removed; any other is deactivated instead. */
+    public function delete(int $id): void
+    {
+        $product = $this->products->find($id) ?? throw new \DomainException('Product not found.');
+        if ($this->products->isUsed($id)) {
+            throw new \DomainException("{$product['name']} has sales, purchases or stock history, so it cannot be deleted. Switch off \"Active\" to stop selling it.");
+        }
+        if ($product['image_file'] !== null) {
+            (new ProductImageService())->remove($id);
+        }
+        $this->products->delete($id);
+        Audit::log('product.deleted', 'product', $id, ['name' => $product['name'], 'code' => $product['internal_code']]);
+    }
+
+    public function isUsed(int $id): bool
+    {
+        return $this->products->isUsed($id);
+    }
+
+    /**
+     * Only rows with a type count; values that are not plain text (a tampered form) are read as empty.
+     *
+     * @return array<string, array{id: int, type: string, size: string, size_unit: string, retail: string, wholesale: string, barcodes: list<string>}>
+     */
+    private function unitRows(mixed $posted): array
+    {
+        $rows = [];
+        foreach (is_array($posted) ? $posted : [] as $key => $row) {
+            $text = static fn (string $field): string => is_array($row) && is_scalar($row[$field] ?? null) ? trim((string) $row[$field]) : '';
+            if ($text('type') === '') {
+                continue;
+            }
+            $codes = preg_split('/[\s,;]+/', $text('barcodes'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $rows[(string) $key] = [
+                'id' => (int) $text('id'), 'type' => $text('type'), 'size' => $text('size'), 'size_unit' => $text('size_unit'),
+                'retail' => $text('retail'), 'wholesale' => $text('wholesale'), 'barcodes' => array_values(array_unique($codes)),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $rows
+     * @return array<string, int> row key => unit id
+     */
+    private function saveUnits(array $product, array $rows, string $mainKey): array
+    {
+        $pid = (int) $product['id'];
+        $base = (string) $product['base_unit'];
+        $existing = array_column($this->units->forProduct($pid), null, 'id');
+        $locked = (new \App\Models\StockMovement())->hasMovements($pid);
+
+        // 1. Units taken off the page.
+        $kept = array_filter(array_column($rows, 'id'));
+        foreach ($existing as $unitId => $unit) {
+            if (in_array((int) $unitId, $kept, true)) {
+                continue;
+            }
+            if ($this->units->isUsed((int) $unitId)) {
+                throw new \DomainException("{$unit['name']} was sold or purchased before, so it stays on the product. To stop selling it, empty its prices.");
+            }
+            $this->deleteUnit((int) $unitId);
+        }
+
+        // 2. Barcodes that left their unit go first, so a code can move from one unit to another in one save.
+        $wanted = [];
+        foreach ($rows as $row) {
+            if ($row['id'] > 0) {
+                $wanted[$row['id']] = $row['barcodes'];
+            }
+        }
+        $have = [];
+        foreach ($this->barcodes->forProduct($pid) as $b) {
+            $unitId = (int) $b['product_unit_id'];
+            if (isset($existing[$unitId]) && in_array($unitId, $kept, true) && !in_array($b['barcode'], $wanted[$unitId] ?? [], true)) {
+                $this->removeBarcode((int) $b['id']);
+            } else {
+                $have[$unitId][] = $b['barcode'];
+            }
+        }
+
+        // 3. The rows themselves.
+        $ids = [];
+        foreach ($rows as $key => $row) {
+            $keep = $row['type'] === self::KEEP_TYPE;
+            if ($row['id'] > 0) {
+                $unit = $existing[$row['id']] ?? throw new \DomainException('A unit on the page does not belong to this product. Reload the page and try again.');
+                if (!$keep) {
+                    [$type, $factor] = $this->typeAndFactor($row, $base);
+                    if ($locked && $factor !== (int) $unit['factor']) {
+                        throw new \DomainException("{$unit['name']} cannot change its size: the product already has stock history. Add another way to sell it instead.");
+                    }
+                    $label = self::unitLabel($type, $factor, $base);
+                    $fraction = self::soldInFractions($type);
+                    if ($label !== $unit['name'] || $factor !== (int) $unit['factor'] || $fraction !== ((int) $unit['allows_fraction'] === 1) || (int) $unit['is_display'] !== 1) {
+                        $this->updateUnit($row['id'], $type, (string) $factor, $fraction, true);
+                    }
+                }
+                $unitId = $row['id'];
+            } else {
+                if ($keep) {
+                    throw new \DomainException('Choose what the new unit is: Piece, Box, kg…');
+                }
+                [$type, $factor] = $this->typeAndFactor($row, $base);
+                $unitId = $this->addUnit($pid, $type, (string) $factor, self::soldInFractions($type), true);
+            }
+            if (Gate::allows('price.manage')) {
+                $this->setPrices($unitId, $row['retail'], $row['wholesale']);
+            }
+            foreach ($row['barcodes'] as $code) {
+                if (!in_array($code, $have[$unitId] ?? [], true)) {
+                    $this->addBarcode($unitId, $code);
+                }
+            }
+            $ids[(string) $key] = $unitId;
+        }
+
+        // 4. The till shows the main unit; purchases start with the largest one.
+        $now = array_column($this->units->forProduct($pid), null, 'id');
+        $main = $ids[$mainKey] ?? (int) array_values($ids)[0];
+        if ((int) ($now[$main]['is_default_sale'] ?? 0) !== 1) {
+            $this->setDefaultUnit($main, 'sale');
+        }
+        $largest = $main;
+        foreach ($ids as $unitId) {
+            if ((int) $now[$unitId]['factor'] > (int) $now[$largest]['factor']) {
+                $largest = $unitId;
+            }
+        }
+        if ((int) ($now[$largest]['is_default_purchase'] ?? 0) !== 1) {
+            $this->setDefaultUnit($largest, 'purchase');
+        }
+
+        return $ids;
+    }
+
+    /**
+     * A plain measure has its own size (kg = 1000 g). A container says how much it holds: a number of pieces,
+     * or a weight or volume typed in the base unit or in its thousand ("20 kg" = 20,000 g, "0.5 L" = 500 ml).
+     *
+     * @return array{0: string, 1: int} the type as the list spells it, and the factor
+     */
+    private function typeAndFactor(array $row, string $base): array
+    {
+        $type = self::canonicalType($row['type']) ?? throw new \DomainException('Choose what it is sold as from the list: Piece, Box, kg…');
+        $def = self::UNIT_TYPES[$type];
+        if (!in_array($base, $def['bases'], true)) {
+            throw new \DomainException("{$type} does not fit a product sold " . self::HOW_SOLD[$base] . '.');
+        }
+        if ($def['factor'] !== null) {
+            return [$type, (int) $def['factor']];
+        }
+        $size = str_replace(' ', '', (string) $row['size']);
+        if ($size === '') {
+            throw new \DomainException($base === 'piece' ? "How many pieces are in one {$type}?" : "How much does one {$type} hold?");
+        }
+        $big = $base === 'g' ? 'kg' : 'L';
+        if ($base !== 'piece' && strcasecmp((string) $row['size_unit'], $big) === 0) {
+            if (!preg_match('/^\d{1,6}([.,]\d{1,3})?$/', $size)) {
+                throw new \DomainException("The size of {$type} is a number of {$big}, for example 20 or 0.5.");
+            }
+            $factor = (int) round((float) str_replace(',', '.', $size) * 1000);
+        } else {
+            $factor = $this->cleanFactor($size);
+        }
+        if ($factor < 1) {
+            throw new \DomainException("The size of {$type} must be more than zero.");
+        }
+
+        return [$type, $factor];
+    }
+
+    /** "box" → "Box"; null when the list does not have it. */
+    public static function canonicalType(string $type): ?string
+    {
+        foreach (array_keys(self::UNIT_TYPES) as $known) {
+            if (strcasecmp($known, trim($type)) === 0) {
+                return $known;
+            }
+        }
+
+        return null;
+    }
+
+    /** How the page calls the three base units. */
+    public const HOW_SOLD = ['piece' => 'by piece', 'g' => 'by weight', 'ml' => 'by volume'];
     /** The first unit of a product becomes its default sale and purchase unit. */
     public function addUnit(int $productId, string $name, string $factor, bool $allowsFraction, bool $isDisplay): int
     {
         $product = $this->products->find($productId) ?? throw new \DomainException('Product not found.');
+        $allowsFraction = $allowsFraction && self::soldInFractions(self::canonicalType($name) ?? '');
         [$name, $factorInt] = $this->resolveUnit($product, $name, $factor);
         if ($this->units->nameExists($productId, $name, 0)) {
             throw new \DomainException("This product already has a unit called {$name}.");
@@ -151,6 +420,7 @@ final class ProductService
     {
         $unit = $this->units->find($unitId) ?? throw new \DomainException('Unit not found.');
         $product = $this->products->find((int) $unit['product_id']) ?? throw new \DomainException('Product not found.');
+        $allowsFraction = $allowsFraction && self::soldInFractions(self::canonicalType($name) ?? '');
         [$name, $factorInt] = $this->resolveUnit($product, $name, $factor);
         if ($this->units->nameExists((int) $unit['product_id'], $name, $unitId)) {
             throw new \DomainException("This product already has a unit called {$name}.");

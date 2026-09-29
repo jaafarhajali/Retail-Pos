@@ -88,8 +88,9 @@ return [
 
         $edit = $client->get('products/edit', ['id' => $id])->body;
         assert_contains('280.00', $edit);
-        assert_contains('$0.010000', $edit, 'cost per g');
-        assert_contains('40.0', $edit, 'Box margin: (280 − 200) / 200');
+        assert_contains('<strong>$10.00</strong> per kg', $edit, 'the cost reads per kg');
+        assert_contains('$200.00 per Box 20kg', $edit);
+        assert_contains('data-cost-base="0.010000"', $edit, 'the page works out each profit from it: Box (280 − 200) / 200 = 40 %');
 
         $list = $client->get('products', ['q' => 'P-000001'])->body;
         assert_contains('فحم', $list);
@@ -208,7 +209,7 @@ return [
         $bytes = (string) ob_get_clean();
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         $edit = $client->get('products/edit', ['id' => $id]);
-        assert_contains('r=products/image-store', $edit->body);
+        assert_contains('name="image"', $edit->body, 'the photo is part of the product form');
         $response = $client->postMultipart('products/image-store', ['product_id' => (string) $id], ['image' => ['coal.png', $bytes, 'image/png']]);
         assert_same(302, $response->status);
         $body = $client->get('products/edit', ['id' => $id])->body;

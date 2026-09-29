@@ -42,6 +42,28 @@ final class Product extends Model
         );
     }
 
+    /** Another product with this name (case-insensitive), or null. */
+    public function findByName(string $name, int $exceptId = 0): ?array
+    {
+        return $this->fetch('SELECT id, name, internal_code FROM products WHERE name = :n AND id <> :id ORDER BY id LIMIT 1', ['n' => $name, 'id' => $exceptId]);
+    }
+
+    /** Sold, purchased, counted or moved in stock at least once: such a product is deactivated, never deleted. */
+    public function isUsed(int $id): bool
+    {
+        return (bool) $this->fetchValue(
+            'SELECT EXISTS(SELECT 1 FROM stock_movements WHERE product_id = :a) OR EXISTS(SELECT 1 FROM sale_items WHERE product_id = :b)
+                 OR EXISTS(SELECT 1 FROM purchase_items WHERE product_id = :c) OR EXISTS(SELECT 1 FROM stock_count_lines WHERE product_id = :d)',
+            ['a' => $id, 'b' => $id, 'c' => $id, 'd' => $id]
+        );
+    }
+
+    /** Its units and barcodes go with it (ON DELETE CASCADE). */
+    public function delete(int $id): void
+    {
+        $this->execute('DELETE FROM products WHERE id = :id', ['id' => $id]);
+    }
+
     public function create(array $f): int
     {
         $this->execute(
@@ -125,6 +147,14 @@ final class Product extends Model
     public function forPrint(): array
     {
         return $this->fetchAll(self::LIST_SELECT . ' WHERE p.is_active = 1 ORDER BY c.sort_order, c.name, p.name');
+    }
+
+    /** What the list shows with these filters, all of it, for the printable table. */
+    public function filtered(array $filters): array
+    {
+        [$whereSql, $params] = $this->whereFor($filters);
+
+        return $this->fetchAll(self::LIST_SELECT . " WHERE {$whereSql} ORDER BY c.sort_order, c.name, p.name", $params);
     }
 
     /** @return array{0: string, 1: array<string, mixed>} */

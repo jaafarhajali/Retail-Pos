@@ -23,7 +23,7 @@ built, what comes next, and what was decided (and why) during the design convers
 | 9 | Stocktaking — count, differences, adjustments, history | **Implemented** 2026-09-24 | — |
 | 10 | Hardware testing, backups, LAN deployment | Backups work and the **restore drill passed** 2026-09-28 (`bin/restore-drill.php`); hardware and LAN tests are the owner's | — |
 
-**Status on 2026-09-28:** every phase is built and covered by 214 automated tests. Phases 2–9 stay
+**Status on 2026-09-29:** every phase is built and covered by 237 automated tests. Phases 2–9 stay
 "Implemented" until the owner has checked them in the browser; only then "Done".
 
 ### Open items
@@ -38,9 +38,9 @@ built, what comes next, and what was decided (and why) during the design convers
 | 6 | Before opening: `config/app.ini` with `env = production` so error pages stop showing technical details. | Owner + Claude |
 | 7 | Click through in a browser: purchases, stocktaking, returns, closing a session (blind count), hold / resume, debt collection. Their rules are tested, their screens were not driven. | Claude |
 | 8 | The two existing "Ahmad Saleh" customers: rename or merge by hand (new duplicates are refused; there is no merge tool). | Owner |
-| 9 | Products created before 2026-09-26 keep their typed unit names until the unit is saved again. | Owner |
+| 9 | Two products keep a unit typed by hand (`Loose 100g`, `Cube`). They work and are shown "as it is"; pick a type for them on the product page when convenient. | Owner |
 | 10 | At closing, a surplus is shown in red like a shortage. | Claude, when asked |
-| 11 | Cost per gram is shown with 6 decimals (`$0.010000`). | Claude, when asked |
+| 11 | The old per-part product addresses (`products/unit-store`, `products/prices`, `products/cost`…) still answer but no page uses them; remove them together with the tests that call them. | Claude, when asked |
 | 12 | "A lot of settings are missing" (owner, 2026-09-24): which ones was never said. Only the logo was added. | Owner to list |
 
 **Tools:** `php bin/seed-demo.php` fills an empty database with demo data;
@@ -201,3 +201,12 @@ Newest decisions go at the bottom. Never delete an entry; add a new one that ove
 | 2026-09-28 | Profit report (B1) | Fixed: refunds and returned cost are two separate sums. Joined, a return was counted once per item. |
 | 2026-09-28 | LBP typing | LBP amounts show thousands separators while they are typed (`10,000,000`), in the admin pages and at the till. The server reads LBP with or without them. |
 | 2026-09-28 | Backups | PHP's **zip extension must be on** (`extension=zip` in `php.ini`); it was off, so no backup had ever worked. The Backups page and the command now say so. First **restore drill passed** on the owner's data: 35 tables and 666 rows identical, money figures and Arabic names identical, uploaded files identical. `bin/restore-drill.php` repeats it; run it monthly. |
+| 2026-09-28 | Till sign-in | The sign-in ends after **8 hours without activity** or when the browser closes; the device link lasts 400 days. An open cash session stays enterable by its owner until it is counted and closed. A till whose sign-in ended says "You were signed out"; the sale in progress is kept in that browser per cash session. Only the owner of a session sells in it (one drawer, one person): the administrator does not enter a cashier's session. |
+| 2026-09-29 | Product page | **Rebuilt: one page for adding and editing, one Save.** A row is one way the product is sold, with its prices and barcodes. Owner's choice over "only fix the errors": the old page had about ten save buttons, each saving its own part and dropping what else was typed. |
+| 2026-09-29 | Product page | "Base unit" is asked as **How is it sold? By piece / by weight / by volume**, and cannot change once the product exists. A box's weight is typed as `20 kg`, not 20,000 g. Names from a thousand up read in kg or L ("Bag 1.5kg"). |
+| 2026-09-29 | Fractions | Decided by the unit, not by a tick box: **only kg and L are sold in parts**. Half a piece or half a box cannot be sold. The old tick on a piece charged half and took a whole piece from stock. |
+| 2026-09-29 | Units | With stock history a unit's size is locked (shown with a lock). A unit that was sold or purchased stays on the product; emptying its prices stops it being sold. A unit **typed by hand before the list existed is left exactly as it is** unless the owner picks a type for it. |
+| 2026-09-29 | Units | Every unit counts in the stock display ("9 Box 20kg + 17.5 kg"); the till shows the unit marked "Till"; purchases start with the largest unit. Cost, opening stock and minimum are typed "per" a unit and follow the **largest unit** until the owner picks another. |
+| 2026-09-29 | Delete a product | Allowed only when it was **never sold, purchased, counted or moved in stock**; otherwise it is switched off (Active). |
+| 2026-09-29 | Same product name | **Warn and allow**, as with customers: a tick box "Save with the same name" after the first attempt. Saving a product under its own name asks nothing. |
+| 2026-09-29 | Product list | One search that works while typing (name, code or a scanned barcode), category and stock. A row opens its product. "Print this list" prints what the filters show. Cost reads per piece, kg or L with two decimals. |

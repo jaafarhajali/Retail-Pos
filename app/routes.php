@@ -70,6 +70,8 @@ return [
     ['GET',  'products',                [ProductController::class, 'index'],         'product.view'],
     ['GET',  'products/edit',           [ProductController::class, 'edit'],          'product.view'],
     ['GET',  'products/create',         [ProductController::class, 'create'],        'product.manage'],
+    ['POST', 'products/save',           [ProductController::class, 'save'],          'product.manage'],
+    ['POST', 'products/delete',         [ProductController::class, 'delete'],        'product.manage'],
     ['POST', 'products/store',          [ProductController::class, 'store'],         'product.manage'],
     ['POST', 'products/update',         [ProductController::class, 'update'],        'product.manage'],
     ['POST', 'products/cost',           [ProductController::class, 'cost'],          'product.view_cost'],

@@ -80,6 +80,6 @@ scanner and a receipt printer with a cash drawer.
 ## Current status
 
 See the phase table and the **Open items** in `docs/ROADMAP.md`. As of 2026-09-28: all ten phases
-are built (214 tests); Phase 1 is Done, Phases 2–9 are Implemented and wait for the owner's
+are built (237 tests); Phase 1 is Done, Phases 2–9 are Implemented and wait for the owner's
 browser check; backups work and a restore drill passed. What remains is mostly the owner's:
 hardware, LAN, the nightly backup task, the administrator's PIN and production mode.

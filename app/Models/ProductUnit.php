@@ -49,6 +49,15 @@ final class ProductUnit extends Model
         );
     }
 
+    /** On a sale or a purchase at least once: such a unit stays on its product. */
+    public function isUsed(int $id): bool
+    {
+        return (bool) $this->fetchValue(
+            'SELECT EXISTS(SELECT 1 FROM sale_items WHERE product_unit_id = :a) OR EXISTS(SELECT 1 FROM purchase_items WHERE product_unit_id = :b)',
+            ['a' => $id, 'b' => $id]
+        );
+    }
+
     public function nameExists(int $productId, string $name, int $exceptId = 0): bool
     {
         return (bool) $this->fetchValue(

@@ -84,54 +84,181 @@
     if (input.autofocus) { input.focus(); }
   });
 
-  // Unit pickers on the product form. The type comes from a list: plain measures (Piece, kg…) fix the
-  // factor; containers (Box, Pack…) ask how many base units they hold. A preview shows the unit's name.
-  function unitLabel(type, n, base, fixed) {
-    if (fixed || n === 1) { return type; }
-    if (!n) { return type + ' …'; }
-    if (base === 'piece') { return type + ' of ' + n; }
-    var big = base === 'g' ? 'kg' : 'L';
-    return n % 1000 === 0 ? type + ' ' + (n / 1000) + big : type + ' ' + n + base;
-  }
-  function initUnitPicker(picker) {
-    var select = picker.querySelector('[data-unit-type]');
-    var factor = picker.querySelector('[data-unit-factor]');
-    var label = picker.querySelector('[data-unit-factor-label]');
-    var preview = picker.querySelector('[data-unit-preview]');
-    var source = picker.dataset.baseSource ? document.getElementById(picker.dataset.baseSource) : null;
-    if (!select || !factor) { return; }
+  // ---- The product page: one form, one Save. A row of its table is one way the product is sold.
+  (function () {
+    var form = document.getElementById('product-form');
+    if (!form) { return; }
+    var body = form.querySelector('[data-rows]'), template = document.getElementById('unit-row-template');
+    var costBase = parseFloat(form.dataset.costBase || '0') || 0, showCost = form.dataset.showCost === '1';
+    var BIG = { g: 'kg', ml: 'L' }, counter = 0, dirty = false, leaving = false;
+
     function base() {
-      if (picker.dataset.base) { return picker.dataset.base; }
-      var el = source && source.querySelector('input[name="base_unit"]:checked, input[type="hidden"][name="base_unit"]');
+      var el = form.querySelector('input[name="base_unit"]:checked, input[type="hidden"][name="base_unit"]');
       return el ? el.value : 'piece';
     }
-    function refresh() {
-      var b = base();
-      var first = null;
+    function rows() { return Array.prototype.slice.call(body.querySelectorAll('[data-row]')); }
+    function rowByKey(key) { return rows().filter(function (r) { return r.dataset.key === key; })[0] || null; }
+    function num(v) { var n = parseFloat(String(v || '').trim().replace(/\s/g, '').replace(',', '.')); return isNaN(n) ? 0 : n; }
+    function money(n) { return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+    function trim3(n) { return String(Math.round(n * 1000) / 1000); }
+    function label(type, n, b, fixed) {
+      if (fixed || n === 1 || !n) { return type; }
+      if (b === 'piece') { return type + ' of ' + n; }
+      return n >= 1000 ? type + ' ' + trim3(n / 1000) + BIG[b] : type + ' ' + n + b;
+    }
+    function holds(n, b) {
+      if (!n) { return ''; }
+      if (b === 'piece') { return n === 1 ? '1 piece' : n + ' pieces'; }
+      return n >= 1000 ? trim3(n / 1000) + ' ' + BIG[b] : n + ' ' + b;
+    }
+    // What a row is now: its type, how many base units it holds, and the name it will carry.
+    function info(row) {
+      var select = row.querySelector('[data-type]'), opt = select.options[select.selectedIndex], b = base();
+      if (!opt) { return { type: '', factor: 0, name: '' }; }
+      if (opt.value === '__keep') { return { type: opt.value, keep: true, factor: parseInt(row.dataset.factor, 10) || 0, name: row.dataset.name }; }
+      var fixed = opt.dataset.factor !== '', factor;
+      if (fixed) {
+        factor = parseInt(opt.dataset.factor, 10);
+      } else {
+        var unit = row.querySelector('[data-size-unit]').value;
+        factor = Math.round(num(row.querySelector('[data-size]').value) * (b !== 'piece' && unit === BIG[b] ? 1000 : 1));
+      }
+      return { type: opt.value, fixed: fixed, factor: factor, name: label(opt.value, factor, b, fixed) };
+    }
+    // A cost typed on the page counts at once, before it is saved.
+    function costPerBase() {
+      var field = form.querySelector('[name="cost"]'), typed = field ? num(field.value) : 0;
+      if (typed <= 0) { return costBase; }
+      var row = rowByKey(form.querySelector('[name="cost_unit"]').value), factor = row ? info(row).factor : 1;
+      return factor > 0 ? typed / factor : 0;
+    }
+    function refreshRow(row) {
+      var b = base(), select = row.querySelector('[data-type]'), first = null;
       Array.prototype.forEach.call(select.options, function (o) {
-        var fits = !o.dataset.bases || o.dataset.bases.split(',').indexOf(b) !== -1;
-        o.hidden = !fits;
-        o.disabled = !fits;
+        var fits = o.value === '__keep' || o.dataset.bases.split(',').indexOf(b) !== -1;
+        o.hidden = !fits; o.disabled = !fits;
         if (fits && first === null) { first = o; }
       });
       var opt = select.options[select.selectedIndex];
-      if ((!opt || opt.disabled) && first) { select.value = first.value; opt = first; }
-      var fixed = !!(opt && opt.dataset.factor !== '');
-      if (fixed) {
-        factor.value = opt.dataset.factor;
-        factor.readOnly = true;
-        factor.dataset.fixed = '1';
-      } else {
-        factor.readOnly = false;
-        if (factor.dataset.fixed === '1') { factor.value = ''; delete factor.dataset.fixed; }
+      if ((!opt || opt.disabled) && first) {   // the usual one for this kind of product: Piece, kg or L
+        var usual = { piece: 'Piece', g: 'kg', ml: 'L' }[b], taken = rows().some(function (r) { return r !== row && r.querySelector('[data-type]').value === usual; });
+        select.value = taken ? first.value : usual;
       }
-      if (label) { label.textContent = fixed ? 'Base units in 1' : 'How many ' + b + ' in 1 ' + (opt ? opt.value : 'unit') + '?'; }
-      if (preview) { preview.textContent = opt ? 'Unit name: ' + unitLabel(opt.value, parseInt(factor.value, 10) || 0, b, fixed) : ''; }
+
+      var unit = row.querySelector('[data-size-unit]');
+      unit.hidden = b === 'piece';
+      row.querySelector('[data-size-piece]').hidden = b !== 'piece';
+      if (b !== 'piece' && (unit.options.length !== 2 || unit.options[1].value !== b)) {
+        var had = unit.value || unit.dataset.selected;
+        unit.innerHTML = '';
+        [BIG[b], b].forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v; unit.appendChild(o); });
+        unit.value = had === b || had === BIG[b] ? had : BIG[b];
+      }
+
+      var i = info(row), locked = row.dataset.locked === '1', typed = !i.keep && !i.fixed && !locked;
+      row.querySelector('[data-size-edit]').hidden = !typed;   // hidden, not disabled: a locked size is still sent as it is
+      var fixed = row.querySelector('[data-size-fixed]');
+      fixed.hidden = typed;
+      fixed.textContent = holds(i.factor, b);
+      fixed.title = locked && !i.fixed && !i.keep ? 'The size is locked: the product has stock history. Add another way to sell it instead.' : '';
+      fixed.classList.toggle('is-locked', fixed.title !== '');
+      row.querySelector('[data-name]').textContent = i.name && i.name !== i.type ? i.name : '';
+
+      var profit = row.querySelector('[data-profit]');
+      if (profit) {
+        var cost = costPerBase() * i.factor, retail = num(row.querySelector('[data-retail]').value), target = num((form.querySelector('[data-target]') || {}).value), parts = [];
+        if (cost > 0 && retail > 0) { parts.push((retail < cost ? 'Loss ' : 'Profit ') + money(Math.abs(retail - cost)) + ' (' + Math.round((retail - cost) / cost * 100) + ' %)'); }
+        if (cost > 0 && target > 0) { parts.push('For ' + trim3(target) + ' %: ' + money(cost * (1 + target / 100))); }
+        profit.innerHTML = '';
+        parts.forEach(function (line) { var el = document.createElement('div'); el.textContent = line; profit.appendChild(el); });
+        profit.classList.toggle('is-loss', cost > 0 && retail > 0 && retail < cost);
+      }
     }
-    select.addEventListener('change', refresh);
-    factor.addEventListener('input', refresh);
-    if (source) { source.addEventListener('change', function (ev) { if (ev.target.name === 'base_unit') { refresh(); } }); }
+    // Cost, opening stock and minimum are typed "per" one of the rows.
+    function refreshPicks() {
+      var list = rows().map(function (r) { var i = info(r); return { key: r.dataset.key, name: i.name || i.type || '…', factor: i.factor }; });
+      form.querySelectorAll('[data-unit-pick]').forEach(function (select) {
+        // What the product was saved with, or what the user picked, stays. Until then it follows the largest unit:
+        // goods are bought, counted and stocked by the box, and a cost typed "per kg" by accident is 20 times wrong.
+        var want = select.dataset.chosen === '1' ? select.value : select.dataset.selected;
+        select.innerHTML = '';
+        list.forEach(function (u) { var o = document.createElement('option'); o.value = u.key; o.textContent = u.name; select.appendChild(o); });
+        if (want && list.some(function (u) { return u.key === want; })) { select.value = want; return; }
+        var largest = list.slice().sort(function (a, c) { return c.factor - a.factor; })[0];
+        if (largest) { select.value = largest.key; }
+      });
+    }
+    function refresh() { rows().forEach(refreshRow); refreshPicks(); rows().forEach(refreshRow); }
+    function touched() { dirty = true; var flag = form.querySelector('[data-unsaved]'); if (flag) { flag.hidden = false; } }
+
+    rows().forEach(function (r) { var m = /^n(\d+)$/.exec(r.dataset.key); if (m) { counter = Math.max(counter, parseInt(m[1], 10)); } });
+    var add = form.querySelector('[data-add-row]');
+    if (add) {
+      add.addEventListener('click', function () {
+        var holder = document.createElement('tbody');
+        holder.innerHTML = template.innerHTML.replace(/__KEY__/g, 'n' + (++counter));
+        var row = holder.querySelector('[data-row]');
+        body.appendChild(row);
+        refresh(); touched();
+        row.querySelector('[data-type]').focus();
+      });
+    }
+    body.addEventListener('click', function (ev) {
+      var button = ev.target.closest('[data-remove]');
+      if (!button) { return; }
+      var row = button.closest('[data-row]'), name = info(row).name;
+      if (rows().length === 1) { window.alert('A product needs at least one way to be sold.'); return; }
+      if (row.dataset.existing === '1' && !window.confirm('Remove ' + name + ' from this product? It happens when you press Save.')) { return; }
+      var wasMain = row.querySelector('input[name="main_unit"]').checked;
+      row.remove();
+      if (wasMain) { rows()[0].querySelector('input[name="main_unit"]').checked = true; }
+      refresh(); touched();
+    });
+    form.addEventListener('input', function () { refresh(); touched(); });
+    form.addEventListener('change', function (ev) {
+      if (ev.target.matches('[data-unit-pick]')) { ev.target.dataset.chosen = '1'; }
+      refresh(); touched();
+    });
+
+    // A scanner ends every code with Enter: in a barcode field it makes room for the next code,
+    // and nowhere on this page does Enter in a field save a half-typed product.
+    form.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter' || !ev.target.matches('input:not([type="checkbox"]):not([type="radio"]):not([type="file"])')) { return; }
+      ev.preventDefault();
+      if (ev.target.matches('[data-barcodes]')) { ev.target.value = ev.target.value.trim() + ' '; touched(); }
+    });
+    form.querySelectorAll('[data-then-set]').forEach(function (button) {
+      button.addEventListener('click', function () { form.querySelector('[data-then]').value = button.dataset.thenSet; });
+    });
+    form.addEventListener('submit', function () { leaving = true; });
+    var remove = document.getElementById('product-delete');
+    if (remove) { remove.addEventListener('submit', function () { leaving = true; }); }
+    window.addEventListener('beforeunload', function (ev) { if (dirty && !leaving) { ev.preventDefault(); ev.returnValue = ''; } });
+
+    var photo = form.querySelector('[data-photo-input]');
+    if (photo) {
+      photo.addEventListener('change', function () {
+        var box = form.querySelector('[data-photo]');
+        if (photo.files && photo.files[0] && /^image\//.test(photo.files[0].type)) {
+          box.innerHTML = '';
+          var img = document.createElement('img'); img.alt = ''; img.src = URL.createObjectURL(photo.files[0]); box.appendChild(img);
+        }
+      });
+    }
     refresh();
-  }
-  document.querySelectorAll('[data-unit-picker]').forEach(initUnitPicker);
+  })();
+
+  // ---- The product list: it searches while you type, and a row opens its product.
+  (function () {
+    var filter = document.getElementById('product-filter');
+    if (!filter) { return; }
+    var q = filter.querySelector('[name="q"]'), timer = null;
+    q.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { filter.submit(); }, 500); });
+    q.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { clearTimeout(timer); } });   // a scanner's Enter submits at once
+    filter.querySelectorAll('select, input[type="checkbox"]').forEach(function (el) { el.addEventListener('change', function () { filter.submit(); }); });
+    if (q.value !== '') { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+    document.querySelectorAll('tr[data-href]').forEach(function (row) {
+      row.addEventListener('click', function (ev) { if (!ev.target.closest('a, button, input')) { window.location.href = row.dataset.href; } });
+    });
+  })();
 })();
