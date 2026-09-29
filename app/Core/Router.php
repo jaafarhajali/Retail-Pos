@@ -40,6 +40,24 @@ final class Router
         throw new HttpException($pathExists ? 405 : 404);
     }
 
+    /**
+     * A request made by a page's script (the till) cannot follow a redirect to the sign-in page: it would get HTML
+     * where it expects JSON. It is told in words instead; a normal page request returns and is redirected.
+     */
+    private function signedOut(): void
+    {
+        $byScript = isset($_SERVER['HTTP_X_CSRF_TOKEN'])
+            || str_contains((string) ($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+            || str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
+        if (!$byScript) {
+            return;
+        }
+        http_response_code(401);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'You were signed out after a long pause. Sign in again; your cash session is still open and this sale is kept.', 'signed_out' => true]);
+        exit;
+    }
+
     public function dispatch(string $method, string $path): void
     {
         $route = $this->match($method, $path);
@@ -49,6 +67,7 @@ final class Router
             if (!Auth::check()) {
                 // The session ended (idle timeout, sign-out in another tab, a login page left
                 // open overnight) and took the token with it: back to sign-in, not an error page.
+                $this->signedOut();
                 Flash::set('warning', 'Your session ended. Please sign in again.');
                 redirect('auth/login');
             }
@@ -58,6 +77,7 @@ final class Router
         if ($access !== self::GUEST) {
             $user = Auth::user();
             if ($user === null) {
+                $this->signedOut();
                 redirect('auth/login');
             }
             RegisterDevice::current();   // also renews the device cookie (browsers cap cookies at 400 days)

@@ -110,6 +110,18 @@ final class HttpClient
         return $this->cookies[$name] ?? null;
     }
 
+    /** Put a cookie in this browser, for example the device link of another client: the same PC. */
+    public function setCookie(string $name, string $value): void
+    {
+        $this->cookies[$name] = $value;
+    }
+
+    /** What clearing the browser data, or closing the browser for a session cookie, does. */
+    public function forgetCookie(string $name): void
+    {
+        unset($this->cookies[$name]);
+    }
+
     /** POST a JSON body with the CSRF token in the header, like the till's fetch() calls. */
     public function postJson(string $route, array $data): HttpResponse
     {

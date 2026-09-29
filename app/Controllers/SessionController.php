@@ -30,7 +30,8 @@ final class SessionController extends Controller
     public function openForm(): void
     {
         $register = RegisterDevice::current();
-        $this->render('sessions/open', ['register' => $register, 'registerOpen' => $register === null ? null : (new CashSession())->openForRegister((int) $register['id'])], 'Open a session');
+        $this->render('sessions/open', ['register' => $register, 'registerOpen' => $register === null ? null : (new CashSession())->openForRegister((int) $register['id']),
+            'mine' => (new CashSession())->openForUser(Auth::id())], 'Open a session');
     }
 
     public function open(): void

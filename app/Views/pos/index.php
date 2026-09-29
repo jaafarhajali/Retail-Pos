@@ -10,6 +10,14 @@
 </head>
 <body class="pos-body">
 <div class="pos-msg" id="msg" role="status" aria-live="polite"></div>
+<div class="pos-out" id="signed-out" role="alertdialog" aria-labelledby="signed-out-title" hidden>
+  <div class="pos-out-box">
+    <div class="blocked-icon is-warn"><i class="bi bi-person-lock"></i></div>
+    <h2 id="signed-out-title">You were signed out</h2>
+    <p>The till was quiet for a long time, or the sign-in was ended somewhere else. Session <strong><?= e($session['session_no']) ?></strong> is still open and this sale is kept on this till.</p>
+    <a class="pos-btn primary" id="signed-out-go" href="<?= url('auth/login') ?>">Sign in again</a>
+  </div>
+</div>
 <div class="pos">
   <header class="pos-station">
     <div class="pos-station-id">
@@ -163,6 +171,7 @@
 
 <script>
 window.POS = {
+  session: <?= json_encode($session['session_no']) ?>, signIn: <?= json_encode(url('auth/login')) ?>,
   token: <?= json_encode($token) ?>, rate: <?= (int) $rate ?>, step: <?= (int) $step ?>,
   can: <?= json_encode($can) ?>, maxDiscount: <?= (float) $maxDiscount ?>,
   urls: { data: <?= json_encode(url('pos/data')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,

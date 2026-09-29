@@ -3,11 +3,14 @@
     <div class="blocked-icon"><i class="bi bi-display"></i></div>
     <h2>This device is not a register</h2>
     <p>An administrator links it once; after that cashiers open their sessions here.</p>
+    <?php if ($mine !== null): ?>
+      <p class="blocked-note">Your session <?= e($mine['session_no']) ?> is open on <strong dir="auto"><?= e($mine['register_name']) ?></strong>. If this is that till, link it to <span dir="auto"><?= e($mine['register_name']) ?></span> below and you carry on where you were.</p>
+    <?php endif; ?>
     <form method="post" action="<?= url('registers/link') ?>">
       <?= csrf_field() ?>
       <div class="mb-3"><label class="form-label" for="register_id">Register</label>
         <select class="form-select" id="register_id" name="register_id" required>
-          <?php foreach ($registers as $r): ?><option value="<?= (int) $r['id'] ?>" dir="auto"><?= e($r['name']) ?></option><?php endforeach; ?>
+          <?php foreach ($registers as $r): ?><option value="<?= (int) $r['id'] ?>" dir="auto" <?= $mine !== null && (int) $mine['register_id'] === (int) $r['id'] ? 'selected' : '' ?>><?= e($r['name']) ?></option><?php endforeach; ?>
         </select>
         <?php if ($registers === []): ?><div class="form-text text-warning">No register exists yet — an administrator creates one on the Registers page.</div><?php endif; ?></div>
       <div class="row g-2 mb-3">
@@ -16,6 +19,11 @@
       </div>
       <button class="btn btn-primary btn-lg" type="submit" <?= $registers === [] ? 'disabled' : '' ?>>Link this device</button>
     </form>
+  <?php elseif ($mine !== null && (int) $mine['register_id'] !== (int) $register['id']): ?>
+    <div class="blocked-icon is-warn"><i class="bi bi-signpost-split"></i></div>
+    <h2>Your session is on another register</h2>
+    <p>Your session <?= e($mine['session_no']) ?> is open on <strong dir="auto"><?= e($mine['register_name']) ?></strong>, and this device is <strong dir="auto"><?= e($register['name']) ?></strong>. Go to the <span dir="auto"><?= e($mine['register_name']) ?></span> till to keep selling. To work here instead, the administrator first counts and closes <?= e($mine['session_no']) ?>.</p>
+    <?php if (\App\Core\Gate::allows('session.view_all')): ?><a class="btn btn-outline-primary" href="<?= url('sessions/view', ['id' => $mine['id']]) ?>">Count and close <?= e($mine['session_no']) ?></a><?php endif; ?>
   <?php elseif ($session === null): ?>
     <div class="blocked-icon"><i class="bi bi-unlock"></i></div>
     <h2>No open session on <span dir="auto"><?= e($register['name']) ?></span></h2>

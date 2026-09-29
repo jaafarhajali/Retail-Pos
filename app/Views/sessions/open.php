@@ -5,6 +5,13 @@
     <p class="mb-0">An administrator links it once on the Registers page, or from the Till with their sign-in. Then sessions open here.</p>
     <?php if (\App\Core\Gate::allows('register.manage')): ?><div class="blocked-actions"><a class="btn btn-primary" href="<?= url('registers') ?>">Go to Registers</a></div><?php endif; ?>
   </div>
+<?php elseif ($mine !== null && (int) $mine['register_id'] !== (int) $register['id']): ?>
+  <div class="blocked">
+    <div class="blocked-icon is-warn"><i class="bi bi-signpost-split"></i></div>
+    <h2>You already have an open session</h2>
+    <p class="mb-0">Your session <code><?= e($mine['session_no']) ?></code> is open on <strong dir="auto"><?= e($mine['register_name']) ?></strong>, and this device is <strong dir="auto"><?= e($register['name']) ?></strong>. One person, one drawer: go to the <span dir="auto"><?= e($mine['register_name']) ?></span> till, or have <code><?= e($mine['session_no']) ?></code> counted and closed before starting here.</p>
+    <?php if (\App\Core\Gate::allows('session.view_all')): ?><div class="blocked-actions"><a class="btn btn-outline-primary" href="<?= url('sessions/view', ['id' => $mine['id']]) ?>">Count and close <?= e($mine['session_no']) ?></a></div><?php endif; ?>
+  </div>
 <?php elseif ($registerOpen !== null): ?>
   <div class="blocked">
     <div class="blocked-icon is-warn"><i class="bi bi-person-lock"></i></div>

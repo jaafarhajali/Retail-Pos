@@ -714,3 +714,12 @@ body > .error-wrap .blocked { width: 100%; }
 /* Dashboard: the register is busy with somebody else's shift */
 .dash-wait { margin: 0; padding: .7rem .9rem; border-radius: 10px; background: rgba(224, 172, 72, .16); border: 1px solid rgba(224, 172, 72, .5); font-weight: 600; }
 .same-name { padding: .6rem .8rem .6rem 2.3rem; border-radius: 8px; background: rgba(224, 172, 72, .16); border: 1px solid rgba(224, 172, 72, .5); }
+
+/* Till: the sign-in ended while the till was open */
+.pos-out { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 1.5rem; background: rgba(5, 14, 20, .88); }
+.pos-out[hidden] { display: none; }
+.pos-out-box { max-width: 460px; padding: 2rem; border-radius: 16px; background: #17303F; border: 1px solid var(--t-line); color: #fff; text-align: center; }
+.pos-out-box h2 { font-family: var(--font-display); font-size: 1.5rem; margin: .8rem 0 .6rem; }
+.pos-out-box p { color: var(--t-ink-2); margin-bottom: 1.4rem; }
+.pos-out-box .pos-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 2rem; text-decoration: none; }
+.blocked-note { padding: .7rem .9rem; border-radius: 10px; background: rgba(224, 172, 72, .16); border: 1px solid rgba(224, 172, 72, .5); }

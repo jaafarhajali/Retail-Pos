@@ -17,7 +17,13 @@
   function msg(text, err) { var m = $('msg'); m.textContent = text; m.className = 'pos-msg' + (err ? ' err' : ''); m.style.display = 'block'; clearTimeout(msg.t); msg.t = setTimeout(function () { m.style.display = 'none'; }, err ? 5000 : 2200); }
   function api(url, body) {
     return fetch(url, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': P.token }, body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { throw j; } return j; }); });
+      .then(function (r) {
+        return r.json().catch(function () { return { error: 'The server sent an answer the till cannot read (status ' + r.status + ').' }; }).then(function (j) {
+          if (r.status === 401 && j.signed_out) { signedOut(); }
+          if (!r.ok) { throw j; }
+          return j;
+        });
+      });
   }
   // LBP amounts get thousands separators while they are typed: 10000000 becomes 10,000,000. The server reads them with or without.
   function groupDigits(value) {
@@ -31,6 +37,34 @@
     input.value = after;
     while (pos < after.length && seen < digits) { if (/\d/.test(after.charAt(pos))) { seen++; } pos++; }
     try { input.setSelectionRange(pos, pos); } catch (e) { /* not a text field */ }
+  }
+  // The sign-in ended while the till was open: say so over everything; the cart is already saved.
+  function signedOut() {
+    Object.keys(modals).forEach(function (id) { modals[id].hide(); });
+    $('signed-out').hidden = false;
+    $('signed-out-go').focus();
+  }
+  // The sale in progress is kept in this browser, per cash session: a reload, a sign-out or a closed tab does not lose it.
+  var KEEP = 'rpos-sale:' + P.session;
+  function keepSale() {
+    try {
+      if (cart.length) { localStorage.setItem(KEEP, JSON.stringify({ cart: cart, level: level, customer: customer })); }
+      else { localStorage.removeItem(KEEP); }
+    } catch (e) { /* private mode or a full disk: the till works without it */ }
+  }
+  function bringSaleBack() {
+    var kept = null;
+    try { kept = JSON.parse(localStorage.getItem(KEEP) || 'null'); } catch (e) { kept = null; }
+    if (!kept || !Array.isArray(kept.cart) || cart.length) { return false; }
+    var lines = kept.cart.filter(function (l) {   // a product or unit removed meanwhile is dropped
+      var p = l && product(l.p);
+      return !!p && p.units.some(function (u) { return u.id === l.u; });
+    });
+    if (!lines.length) { return false; }
+    cart = lines; selected = cart.length - 1;
+    if (kept.level === 'wholesale' && level !== 'wholesale') { $('btn-level').click(); }
+    if (kept.customer && kept.customer.id) { setCustomer(kept.customer); }
+    return true;
   }
   function unitPrice(u) { var p = level === 'wholesale' ? u.wholesale : u.retail; return p === null ? null : parseFloat(p); }
   function product(id) { return data.products.find(function (p) { return p.id === id; }); }
@@ -102,6 +136,7 @@
     $('t-sub').textContent = money(t.sub); $('row-disc').hidden = t.disc <= 0; $('t-disc').textContent = '-' + money(t.disc);
     $('t-usd').textContent = money(t.total); $('t-lbp').textContent = lbp(roundLbp(t.total * P.rate));
     $('btn-pay').disabled = !cart.length; $('t-usd').classList.toggle('is-zero', !cart.length);
+    if (data) { keepSale(); }
     var names = low.map(function (x) { return x.name; }).filter(function (n, k, all) { return all.indexOf(n) === k; });
     $('pay-low').hidden = !names.length; $('pay-low').textContent = names.length ? 'Below cost: ' + names.join(', ') : '';
     var sig = cart.length ? JSON.stringify([level, t.disc, cartLines()]) : '';
@@ -428,6 +463,14 @@
     if (e.key.length === 1 || e.key === 'Enter') { search.focus(); }
   });
 
-  function loadData() { return api(P.urls.data).then(function (j) { data = j; P.rate = j.rate; P.step = j.step; renderTabs(); renderGrid(); renderCart(); }); }
+  function loadData() {
+    return api(P.urls.data).then(function (j) {
+      var first = data === null;
+      data = j; P.rate = j.rate; P.step = j.step;
+      var back = first && bringSaleBack();
+      renderTabs(); renderGrid(); renderCart();
+      if (back) { msg('The sale you had started is back: ' + cart.length + (cart.length === 1 ? ' line' : ' lines')); }
+    });
+  }
   loadData().catch(function () { msg('Could not load the catalog', true); });
 })();
