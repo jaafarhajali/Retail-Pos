@@ -38,7 +38,7 @@ try {
 $say('   ' . basename($zipPath) . ', ' . number_format(filesize($zipPath) / 1024) . ' KB');
 
 $say('2. Unpack');
-$work = STORAGE_PATH . '/backups/drill-' . bin2hex(random_bytes(4));
+$work = BackupService::dir() . '/drill-' . bin2hex(random_bytes(4));
 $zip = new ZipArchive();
 if ($zip->open($zipPath) !== true || !mkdir($work, 0777, true) || !$zip->extractTo($work)) {
     $fail('The zip could not be unpacked.');

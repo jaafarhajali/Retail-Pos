@@ -48,8 +48,9 @@ scanner and a receipt printer with a cash drawer.
 - No Composer, npm or CDN. Vendor assets are local in `public/assets/vendor/`.
 - `C:\xampp\php\php.ini` needs `extension=gd` (product images, logo) and `extension=zip` (backups).
   Apache reads it only when it starts.
-- `php bin/seed-demo.php` fills an empty database with demo data. `php bin/restore-drill.php`
-  proves a backup restores; it only reads the live database.
+- `php bin/seed-demo.php` fills an empty database with demo data. `php bin/reset-data.php` backs up,
+  then empties the shop (keeps users, registers, settings, rate) and seeds again. `php bin/restore-drill.php`
+  proves a backup restores; it only reads the live database. Test-suite backups go to `storage/backups/test`.
 
 ## Rules that must never be broken
 
