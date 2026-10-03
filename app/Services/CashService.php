@@ -18,6 +18,39 @@ use App\Models\SaleReturn;
 /** Cash sessions, X/Z reports, cash in/out, debt collection (spec §8, §10). */
 final class CashService
 {
+    /** Exception code: the drawer does not hold enough of a currency (I5). The caller may confirm and continue. */
+    public const SHORT_DRAWER = 3;
+
+    /**
+     * Change or a cash refund cannot hand out money the drawer does not have (S-000004 refunded 650,000 LBP from
+     * 10,000 and Expected went to −640,000). Cash received in the same transaction counts. Option A of 2026-10-03:
+     * a warning, not a wall — the cashier pays in the other currency, records a Cash in, or confirms she adds the money.
+     *
+     * @param array{USD?: float|string, LBP?: int|string} $out  cash going out of the drawer, per currency
+     * @param array{USD?: float|string, LBP?: int|string} $in   cash coming in with the same transaction
+     * @return string|null the warning to show, or null when the drawer has enough
+     */
+    public static function drawerShortfall(int $sessionId, array $out, array $in, string $what): ?string
+    {
+        $expected = (new CashSession())->expected($sessionId);
+        foreach (['LBP', 'USD'] as $cur) {
+            $need = (float) ($out[$cur] ?? 0);
+            if ($need <= 0.004) {
+                continue;
+            }
+            $has = (float) $expected[$cur] + (float) ($in[$cur] ?? 0);
+            if ($need > $has + 0.004) {
+                $fmt = static fn (float $v): string => $cur === 'USD' ? usd($v) : lbp($v);
+                $other = $cur === 'USD' ? 'LBP' : 'USD';
+
+                return 'The drawer has only ' . $fmt(max(0.0, $has)) . ': ' . $fmt($need) . " of {$what} cannot come out of it. "
+                     . "Give it in {$other}, record a Cash in first, or continue if you are adding the money yourself.";
+            }
+        }
+
+        return null;
+    }
+
     public function open(int $registerId, int $userId, string $openingUsd, string $openingLbp): int
     {
         $register = (new Register())->find($registerId);

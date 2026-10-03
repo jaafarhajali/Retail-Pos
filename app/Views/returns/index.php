@@ -1,3 +1,9 @@
+<?php
+// After a "drawer is short" warning the form comes back exactly as it was typed (I5).
+$oldItems = is_array($_SESSION['_old']['items'] ?? null) ? $_SESSION['_old']['items'] : [];
+$oldItem = static fn (int $id, string $key): string => is_string($oldItems[$id][$key] ?? null) ? $oldItems[$id][$key] : '';
+$shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
+?>
 <form class="filters mb-3" method="get">
   <input type="hidden" name="r" value="returns">
   <div class="filters-search"><label class="form-label" for="find-invoice">Invoice number</label><input class="form-control" id="find-invoice" name="invoice" value="<?= e($q) ?>" placeholder="INV-000012 or just 12" autofocus></div>
@@ -24,14 +30,21 @@
               <td class="text-end text-nowrap"><?= e(rtrim(rtrim($i['qty'], '0'), '.')) ?> <?= e($i['unit_name']) ?></td>
               <td class="text-end text-nowrap"><?= (int) $i['returned_base_qty'] > 0 ? e(\App\Services\Quantity::unitQty((int) $i['returned_base_qty'], (int) $i['factor'])) . ' ' . e($i['unit_name']) : '—' ?></td>
               <td class="text-end"><?= usd($i['line_total_usd']) ?></td>
-              <td><div class="input-group input-group-sm"><input class="form-control form-control-sm" name="items[<?= (int) $i['id'] ?>][qty]" inputmode="decimal" aria-label="Quantity to return" placeholder="max <?= e(\App\Services\Quantity::unitQty($left, (int) $i['factor'])) ?>" <?= $left <= 0 ? 'disabled' : '' ?>><span class="input-group-text"><?= e($i['unit_name']) ?></span></div></td>
-              <td><select class="form-select form-select-sm" name="items[<?= (int) $i['id'] ?>][condition]" aria-label="Condition"><option value="restock">Back to stock</option><option value="waste">Damaged (waste)</option></select></td>
+              <td><div class="input-group input-group-sm"><input class="form-control form-control-sm" name="items[<?= (int) $i['id'] ?>][qty]" value="<?= e($oldItem((int) $i['id'], 'qty')) ?>" inputmode="decimal" aria-label="Quantity to return" placeholder="max <?= e(\App\Services\Quantity::unitQty($left, (int) $i['factor'])) ?>" <?= $left <= 0 ? 'disabled' : '' ?>><span class="input-group-text"><?= e($i['unit_name']) ?></span></div></td>
+              <td><select class="form-select form-select-sm" name="items[<?= (int) $i['id'] ?>][condition]" aria-label="Condition"><option value="restock">Back to stock</option><option value="waste" <?= $oldItem((int) $i['id'], 'condition') === 'waste' ? 'selected' : '' ?>>Damaged (waste)</option></select></td>
             </tr>
           <?php endforeach; ?></tbody>
         </table></div>
+        <?php if ($shortDrawer !== null): ?>
+          <div class="alert alert-warning mt-3 mb-0">
+            <div class="mb-2"><?= e($shortDrawer) ?></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="allow_short_drawer" name="allow_short_drawer" value="1">
+              <label class="form-check-label" for="allow_short_drawer">I am adding the money to the drawer myself, record the refund anyway</label></div>
+          </div>
+        <?php endif; ?>
         <div class="row g-2 align-items-end mt-2">
-          <div class="col-md-3"><label class="form-label" for="cash_currency">Cash refund in</label><select class="form-select" id="cash_currency" name="cash_currency"><option>USD</option><option>LBP</option></select></div>
-          <div class="col-md-6"><label class="form-label" for="return-reason">Reason</label><input class="form-control" id="return-reason" name="reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour"></div>
+          <div class="col-md-3"><label class="form-label" for="cash_currency">Cash refund in</label><select class="form-select" id="cash_currency" name="cash_currency"><option>USD</option><option <?= old('cash_currency') === 'LBP' ? 'selected' : '' ?>>LBP</option></select></div>
+          <div class="col-md-6"><label class="form-label" for="return-reason">Reason</label><input class="form-control" id="return-reason" name="reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour" value="<?= old('reason') ?>"></div>
           <div class="col-md-3"><button class="btn btn-primary w-100" type="submit" <?= $session === null ? 'disabled' : '' ?>><i class="bi bi-arrow-return-left"></i> Record return</button></div>
         </div>
         <div class="form-text mt-2">Refund = what was really paid for the items (discounts included). A customer who owes money gets their debt reduced first; the rest is cash at today's rate.</div>

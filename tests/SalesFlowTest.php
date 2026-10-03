@@ -83,12 +83,14 @@ return [
 
     '$50 paid for $23.20 with change in LBP gives 2,410,000 LBP and +$0.02 rounding (§7.3)' => function () use ($setup, $sale): void {
         $s = $setup();
+        // The drawer holds 1,000,000 LBP: 2,410,000 of change needs lira added first (I5), as a cashier would.
+        (new CashService())->cashInOut($s['session'], 'in', 'LBP', '2000000', 'small notes for change', TEST_ADMIN_ID);
         $r = $sale($s, [['product_id' => $s['charcoal'], 'unit_id' => $s['kg'], 'amount_usd' => '23.20']], [['method' => 'cash', 'currency' => 'USD', 'amount' => '50']]);
         assert_same(2410000, $r['change_lbp']);
         assert_same('0.02', $r['rounding_usd']);
         $expected = (new CashSession())->expected($s['session']);
         assert_same('150.00', $expected['USD']);
-        assert_same((string) (1000000 - 2410000), $expected['LBP']);
+        assert_same((string) (1000000 + 2000000 - 2410000), $expected['LBP']);
     },
 
     'an LBP shortfall within 2,500 LBP counts as paid and a bigger one is refused (§7.2)' => function () use ($setup, $sale): void {
@@ -109,7 +111,7 @@ return [
         assert_same('9.49', $items[1]['line_discount_usd']);
         assert_same('14.49', $items[0]['line_total_usd']);
         assert_same('270.51', $items[1]['line_total_usd']);
-        $ret = (new ReturnService())->create($r['id'], [['sale_item_id' => (int) $items[1]['id'], 'qty' => '1', 'condition' => 'waste']], 'USD', 'damaged', $s['session'], $s['register'], TEST_ADMIN_ID);
+        $ret = (new ReturnService())->create($r['id'], [['sale_item_id' => (int) $items[1]['id'], 'qty' => '1', 'condition' => 'waste']], 'USD', 'damaged', $s['session'], $s['register'], TEST_ADMIN_ID, true);   // paid by card: the drawer has $100, the cashier adds the rest (I5)
         assert_same('270.51', $ret['total_usd']);
         assert_same('USD', $ret['cash']['currency']);
         assert_same('270.51', $ret['cash']['amount']);

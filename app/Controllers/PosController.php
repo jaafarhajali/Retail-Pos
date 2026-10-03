@@ -93,9 +93,11 @@ final class PosController extends Controller
                 'lines' => is_array($in['lines'] ?? null) ? $in['lines'] : [], 'invoice_discount' => (string) ($in['invoice_discount'] ?? ''),
                 'payments' => is_array($in['payments'] ?? null) ? $in['payments'] : [], 'change_currency' => (string) ($in['change_currency'] ?? 'LBP'),
                 'notes' => (string) ($in['notes'] ?? ''), 'pin' => (string) ($in['pin'] ?? ''),
+                'allow_short_drawer' => ($in['allow_short_drawer'] ?? false) === true,
             ]);
         } catch (\DomainException $e) {
-            $this->json(['error' => $e->getMessage(), 'needs_pin' => str_starts_with($e->getMessage(), 'Needs an Admin PIN')], 422);
+            $this->json(['error' => $e->getMessage(), 'needs_pin' => str_starts_with($e->getMessage(), 'Needs an Admin PIN'),
+                         'short_drawer' => $e->getCode() === \App\Services\CashService::SHORT_DRAWER], 422);
         }
         // The done screen says what really happened: cash, card or credit, and what a credit customer now owes.
         $paid = (new \App\Models\Sale())->paidByMethod((int) $result['id']);

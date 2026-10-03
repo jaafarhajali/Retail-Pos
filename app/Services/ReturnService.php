@@ -19,7 +19,7 @@ final class ReturnService
      * @param list<array{sale_item_id: int, qty: string, condition: string}> $items
      * @return array{id: int, return_no: string, total_usd: string, cash: array{currency: string, amount: string}|null, debt_reduction: string}
      */
-    public function create(int $saleId, array $items, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId): array
+    public function create(int $saleId, array $items, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false): array
     {
         $sales = new Sale();
         $sale = $sales->find($saleId) ?? throw new \DomainException('Sale not found.');
@@ -64,7 +64,7 @@ final class ReturnService
         $totalUsd = Money::fmt($total);
         $rate = (new ExchangeRate())->current();
 
-        return Database::transaction(function () use ($sale, $saleId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate): array {
+        return Database::transaction(function () use ($sale, $saleId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate, $allowShortDrawer): array {
             // Refund: debt first on a credit customer, the rest in cash from this session's drawer.
             // Worked out before the return is written, so its rounding is stored with it (records are never edited).
             $debtReduction = '0.00';
@@ -92,6 +92,11 @@ final class ReturnService
             }
             // What the rounding kept: +0.02 when $7.24 was refunded as 650,000 LBP ($7.22). Same sign as sales.rounding_usd.
             $rounding = Money::fmt((float) $totalUsd - (float) $debtReduction - (float) $cashUsd);
+            // The refund must come out of a drawer that has it (I5, warn and allow).
+            $short = $cash === null ? null : CashService::drawerShortfall($sessionId, [$cash['currency'] => $cash['amount']], [], 'refund');
+            if ($short !== null && !$allowShortDrawer) {
+                throw new \DomainException($short, CashService::SHORT_DRAWER);
+            }
 
             $no = Counter::format('RTN-', Counter::next('return'));
             $returns = new SaleReturn();
@@ -118,6 +123,9 @@ final class ReturnService
                                                   'ref_type' => 'return', 'ref_id' => $id, 'user_id' => $userId, 'note' => $no]);
             }
             Audit::log('return.created', 'return', $id, ['no' => $no, 'invoice' => $sale['invoice_no'], 'lines' => count($lines), 'rounding_usd' => $rounding], (float) $totalUsd, 'USD');
+            if ($short !== null) {   // confirmed: the owner sees who refunded money the drawer did not hold
+                Audit::log('drawer.short', 'return', $id, ['no' => $no, 'warning' => $short]);
+            }
 
             return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'cash' => $cash, 'debt_reduction' => $debtReduction];
         });

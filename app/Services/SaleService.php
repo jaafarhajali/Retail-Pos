@@ -140,6 +140,18 @@ final class SaleService
             }
         }
 
+        // Change must come out of a drawer that has it; lira the customer just handed over counts (I5, warn and allow).
+        $cashIn = ['USD' => 0.0, 'LBP' => 0.0];
+        foreach ($payments as $p) {
+            if ($p['method'] === 'cash') {
+                $cashIn[$p['currency']] += (float) $p['amount'];
+            }
+        }
+        $short = CashService::drawerShortfall((int) $in['session_id'], ['USD' => $changeUsd, 'LBP' => $changeLbp], $cashIn, 'change');
+        if ($short !== null && empty($in['allow_short_drawer'])) {
+            throw new \DomainException($short, CashService::SHORT_DRAWER);
+        }
+
         // Admin PIN for anything the cashier may not do alone (§15)
         $approver = null;
         if ($needsPin !== []) {
@@ -197,6 +209,9 @@ final class SaleService
 
         if ($belowCost !== []) {
             Audit::log('sale.below_cost', 'sale', (int) $result['id'], ['no' => $result['invoice_no'], 'products' => $belowCost]);
+        }
+        if ($short !== null) {   // confirmed by the cashier: the owner sees who gave change the drawer did not hold
+            Audit::log('drawer.short', 'sale', (int) $result['id'], ['no' => $result['invoice_no'], 'warning' => $short]);
         }
 
         return $result + ['change_usd' => $changeUsd, 'change_lbp' => $changeLbp, 'warnings' => $warnings, 'total_usd' => $total, 'rounding_usd' => Money::fmt($rounding)];

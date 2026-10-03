@@ -335,6 +335,7 @@
 
   // ---- payment
   var payments = [];
+  var allowShort = false;   // the cashier confirmed she adds the money the drawer lacks (I5); any change to the payment cancels it
   function payLine(method, currency, amount) { payments.push({ method: method, currency: currency, amount: amount }); renderPay(); }
   function renderPay() {
     var t = totals(); payTotal = t.total; $('pay-due').textContent = money(t.total); $('pay-due-lbp').textContent = lbp(roundLbp(t.total * P.rate));
@@ -389,6 +390,7 @@
     return { cls: 'is-change', main: 'Exact amount · no change', sub: '' };
   }
   function summary() {
+    allowShort = false; $('pay-ok').textContent = 'Complete sale';
     var r = payText(payments, totals().total, customer, $('pay-change').value), el = $('pay-summary');
     el.className = 'pay-result ' + r.cls;
     el.textContent = r.main;
@@ -432,7 +434,7 @@
     btn.disabled = true;
     api(P.urls.complete, {
       customer_id: customer ? customer.id : 0, price_level: level, invoice_discount: totals().disc.toFixed(2), change_currency: $('pay-change').value,
-      notes: $('pay-note').value, pin: approvedPin || $('pay-pin').value,
+      notes: $('pay-note').value, pin: approvedPin || $('pay-pin').value, allow_short_drawer: allowShort,
       lines: cartLines(),
       payments: payments
     }).then(function (j) {
@@ -446,6 +448,9 @@
     }).catch(function (e) {
       if (e.needs_pin) {   // wholesale prices, a sale on credit, a price change…: the administrator approves, then the sale completes
         approvedPin = ''; swapModal('m-pay', function () { askPin(String(e.error).replace('Needs an Admin PIN: ', 'Approve: '), again, reopen); });
+      } else if (e.short_drawer) {   // not enough of that currency in the drawer: say so, and let her continue on purpose
+        var el = $('pay-summary'); el.className = 'pay-result is-due'; el.textContent = e.error;
+        allowShort = true; btn.textContent = 'Continue: I add the money myself';
       } else { msg(e.error || 'Could not complete the sale', true); }
     }).finally(function () { btn.disabled = false; });
   });

@@ -48,10 +48,12 @@ final class ReturnController extends Controller
         try {
             $register = RegisterDevice::current() ?? throw new \DomainException('This device is not linked to a register.');
             $session = (new CashSession())->openForUser(Auth::id()) ?? throw new \DomainException('Open your cash session first: the refund comes from its drawer.');
-            $result = (new ReturnService())->create($saleId, $items, $this->input('cash_currency'), $this->input('reason'), (int) $session['id'], (int) $register['id'], Auth::id());
+            $result = (new ReturnService())->create($saleId, $items, $this->input('cash_currency'), $this->input('reason'), (int) $session['id'], (int) $register['id'], Auth::id(),
+                isset($_POST['allow_short_drawer']));
         } catch (\DomainException $e) {
             $sale = (new Sale())->find($saleId);
-            $this->failBack('returns', ['invoice' => $sale['invoice_no'] ?? ''], ['form' => $e->getMessage()]);
+            // A short drawer comes back with the form as it was and a tick box to continue (I5, warn and allow)
+            $this->failBack('returns', ['invoice' => $sale['invoice_no'] ?? ''], [$e->getCode() === \App\Services\CashService::SHORT_DRAWER ? 'short_drawer' : 'form' => $e->getMessage()]);
         }
         $msg = 'Return ' . $result['return_no'] . ' recorded.';
         if ($result['cash'] !== null) {

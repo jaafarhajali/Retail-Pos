@@ -42,7 +42,7 @@ return [
         $client->get('registers');
         $client->post('registers/bind', ['id' => $registerId]);
         $client->get('sessions/open');
-        assert_same(302, $client->post('sessions/open', ['opening_usd' => '100', 'opening_lbp' => '500000'])->status);
+        assert_same(302, $client->post('sessions/open', ['opening_usd' => '100', 'opening_lbp' => '5000000'])->status);
         $pos = $client->get('pos');
         assert_same(200, $pos->status);
         assert_contains('pos-body', $pos->body, 'the till renders, not the blocked page');
