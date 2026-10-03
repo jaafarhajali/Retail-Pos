@@ -61,8 +61,11 @@ final class ReportService
                           FROM sales WHERE status = 'completed' AND created_at BETWEEN :f AND :t", $p)[0];
         // Two separate sums. Joining returns to their items repeats a return's total once per item,
         // so a refund of $10.22 with 2 items was reported as more than it was.
+        $refunds = $this->rows("SELECT COALESCE(SUM(total_usd), 0) AS refunds, COALESCE(SUM(rounding_usd), 0) AS rounding FROM returns WHERE created_at BETWEEN :f AND :t", $p)[0];
+        // LBP refunds are rounded to 5,000 like change: what that kept belongs on the same Rounding line as the sales' rounding.
+        $s['rounding'] = (float) $s['rounding'] + (float) $refunds['rounding'];
         $r = [
-            'refunds' => $this->rows("SELECT COALESCE(SUM(total_usd), 0) AS refunds FROM returns WHERE created_at BETWEEN :f AND :t", $p)[0]['refunds'],
+            'refunds' => $refunds['refunds'],
             'cost' => $this->rows("SELECT COALESCE(SUM(ri.cost_usd), 0) AS cost FROM return_items ri JOIN returns r ON r.id = ri.return_id
                                    WHERE r.created_at BETWEEN :f AND :t", $p)[0]['cost'],
         ];

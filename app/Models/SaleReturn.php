@@ -42,10 +42,11 @@ final class SaleReturn extends Model
     public function create(array $f): int
     {
         $this->execute(
-            'INSERT INTO returns (return_no, sale_id, session_id, register_id, user_id, customer_id, total_usd, exchange_rate, reason) VALUES (:no, :s, :ses, :r, :u, :c, :t, :x, :re)',
+            'INSERT INTO returns (return_no, sale_id, session_id, register_id, user_id, customer_id, total_usd, rounding_usd, exchange_rate, reason)
+             VALUES (:no, :s, :ses, :r, :u, :c, :t, :ro, :x, :re)',
             [
                 'no' => $f['return_no'], 's' => $f['sale_id'], 'ses' => $f['session_id'], 'r' => $f['register_id'], 'u' => $f['user_id'],
-                'c' => $f['customer_id'], 't' => $f['total_usd'], 'x' => $f['exchange_rate'], 're' => $f['reason'],
+                'c' => $f['customer_id'], 't' => $f['total_usd'], 'ro' => $f['rounding_usd'] ?? '0.00', 'x' => $f['exchange_rate'], 're' => $f['reason'],
             ]
         );
 

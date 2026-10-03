@@ -167,15 +167,18 @@ final class CashService
         $sessions = new CashSession();
         $session = $sessions->find($sessionId) ?? throw new \DomainException('Session not found.');
         $sales = (new Sale())->sessionSummary($sessionId);
-        $returns = Database::pdo()->prepare('SELECT COUNT(*) AS n, COALESCE(SUM(total_usd), 0) AS refund_usd FROM returns WHERE session_id = :s');
+        $returns = Database::pdo()->prepare('SELECT COUNT(*) AS n, COALESCE(SUM(total_usd), 0) AS refund_usd, COALESCE(SUM(rounding_usd), 0) AS rounding_usd FROM returns WHERE session_id = :s');
         $returns->execute(['s' => $sessionId]);
+        $returns = $returns->fetch() ?: ['n' => 0, 'refund_usd' => '0', 'rounding_usd' => '0'];
+        // The X/Z "Rounding" line is everything the 5,000 LBP rounding kept in this shift: change on sales and LBP refunds.
+        $sales['rounding'] = Money::fmt((float) ($sales['rounding'] ?? 0) + (float) $returns['rounding_usd']);
         $expenses = Database::pdo()->prepare('SELECT COALESCE(SUM(amount_usd), 0) FROM expenses WHERE session_id = :s');
         $expenses->execute(['s' => $sessionId]);
 
         return [
             'session' => $session,
             'sales' => $sales,
-            'returns' => $returns->fetch() ?: ['n' => 0, 'refund_usd' => '0'],
+            'returns' => $returns,
             'expenses_usd' => Money::fmt((float) $expenses->fetchColumn()),
             'movements' => $sessions->movementTotals($sessionId),
             'expected' => $session['status'] === 'open' ? $sessions->expected($sessionId) : ['USD' => $session['expected_usd'], 'LBP' => $session['expected_lbp']],

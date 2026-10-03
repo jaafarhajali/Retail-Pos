@@ -22,6 +22,9 @@
     </table></div></div>
     <div class="card"><div class="card-header">How it was refunded</div><div class="table-responsive"><table class="table table-sm">
       <tbody><?php foreach ($refunds as $f): ?><tr><td><?= $f['method'] === 'cash' ? 'Cash ' . e($f['currency']) : 'Debt reduction' ?></td><td class="text-end"><?= $f['currency'] === 'USD' ? usd($f['amount']) : lbp($f['amount']) ?></td></tr><?php endforeach; ?></tbody>
+      <?php if (abs((float) ($r['rounding_usd'] ?? 0)) > 0.004): ?>
+        <tfoot><tr><td class="text-muted">Rounding to 5,000 LBP<span class="cell-sub"><?= (float) $r['rounding_usd'] > 0 ? 'kept by the shop' : 'given to the customer' ?></span></td><td class="text-end text-muted"><?= (float) $r['rounding_usd'] > 0 ? '+' : '' ?><?= usd($r['rounding_usd']) ?></td></tr></tfoot>
+      <?php endif; ?>
     </table></div></div>
   </div>
 </div>

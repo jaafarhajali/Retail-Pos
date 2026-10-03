@@ -65,10 +65,39 @@ final class ReturnService
         $rate = (new ExchangeRate())->current();
 
         return Database::transaction(function () use ($sale, $saleId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate): array {
+            // Refund: debt first on a credit customer, the rest in cash from this session's drawer.
+            // Worked out before the return is written, so its rounding is stored with it (records are never edited).
+            $debtReduction = '0.00';
+            $remaining = (float) $totalUsd;
+            $customers = new Customer();
+            if ($sale['customer_id'] !== null) {
+                $owed = (float) $customers->balance((int) $sale['customer_id']);
+                if ($owed > 0.004) {
+                    $debtReduction = Money::fmt(min($owed, $remaining));
+                    $remaining = round($remaining - (float) $debtReduction, 2);
+                }
+            }
+            $cash = null;
+            $cashUsd = '0.00';
+            if ($remaining > 0.004) {
+                if ($cashCurrency === 'LBP') {
+                    // LBP is handed back in 5,000 notes, like change: 651,600 → 650,000
+                    $amount = (string) Money::roundLbp(Money::usdToLbp(Money::fmt($remaining), $rate));
+                    $cashUsd = Money::lbpToUsd((int) $amount, $rate);
+                } else {
+                    $amount = Money::fmt($remaining);
+                    $cashUsd = $amount;
+                }
+                $cash = ['currency' => $cashCurrency, 'amount' => $amount];
+            }
+            // What the rounding kept: +0.02 when $7.24 was refunded as 650,000 LBP ($7.22). Same sign as sales.rounding_usd.
+            $rounding = Money::fmt((float) $totalUsd - (float) $debtReduction - (float) $cashUsd);
+
             $no = Counter::format('RTN-', Counter::next('return'));
             $returns = new SaleReturn();
             $id = $returns->create(['return_no' => $no, 'sale_id' => $saleId, 'session_id' => $sessionId, 'register_id' => $registerId, 'user_id' => $userId,
-                                    'customer_id' => $sale['customer_id'], 'total_usd' => $totalUsd, 'exchange_rate' => $rate, 'reason' => trim($reason) ?: null]);
+                                    'customer_id' => $sale['customer_id'], 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'exchange_rate' => $rate,
+                                    'reason' => trim($reason) ?: null]);
             $stock = new StockService();
             foreach ($lines as $l) {
                 $returns->addItem($id, $l);
@@ -78,37 +107,19 @@ final class ReturnService
                 }
             }
 
-            // Refund: debt first on a credit customer, the rest in cash from this session's drawer
-            $debtReduction = '0.00';
-            $remaining = (float) $totalUsd;
-            if ($sale['customer_id'] !== null) {
-                $customers = new Customer();
-                $owed = (float) $customers->balance((int) $sale['customer_id']);
-                if ($owed > 0.004) {
-                    $debtReduction = Money::fmt(min($owed, $remaining));
-                    $customers->addLedger(['customer_id' => (int) $sale['customer_id'], 'type' => 'return_credit', 'amount_usd' => '-' . $debtReduction, 'currency' => 'USD',
-                                           'amount_original' => $debtReduction, 'exchange_rate' => $rate, 'return_id' => $id, 'sale_id' => $saleId, 'session_id' => $sessionId, 'user_id' => $userId, 'note' => $no]);
-                    $returns->addRefund($id, 'debt_reduction', 'USD', $debtReduction, $debtReduction);
-                    $remaining = round($remaining - (float) $debtReduction, 2);
-                }
+            if ((float) $debtReduction > 0.004) {
+                $customers->addLedger(['customer_id' => (int) $sale['customer_id'], 'type' => 'return_credit', 'amount_usd' => '-' . $debtReduction, 'currency' => 'USD',
+                                       'amount_original' => $debtReduction, 'exchange_rate' => $rate, 'return_id' => $id, 'sale_id' => $saleId, 'session_id' => $sessionId, 'user_id' => $userId, 'note' => $no]);
+                $returns->addRefund($id, 'debt_reduction', 'USD', $debtReduction, $debtReduction);
             }
-            $cash = null;
-            if ($remaining > 0.004) {
-                if ($cashCurrency === 'LBP') {
-                    $amount = (string) Money::roundLbp(Money::usdToLbp(Money::fmt($remaining), $rate));
-                    $usd = Money::lbpToUsd((int) $amount, $rate);
-                } else {
-                    $amount = Money::fmt($remaining);
-                    $usd = $amount;
-                }
-                $returns->addRefund($id, 'cash', $cashCurrency, $amount, $usd);
-                (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $cashCurrency, 'amount' => '-' . $amount, 'type' => 'refund',
+            if ($cash !== null) {
+                $returns->addRefund($id, 'cash', $cash['currency'], $cash['amount'], $cashUsd);
+                (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $cash['currency'], 'amount' => '-' . $cash['amount'], 'type' => 'refund',
                                                   'ref_type' => 'return', 'ref_id' => $id, 'user_id' => $userId, 'note' => $no]);
-                $cash = ['currency' => $cashCurrency, 'amount' => $amount];
             }
-            Audit::log('return.created', 'return', $id, ['no' => $no, 'invoice' => $sale['invoice_no'], 'lines' => count($lines)], (float) $totalUsd, 'USD');
+            Audit::log('return.created', 'return', $id, ['no' => $no, 'invoice' => $sale['invoice_no'], 'lines' => count($lines), 'rounding_usd' => $rounding], (float) $totalUsd, 'USD');
 
-            return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'cash' => $cash, 'debt_reduction' => $debtReduction];
+            return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'cash' => $cash, 'debt_reduction' => $debtReduction];
         });
     }
 }
