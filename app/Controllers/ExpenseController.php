@@ -24,6 +24,7 @@ final class ExpenseController extends Controller
         $this->render('expenses/index', [
             'pg' => $expenses->search($filters, max(1, $this->queryInt('page', 1))), 'filters' => $filters, 'categories' => $expenses->categories(),
             'suppliers' => (new Supplier())->all(true), 'session' => (new CashSession())->openForUser(Auth::id()),
+            'paySupplier' => $this->queryInt('supplier'),   // "Pay supplier" on a supplier's page opens the form on that supplier
         ], 'Expenses');
     }
 
@@ -31,7 +32,7 @@ final class ExpenseController extends Controller
     {
         try {
             (new ExpenseService())->create([
-                'category' => $this->input('category'), 'description' => $this->input('description'), 'usd' => $this->input('usd'), 'lbp' => $this->input('lbp'),
+                'kind' => $this->input('kind') === 'supplier' ? 'supplier' : 'expense', 'category' => $this->input('category'), 'description' => $this->input('description'), 'usd' => $this->input('usd'), 'lbp' => $this->input('lbp'),
                 'expense_date' => $this->input('expense_date'), 'paid_from' => $this->input('paid_from'), 'supplier_id' => $this->inputInt('supplier_id'),
             ], Auth::id());
         } catch (\DomainException $e) {

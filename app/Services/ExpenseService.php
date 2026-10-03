@@ -13,11 +13,28 @@ use App\Models\Supplier;
 /** Expenses and supplier payments; drawer-paid ones are cash movements (spec §11). */
 final class ExpenseService
 {
+    /** The category a supplier payment is saved under; the owner never has to type one. */
+    public const SUPPLIER_PAYMENT = 'Supplier payment';
+
     public function create(array $in, int $userId): int
     {
+        // "What is it?": an expense needs a category and never touches a supplier; a supplier payment needs a supplier
+        // and no category. Without a kind (older callers) a chosen supplier makes it a payment.
+        $kind = (string) ($in['kind'] ?? ((int) ($in['supplier_id'] ?? 0) > 0 ? 'supplier' : 'expense'));
         $category = trim((string) ($in['category'] ?? ''));
-        if ($category === '' || mb_strlen($category) > 60) {
-            throw new \DomainException('Give the expense a category (rent, electricity, …).');
+        if ($kind === 'supplier') {
+            if ((int) ($in['supplier_id'] ?? 0) <= 0) {
+                throw new \DomainException('Choose the supplier you pay.');
+            }
+            $category = $category === '' ? self::SUPPLIER_PAYMENT : $category;
+        } else {
+            $in['supplier_id'] = 0;
+            if ($category === '') {
+                throw new \DomainException('Give the expense a category (rent, electricity, …).');
+            }
+        }
+        if (mb_strlen($category) > 60) {
+            throw new \DomainException('The category is at most 60 characters.');
         }
         // Paid in USD, in LBP, or both at once: "$10 + 450,000 LBP". The older form (one amount + its currency) still works.
         if (isset($in['currency']) && !isset($in['usd']) && !isset($in['lbp'])) {

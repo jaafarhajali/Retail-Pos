@@ -20,7 +20,7 @@
       <?php $owed = (float) $supplier['balance_usd']; ?>
       <div class="card mb-3"><div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div><div class="balance-label"><?= $owed >= 0 ? 'We owe them' : 'They owe us' ?></div><div class="balance-value <?= $owed > 0 ? 'is-debt' : '' ?>"><?= usd(abs($owed)) ?></div></div>
-        <div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-primary" href="<?= url('purchases/create') ?>"><i class="bi bi-truck"></i> New purchase</a><a class="btn btn-outline-primary" href="<?= url('expenses') ?>"><i class="bi bi-wallet2"></i> Pay supplier</a></div>
+        <div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-primary" href="<?= url('purchases/create') ?>"><i class="bi bi-truck"></i> New purchase</a><a class="btn btn-outline-primary" href="<?= url('expenses', ['supplier' => (int) $supplier['id']]) ?>"><i class="bi bi-wallet2"></i> Pay supplier</a></div>
       </div></div>
       <div class="card">
         <div class="card-header">Ledger</div>
