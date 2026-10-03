@@ -97,7 +97,21 @@ final class PosController extends Controller
         } catch (\DomainException $e) {
             $this->json(['error' => $e->getMessage(), 'needs_pin' => str_starts_with($e->getMessage(), 'Needs an Admin PIN')], 422);
         }
-        $this->json($result + ['receipt' => url('sales/receipt', ['id' => $result['id']])]);
+        // The done screen says what really happened: cash, card or credit, and what a credit customer now owes.
+        $paid = (new \App\Models\Sale())->paidByMethod((int) $result['id']);
+        $customerId = (int) ($in['customer_id'] ?? 0);
+        $c = $customerId > 0 ? (new Customer())->find($customerId) : null;
+        $this->json($result + [
+            'receipt'    => url('sales/receipt', ['id' => $result['id']]),
+            'cash_usd'   => $paid['cash'],
+            'card_usd'   => $paid['card'],
+            'credit_usd' => $paid['credit'],
+            'customer'   => $c === null ? null : [
+                'name'    => $c['name'],
+                'balance' => number_format((float) $c['balance_usd'], 2, '.', ''),
+                'limit'   => $c['credit_limit_usd'] === null ? null : number_format((float) $c['credit_limit_usd'], 2, '.', ''),
+            ],
+        ]);
     }
 
     /** Which cart lines would be sold below cost (after line and invoice discounts). The cost itself is never sent. */

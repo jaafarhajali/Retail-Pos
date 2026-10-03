@@ -37,6 +37,17 @@ final class Sale extends Model
         return $this->fetchAll('SELECT * FROM sale_payments WHERE sale_id = :s ORDER BY id', ['s' => $saleId]);
     }
 
+    /** @return array{cash: string, card: string, credit: string} USD value paid by each method */
+    public function paidByMethod(int $saleId): array
+    {
+        $sums = ['cash' => 0.0, 'card' => 0.0, 'credit' => 0.0];
+        foreach ($this->payments($saleId) as $p) {
+            $sums[$p['method']] = ($sums[$p['method']] ?? 0.0) + (float) $p['amount_usd'];
+        }
+
+        return array_map(static fn (float $v): string => number_format($v, 2, '.', ''), $sums);
+    }
+
     public function search(array $filters, int $page): array
     {
         $where = ['1=1'];

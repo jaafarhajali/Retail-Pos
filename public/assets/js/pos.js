@@ -366,6 +366,29 @@
     else el.textContent = 'Change: ' + lbp(roundLbp(diff * P.rate));
   }
   $('pay-change').addEventListener('change', summary);
+
+  // The done screen says what really happened. A sale on credit or by card must never read "Paid … exactly":
+  // the cashier would think money came in. Credit gets the amber notebook and what the customer now owes.
+  function showDone(j) {
+    var cash = parseFloat(j.cash_usd) || 0, card = parseFloat(j.card_usd) || 0, credit = parseFloat(j.credit_usd) || 0;
+    var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
+    var paid = []; if (cash > 0.004) paid.push(money(cash) + ' cash'); if (card > 0.004) paid.push(money(card) + ' by card');
+    var label, big, mode = 'none';
+    if (credit > 0.004) label = paid.length ? 'Paid ' + paid.join(' · ') + ' · ' + money(credit) + ' on credit' : 'On credit';
+    else if (card > 0.004) label = 'Paid ' + paid.join(' · ');
+    if (ch.length) { label = (label ? label + ' · ' : '') + 'Change to give'; big = ch.join('\n+ '); mode = 'change'; }
+    else if (credit > 0.004) { big = money(credit); mode = 'credit'; }
+    else if (card > 0.004 && cash <= 0.004) big = 'No cash';
+    else { label = label || 'Paid ' + money(j.total_usd) + ' exactly'; big = 'No change'; }
+    $('done-label').textContent = label;
+    $('done-change').textContent = big;
+    $('done-change').classList.toggle('is-none', mode === 'none');
+    $('done-change').classList.toggle('is-credit', mode === 'credit');
+    var c = j.customer;
+    $('done-sub').textContent = credit > 0.004 && c ? c.name + ' now owes ' + money(c.balance) + (c.limit !== null ? ' (limit ' + money(c.limit) + ')' : '') : '';
+    $('done-check').classList.toggle('is-credit', credit > 0.004);
+    $('done-check').innerHTML = credit > 0.004 ? '<i class="bi bi-journal-text"></i>' : '<i class="bi bi-check-lg"></i>';
+  }
   $('pay-exact-usd').addEventListener('click', function () { payments = []; payLine('cash', 'USD', totals().total.toFixed(2)); });
   $('pay-exact-lbp').addEventListener('click', function () { payments = []; payLine('cash', 'LBP', String(roundLbp(totals().total * P.rate))); });
   $('pay-add').addEventListener('click', function () { var t = totals(), rest = Math.max(0, t.total - paidUsd()); payLine('cash', 'USD', rest > 0 ? rest.toFixed(2) : ''); });
@@ -386,9 +409,7 @@
     }).then(function (j) {
       modals['m-pay'].hide();
       $('done-no').textContent = j.invoice_no;
-      var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
-      $('done-label').textContent = ch.length ? 'Change to give' : 'Paid ' + money(j.total_usd) + ' exactly';
-      $('done-change').textContent = ch.length ? ch.join('\n+ ') : 'No change'; $('done-change').classList.toggle('is-none', !ch.length);
+      showDone(j);
       $('done-warn').textContent = (j.warnings || []).join(' ');
       $('done-print').href = j.receipt + '&auto=1';
       modals['m-done'].show();

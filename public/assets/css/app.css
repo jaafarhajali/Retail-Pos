@@ -410,6 +410,7 @@ body > .error-wrap .blocked { width: 100%; }
 .receipt .total td { padding-top: 3px; font-size: 17px; font-weight: 700; }
 .receipt .total-lbp td { font-size: 13px; font-weight: 700; }
 .receipt .muted { font-size: 11px; }
+.receipt .receipt-sign { margin-top: 18px; }   /* room above the line for a pen */
 .receipt.w58 { width: 52mm; font-size: 11px; }
 .receipt.w58 > .c.big:first-child { font-size: 15px; }
 .receipt.w58 .total td { font-size: 15px; }
@@ -596,6 +597,10 @@ body > .error-wrap .blocked { width: 100%; }
 .done-label { margin-top: 1.1rem; color: var(--t-ink-2); font-weight: 600; font-size: 1.1rem; }
 .done-change { font-family: var(--font-display); font-size: 4.2rem; font-weight: 700; line-height: 1.08; letter-spacing: -.025em; color: var(--t-brass); font-variant-numeric: tabular-nums; white-space: pre-line; overflow-wrap: anywhere; }
 .done-change.is-none { color: var(--t-ink); font-size: 2.4rem; font-weight: 600; letter-spacing: -.01em; }   /* nothing to hand back: no brass */
+.done-check.is-credit { background: rgba(214,138,34,.22); color: #F2C374; }   /* on credit: no money came in, so not the green tick */
+.done-change.is-credit { color: #F2C374; }
+.done-sub { margin-top: .5rem; color: var(--t-ink); font-size: 1.15rem; font-weight: 600; }
+.done-sub:empty { display: none; }
 .done-warn { display: inline-flex; align-items: center; gap: .5rem; color: #F6C2B9; background: rgba(179,38,30,.18); border: 1px solid rgba(242,168,157,.3); border-radius: 8px; padding: .45rem .8rem; margin-top: 1rem; font-size: .95rem; }
 .done-warn:empty { display: none; }
 .done-actions { display: grid !important; grid-template-columns: 1fr 1.3fr; gap: .6rem; }

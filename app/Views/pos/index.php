@@ -118,10 +118,11 @@
 
 <div class="modal fade pos-modal" id="m-done" tabindex="-1" data-bs-backdrop="static"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
   <div class="modal-body done-body">
-    <div class="done-check"><i class="bi bi-check-lg"></i></div>
+    <div class="done-check" id="done-check"><i class="bi bi-check-lg"></i></div>
     <div class="done-inv">Invoice <span id="done-no"></span></div>
     <div class="done-label" id="done-label">Change to give</div>
     <div class="done-change" id="done-change"></div>
+    <div class="done-sub" id="done-sub" dir="auto"></div>
     <div id="done-warn" class="done-warn"></div>
   </div>
   <div class="modal-footer done-actions">

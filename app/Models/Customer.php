@@ -50,6 +50,16 @@ final class Customer extends Model
         return number_format((float) $this->fetchValue('SELECT COALESCE(SUM(amount_usd), 0) FROM customer_ledger WHERE customer_id = :c', ['c' => $id]), 2, '.', '');
     }
 
+    /** What the customer owed right after this sale's ledger entry: a reprint shows the balance of that day, not today's. */
+    public function balanceAfterSale(int $customerId, int $saleId): string
+    {
+        return number_format((float) $this->fetchValue(
+            'SELECT COALESCE(SUM(amount_usd), 0) FROM customer_ledger
+             WHERE customer_id = :c1 AND id <= (SELECT MAX(id) FROM customer_ledger WHERE customer_id = :c2 AND sale_id = :s)',
+            ['c1' => $customerId, 'c2' => $customerId, 's' => $saleId]
+        ), 2, '.', '');
+    }
+
     public function ledger(int $customerId, int $limit = 200): array
     {
         return $this->fetchAll(

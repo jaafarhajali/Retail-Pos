@@ -32,6 +32,15 @@
     <?php if ((int) $s['change_lbp'] > 0): ?><tr><td>Change LBP</td><td class="r"><?= lbp($s['change_lbp']) ?></td></tr><?php endif; ?>
     <tr><td>Rate</td><td class="r">1 USD = <?= number_format((int) $s['exchange_rate']) ?> LBP</td></tr>
   </table>
+  <?php if ($credit !== null): ?>
+    <div class="rule"></div>
+    <div class="c big">*** ON CREDIT ***</div>
+    <table>
+      <tr><td>On credit</td><td class="r"><?= usd($credit['usd']) ?></td></tr>
+      <tr><td><b>Balance owed</b></td><td class="r"><b><?= usd($credit['balance']) ?></b></td></tr>
+    </table>
+    <div class="receipt-sign">Customer signature: ____________</div>
+  <?php endif; ?>
   <div class="rule"></div>
   <div class="c" dir="auto"><?= e(setting('receipt_footer', 'Thank you for your visit!')) ?></div>
 </div>

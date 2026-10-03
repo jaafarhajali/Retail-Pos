@@ -44,8 +44,13 @@ final class SaleController extends Controller
     {
         $sale = $this->load($this->queryInt('id'));
         $sales = new Sale();
+        $onCredit = $sales->paidByMethod((int) $sale['id'])['credit'];
+        $credit = (float) $onCredit > 0 && $sale['customer_id'] !== null && $sale['status'] === 'completed'
+            ? ['usd' => $onCredit, 'balance' => (new \App\Models\Customer())->balanceAfterSale((int) $sale['customer_id'], (int) $sale['id'])]
+            : null;
         View::render('sales/receipt', [
             'pageTitle' => $sale['invoice_no'], 'sale' => $sale, 'items' => $sales->items((int) $sale['id']), 'payments' => $sales->payments((int) $sale['id']),
+            'credit' => $credit,
             'copy' => $this->query('copy') === '1', 'width' => $this->query('w') === '58' ? 'w58' : '', 'auto' => $this->query('auto') === '1',
         ], 'layouts/receipt');
     }
