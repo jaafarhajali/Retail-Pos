@@ -12,7 +12,7 @@
       <tr class="<?= (int) $c['is_active'] ? '' : 'table-secondary' ?>">
         <td dir="auto"><?= e($c['name']) ?><?= (int) $c['is_active'] ? '' : '<span class="cell-sub">inactive</span>' ?></td>
         <td class="text-nowrap"><?= e($c['phone'] ?? '—') ?></td>
-        <td><?= $c['default_price_level'] === 'wholesale' ? '<span class="badge text-bg-info">Wholesale</span>' : 'Retail' ?></td>
+        <td><?= $c['default_price_level'] === 'wholesale' ? '<span class="badge text-bg-info">Wholesale</span>' : '<span class="badge text-bg-success">Retail</span>' ?></td>
         <td class="text-end <?= (float) $c['balance_usd'] > 0 ? 'text-danger fw-semibold' : ((float) $c['balance_usd'] == 0 ? 'text-muted' : '') ?>"><?= usd($c['balance_usd']) ?></td>
         <td class="text-end"><?= $c['credit_limit_usd'] === null ? '—' : usd($c['credit_limit_usd']) ?></td>
         <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('customers/edit', ['id' => $c['id']]) ?>">Open</a></td>
