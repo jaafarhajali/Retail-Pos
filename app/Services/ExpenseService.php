@@ -19,20 +19,16 @@ final class ExpenseService
         if ($category === '' || mb_strlen($category) > 60) {
             throw new \DomainException('Give the expense a category (rent, electricity, …).');
         }
-        $currency = (string) ($in['currency'] ?? 'USD');
-        if (!in_array($currency, ['USD', 'LBP'], true)) {
-            throw new \DomainException('Choose USD or LBP.');
+        // Paid in USD, in LBP, or both at once: "$10 + 450,000 LBP". The older form (one amount + its currency) still works.
+        if (isset($in['currency']) && !isset($in['usd']) && !isset($in['lbp'])) {
+            $in[$in['currency'] === 'LBP' ? 'lbp' : 'usd'] = $in['amount'] ?? '';
         }
+        $usdPaid = Pricing::parse((string) ($in['usd'] ?? ''), true) ?? '0.00';
+        $lbpPaid = CashService::parseLbp((string) ($in['lbp'] ?? ''), true);
         $rate = (new ExchangeRate())->current();
-        if ($currency === 'USD') {
-            $amount = Pricing::parse((string) ($in['amount'] ?? ''));
-            $usd = $amount;
-        } else {
-            $amount = (string) CashService::parseLbp((string) ($in['amount'] ?? ''), false);
-            $usd = Money::lbpToUsd((int) $amount, $rate);
-        }
+        $usd = Money::fmt((float) $usdPaid + (float) Money::lbpToUsd($lbpPaid, $rate));
         if ((float) $usd <= 0) {
-            throw new \DomainException('Enter an amount.');
+            throw new \DomainException('Enter an amount in USD, in LBP, or both.');
         }
         $date = (string) ($in['expense_date'] ?? '');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
@@ -51,20 +47,24 @@ final class ExpenseService
         }
         $description = mb_substr(trim((string) ($in['description'] ?? '')), 0, 255);
 
-        return Database::transaction(function () use ($category, $description, $amount, $currency, $usd, $rate, $paidFrom, $sessionId, $supplier, $userId, $date): int {
+        return Database::transaction(function () use ($category, $description, $usdPaid, $lbpPaid, $usd, $rate, $paidFrom, $sessionId, $supplier, $userId, $date): int {
             $id = (new Expense())->create([
-                'category' => $category, 'description' => $description === '' ? null : $description, 'amount' => $amount, 'currency' => $currency, 'amount_usd' => $usd,
+                'category' => $category, 'description' => $description === '' ? null : $description, 'usd_paid' => $usdPaid, 'lbp_paid' => $lbpPaid, 'amount_usd' => $usd,
                 'exchange_rate' => $rate, 'paid_from' => $paidFrom, 'session_id' => $sessionId, 'supplier_id' => $supplier === null ? null : (int) $supplier['id'],
                 'user_id' => $userId, 'expense_date' => $date,
             ]);
-            if ($sessionId !== null) {
-                (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $currency, 'amount' => '-' . $amount,
-                                                  'type' => $supplier === null ? 'expense' : 'supplier_payment', 'ref_type' => 'expense', 'ref_id' => $id, 'user_id' => $userId, 'note' => $category]);
+            if ($sessionId !== null) {   // one cash movement per currency that left the drawer
+                foreach (['USD' => $usdPaid, 'LBP' => (string) $lbpPaid] as $cur => $out) {
+                    if ((float) $out > 0) {
+                        (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $cur, 'amount' => '-' . $out,
+                                                          'type' => $supplier === null ? 'expense' : 'supplier_payment', 'ref_type' => 'expense', 'ref_id' => $id, 'user_id' => $userId, 'note' => $category]);
+                    }
+                }
             }
             if ($supplier !== null) {
                 (new Supplier())->addLedger((int) $supplier['id'], 'payment', '-' . $usd, null, $id, $userId, $category . ($description !== '' ? ': ' . $description : ''));
             }
-            Audit::log($supplier === null ? 'expense.created' : 'supplier.paid', 'expense', $id, ['category' => $category, 'paid_from' => $paidFrom, 'currency' => $currency, 'amount' => $amount], (float) $usd, 'USD');
+            Audit::log($supplier === null ? 'expense.created' : 'supplier.paid', 'expense', $id, ['category' => $category, 'paid_from' => $paidFrom, 'usd' => $usdPaid, 'lbp' => $lbpPaid], (float) $usd, 'USD');
 
             return $id;
         });

@@ -43,10 +43,10 @@ final class Expense extends Model
     public function create(array $f): int
     {
         $this->execute(
-            'INSERT INTO expenses (category, description, amount, currency, amount_usd, exchange_rate, paid_from, session_id, supplier_id, user_id, expense_date)
-             VALUES (:c, :d, :a, :cur, :au, :x, :pf, :s, :sup, :u, :dt)',
+            'INSERT INTO expenses (category, description, usd_paid, lbp_paid, amount_usd, exchange_rate, paid_from, session_id, supplier_id, user_id, expense_date)
+             VALUES (:c, :d, :up, :lp, :au, :x, :pf, :s, :sup, :u, :dt)',
             [
-                'c' => $f['category'], 'd' => $f['description'], 'a' => $f['amount'], 'cur' => $f['currency'], 'au' => $f['amount_usd'], 'x' => $f['exchange_rate'],
+                'c' => $f['category'], 'd' => $f['description'], 'up' => $f['usd_paid'], 'lp' => $f['lbp_paid'], 'au' => $f['amount_usd'], 'x' => $f['exchange_rate'],
                 'pf' => $f['paid_from'], 's' => $f['session_id'], 'sup' => $f['supplier_id'], 'u' => $f['user_id'], 'dt' => $f['expense_date'],
             ]
         );

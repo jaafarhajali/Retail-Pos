@@ -8,8 +8,11 @@
           <datalist id="cats"><?php foreach ($categories as $c): ?><option value="<?= e($c) ?>"><?php endforeach; ?></datalist></div>
         <div class="mb-2"><label class="form-label">Description</label><input class="form-control" name="description" dir="auto" value="<?= old('description') ?>"></div>
         <div class="row g-2 mb-2">
-          <div class="col-7"><label class="form-label" for="expense-amount">Amount</label><input class="form-control" id="expense-amount" name="amount" inputmode="decimal" data-lbp-when="#expense-currency" required value="<?= old('amount') ?>"></div>
-          <div class="col-5"><label class="form-label" for="expense-currency">Currency</label><select class="form-select" id="expense-currency" name="currency"><option>USD</option><option <?= old('currency') === 'LBP' ? 'selected' : '' ?>>LBP</option></select></div>
+          <div class="col-5"><label class="form-label" for="expense-usd">Amount in USD</label>
+            <div class="input-group"><span class="input-group-text">$</span><input class="form-control" id="expense-usd" name="usd" inputmode="decimal" placeholder="0.00" value="<?= old('usd') ?>"></div></div>
+          <div class="col-7"><label class="form-label" for="expense-lbp">Amount in LBP</label>
+            <div class="input-group"><input class="form-control" id="expense-lbp" name="lbp" inputmode="numeric" data-lbp="always" placeholder="0" value="<?= old('lbp') ?>"><span class="input-group-text">LBP</span></div></div>
+          <div class="col-12 form-text mt-0">Fill one, or both when it was paid partly in each.</div>
         </div>
         <div class="row g-2 mb-2">
           <div class="col-6"><label class="form-label">Date</label><input class="form-control" type="date" name="expense_date" value="<?= old('expense_date', date('Y-m-d')) ?>" required></div>
@@ -33,7 +36,7 @@
       <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Paid from</th><th class="text-end">Amount</th><th class="text-end">USD</th></tr></thead>
       <tbody><?php foreach ($pg['rows'] as $x): ?>
         <tr><td class="text-nowrap"><?= e(date('d/m/Y', strtotime($x['expense_date']))) ?></td><td dir="auto"><?= e($x['category']) ?><?= $x['supplier_name'] ? '<span class="cell-sub"><i class="bi bi-building"></i> ' . e($x['supplier_name']) . '</span>' : '' ?></td>
-          <td dir="auto"><?= e($x['description'] ?? '') ?></td><td><?= $x['paid_from'] === 'drawer' ? 'Drawer' : 'Outside' ?></td><td class="text-end text-nowrap"><?= $x['currency'] === 'USD' ? usd($x['amount']) : lbp($x['amount']) ?></td><td class="text-end"><?= usd($x['amount_usd']) ?></td></tr>
+          <td dir="auto"><?= e($x['description'] ?? '') ?></td><td><?= $x['paid_from'] === 'drawer' ? 'Drawer' : 'Outside' ?></td><td class="text-end text-nowrap"><?= implode(' + ', array_filter([(float) $x['usd_paid'] > 0 ? usd($x['usd_paid']) : '', (int) $x['lbp_paid'] > 0 ? lbp($x['lbp_paid']) : ''])) ?></td><td class="text-end"><?= usd($x['amount_usd']) ?></td></tr>
       <?php endforeach; ?>
       <?php if ($pg['rows'] === []): ?><tr><td colspan="6" class="empty">No expenses match these filters.</td></tr><?php endif; ?></tbody>
     </table></div></div>

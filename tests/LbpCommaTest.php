@@ -66,7 +66,7 @@ return [
         $registerId = (new Register())->create('Register 01');
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         assert_contains('data-lbp="always"', $client->get('rates')->body);
-        assert_contains('data-lbp-when="#expense-currency"', $client->get('expenses')->body);
+        assert_contains('name="lbp" inputmode="numeric" data-lbp="always"', $client->get('expenses')->body);   // its own LBP field since 2026-10-04
         $client->get('registers');
         $client->post('registers/bind', ['id' => $registerId]);
         assert_contains('name="opening_lbp" inputmode="numeric" data-lbp="always"', $client->get('sessions/open')->body);

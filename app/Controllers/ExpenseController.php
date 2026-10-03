@@ -31,7 +31,7 @@ final class ExpenseController extends Controller
     {
         try {
             (new ExpenseService())->create([
-                'category' => $this->input('category'), 'description' => $this->input('description'), 'amount' => $this->input('amount'), 'currency' => $this->input('currency'),
+                'category' => $this->input('category'), 'description' => $this->input('description'), 'usd' => $this->input('usd'), 'lbp' => $this->input('lbp'),
                 'expense_date' => $this->input('expense_date'), 'paid_from' => $this->input('paid_from'), 'supplier_id' => $this->inputInt('supplier_id'),
             ], Auth::id());
         } catch (\DomainException $e) {
