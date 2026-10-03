@@ -6,7 +6,7 @@
 </form>
 <div class="card"><div class="table-responsive">
   <table class="table table-hover align-middle">
-    <thead><tr><th>Customer</th><th>Phone</th><th>Price level</th><th class="text-end">Owes</th><th class="text-end">Limit</th><th></th></tr></thead>
+    <thead><tr><th>Customer</th><th>Phone</th><th>Price level</th><th class="text-end">Owes</th><th class="text-end">Credit limit</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($customers as $c): ?>
       <tr class="<?= (int) $c['is_active'] ? '' : 'table-secondary' ?>">
