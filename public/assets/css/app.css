@@ -580,6 +580,9 @@ body > .error-wrap .blocked { width: 100%; }
 .pay-result.is-due { color: #F2A89D; }
 .pay-result.is-change { color: var(--t-brass); }
 .pay-result.is-idle { font-size: 1.02rem; font-weight: 500; color: var(--t-ink-2); }
+.pay-result.is-credit { color: #F2C374; }   /* on credit: no money comes in, amber like the done screen */
+.pay-result:has(small) { flex-direction: column; align-items: flex-start; justify-content: center; }
+.pay-result small { display: block; margin-top: .2rem; font-size: .95rem; font-weight: 600; color: var(--t-ink); }
 .pay-extra { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem .75rem; }
 .pay-ok { width: 100%; min-height: 64px; border: 0; border-radius: 12px; background: var(--t-brass); color: var(--brass-ink); font-size: 1.3rem; font-weight: 700; }
 .pay-ok:hover { background: #E8B85A; }

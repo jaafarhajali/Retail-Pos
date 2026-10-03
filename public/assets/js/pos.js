@@ -357,13 +357,42 @@
     summary();
   }
   function paidUsd() { var s = 0; payments.forEach(function (p) { var a = num(p.amount); s += p.currency === 'LBP' ? a / P.rate : a; }); return s; }
+  // What the payment box says. "Change" only when cash was overpaid; credit and card say what they are,
+  // and a credit sale shows what the customer will owe, warning before Complete when there is no customer or the limit is passed.
+  function payText(lines, total, cust, changeIn) {
+    if (!lines.length) return { cls: 'is-idle', main: 'Add a payment, or use the exact buttons.', sub: '' };
+    var cash = 0, card = 0, credit = 0;
+    lines.forEach(function (p) {
+      var a = num(p.amount), usd = p.currency === 'LBP' ? a / P.rate : a;
+      if (p.method === 'card') card += usd; else if (p.method === 'credit') credit += usd; else cash += usd;
+    });
+    var diff = cash + card + credit - total;
+    var parts = []; if (cash > 0.004) parts.push(money(cash) + ' cash'); if (card > 0.004) parts.push(money(card) + ' by card');
+    var owes = '', over = false;
+    if (credit > 0.004 && cust) {
+      var owe = parseFloat(cust.balance || 0) + credit;
+      over = cust.limit !== null && cust.limit !== undefined && owe > parseFloat(cust.limit) + 0.004;
+      owes = cust.name + ' will owe ' + money(owe) + (over ? ' · over the ' + money(cust.limit) + ' limit: administrator PIN needed' : '');
+    }
+    if (credit > 0.004 && !cust) return { cls: 'is-due', main: 'Choose a customer to sell on credit', sub: money(credit) + ' on credit needs a customer' };
+    if (diff < -0.004) return { cls: 'is-due', main: 'Still due: ' + money(-diff) + ' (' + lbp(roundLbp(-diff * P.rate)) + ')', sub: owes };
+    if (cash > 0.004 && diff > 0.004) {
+      var change = changeIn === 'USD'
+        ? (function () { var w = Math.floor(diff), r = diff - w, l = r > 0.004 ? lbp(roundLbp(r * P.rate)) : ''; return w > 0 ? money(w) + (l ? ' + ' + l : '') : l; })()
+        : lbp(roundLbp(diff * P.rate));
+      return { cls: over ? 'is-due' : 'is-change', main: 'Change: ' + change, sub: credit > 0.004 ? money(credit) + ' on credit · ' + owes : '' };
+    }
+    if (credit > 0.004) {
+      return { cls: over ? 'is-due' : 'is-credit', main: parts.length ? parts.join(' + ') + ' + ' + money(credit) + ' on credit' : 'On credit: ' + money(credit), sub: owes };
+    }
+    if (card > 0.004) return { cls: 'is-change', main: cash > 0.004 ? parts.join(' + ') : 'By card: ' + money(card), sub: 'No change' };
+    return { cls: 'is-change', main: 'Exact amount · no change', sub: '' };
+  }
   function summary() {
-    var t = totals(), paid = paidUsd(), diff = paid - t.total, el = $('pay-summary');
-    el.className = 'pay-result ' + (!payments.length ? 'is-idle' : diff < -0.004 ? 'is-due' : 'is-change');
-    if (!payments.length) { el.textContent = 'Add a payment, or use the exact buttons.'; return; }
-    if (diff < -0.004) el.textContent = 'Still due: ' + money(-diff) + ' (' + lbp(roundLbp(-diff * P.rate)) + ')';
-    else if ($('pay-change').value === 'USD') { var w = Math.floor(diff), r = diff - w; el.textContent = 'Change: ' + money(w) + (r > 0.004 ? ' + ' + lbp(roundLbp(r * P.rate)) : ''); }
-    else el.textContent = 'Change: ' + lbp(roundLbp(diff * P.rate));
+    var r = payText(payments, totals().total, customer, $('pay-change').value), el = $('pay-summary');
+    el.className = 'pay-result ' + r.cls;
+    el.textContent = r.main;
+    if (r.sub) { var s = document.createElement('small'); s.textContent = r.sub; s.dir = 'auto'; el.appendChild(s); }
   }
   $('pay-change').addEventListener('change', summary);
 
