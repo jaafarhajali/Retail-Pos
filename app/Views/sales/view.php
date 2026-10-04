@@ -15,20 +15,6 @@
         <?php if ($canReturn && $s['status'] === 'completed'): ?><a class="btn btn-outline-secondary" href="<?= url('returns', ['invoice' => $s['invoice_no']]) ?>"><i class="bi bi-arrow-return-left"></i> Return items</a><?php endif; ?>
       </div>
     </div></div>
-    <?php if ($canVoid && $s['status'] === 'completed' && $returns === []): ?>
-      <div class="card mt-3"><div class="card-body">
-        <h2 class="h6">Void this sale</h2>
-        <p class="text-muted small">Only in the same open session. Stock and cash are reversed; the invoice number stays.</p>
-        <form method="post" action="<?= url('sales/void') ?>" data-confirm="Void <?= e($s['invoice_no']) ?>?">
-          <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $s['id'] ?>">
-          <label class="form-label" for="void-reason">Reason</label>
-          <input class="form-control mb-2" id="void-reason" name="reason" dir="auto" placeholder="e.g. customer changed their mind" required>
-          <label class="form-label" for="void-pin">Admin PIN <span class="text-muted fw-normal">(only if you lack the permission)</span></label>
-          <input class="form-control mb-3 pin-mask" id="void-pin" name="pin" type="text" inputmode="numeric" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="6">
-          <button class="btn btn-outline-danger w-100" type="submit">Void sale</button>
-        </form>
-      </div></div>
-    <?php endif; ?>
   </div>
   <div class="col-xl-8">
     <div class="card mb-3"><div class="table-responsive"><table class="table">

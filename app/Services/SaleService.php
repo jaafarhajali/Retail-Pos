@@ -18,7 +18,7 @@ use App\Models\Sale;
 use App\Models\User;
 
 /**
- * Completing and voiding sales (spec §5–§7, §13). One transaction touches sales, sale_items,
+ * Completing sales (spec §5–§7; voids removed 2026-10-05, a sale is undone with a return). One transaction touches sales, sale_items,
  * sale_payments, stock_movements, cash_movements, customer_ledger, counters and audit_log.
  */
 final class SaleService
@@ -217,52 +217,6 @@ final class SaleService
         return $result + ['change_usd' => $changeUsd, 'change_lbp' => $changeLbp, 'warnings' => $warnings, 'total_usd' => $total, 'rounding_usd' => Money::fmt($rounding)];
     }
 
-    /** Void in the same open session only, with no returns (spec §13). */
-    public function void(int $saleId, string $reason, int $userId, string $pin = ''): void
-    {
-        $sales = new Sale();
-        $sale = $sales->find($saleId) ?? throw new \DomainException('Sale not found.');
-        if ($sale['status'] !== 'completed') {
-            throw new \DomainException('This sale is already voided.');
-        }
-        $session = (new CashSession())->find((int) $sale['session_id']);
-        if ($session === null || $session['status'] !== 'open') {
-            throw new \DomainException('The session is closed: make a return instead of a void.');
-        }
-        if ($sales->hasReturns($saleId)) {
-            throw new \DomainException('This sale has returns and cannot be voided.');
-        }
-        $reason = trim($reason);
-        if ($reason === '') {
-            throw new \DomainException('Give a reason for the void.');
-        }
-        $approver = Gate::allows('sale.void') ? null : $this->verifyPin($pin, ['void of ' . $sale['invoice_no']]);
-        Database::transaction(function () use ($sales, $sale, $saleId, $reason, $userId, $approver): void {
-            $stock = new StockService();
-            foreach ($sales->items($saleId) as $item) {
-                $stock->move((int) $item['product_id'], (int) $item['base_qty'], 'sale_void', $reason, $item['cost_per_base'], 'sale', $saleId, $userId, (int) $sale['session_id']);
-            }
-            $cash = new CashSession();
-            $pdo = Database::pdo();
-            $stmt = $pdo->prepare("SELECT * FROM cash_movements WHERE ref_type = 'sale' AND ref_id = :s");
-            $stmt->execute(['s' => $saleId]);
-            foreach ($stmt->fetchAll() as $m) {
-                $cash->addMovement(['session_id' => (int) $sale['session_id'], 'currency' => $m['currency'], 'amount' => Money::fmt(-(float) $m['amount']),
-                                    'type' => 'void_reversal', 'ref_type' => 'sale', 'ref_id' => $saleId, 'user_id' => $userId, 'note' => 'Void ' . $sale['invoice_no']]);
-            }
-            if ($sale['customer_id'] !== null) {
-                $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount_usd), 0) FROM customer_ledger WHERE sale_id = :s AND type = 'sale_credit'");
-                $stmt->execute(['s' => $saleId]);
-                $credit = (float) $stmt->fetchColumn();
-                if ($credit > 0) {
-                    (new Customer())->addLedger(['customer_id' => (int) $sale['customer_id'], 'type' => 'adjustment', 'amount_usd' => Money::fmt(-$credit),
-                                                 'sale_id' => $saleId, 'session_id' => (int) $sale['session_id'], 'user_id' => $userId, 'note' => 'Void ' . $sale['invoice_no']]);
-                }
-            }
-            $sales->void($saleId, $userId, $reason);
-            Audit::log('sale.voided', 'sale', $saleId, ['no' => $sale['invoice_no'], 'reason' => $reason, 'approved_by' => $approver['username'] ?? null], (float) $sale['total_usd'], 'USD');
-        });
-    }
 
     /** An Admin types their PIN on the till to approve one action. Returns the approving user. */
     /**

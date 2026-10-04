@@ -68,7 +68,7 @@ $userIsAdmin = $isEdit && array_filter($roles, static fn (array $r): bool => (in
       <?php if ($userIsAdmin): ?>
       <div class="card"><div class="card-body">
         <h2 class="h5">Approval PIN</h2>
-        <p class="text-muted small">4–6 digits. The administrator types it on a cashier's till to approve a discount, a price change, wholesale prices, a sale on credit or a void. Save it empty to remove the PIN.</p>
+        <p class="text-muted small">4–6 digits. The administrator types it on a cashier's till to approve a discount, a price change, wholesale prices, a sale on credit or a return. Save it empty to remove the PIN.</p>
         <form method="post" action="<?= url('users/pin') ?>">
           <?= csrf_field() ?>
           <input type="hidden" name="id" value="<?= (int) $user['id'] ?>">

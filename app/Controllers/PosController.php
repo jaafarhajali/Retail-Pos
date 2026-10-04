@@ -41,7 +41,7 @@ final class PosController extends Controller
             'pageTitle' => 'Till', 'register' => $register, 'session' => $session, 'user' => Auth::user(), 'token' => Csrf::token(),
             'rate' => (new ExchangeRate())->current(), 'step' => Money::step(),
             'can' => ['wholesale' => Gate::allows('sale.wholesale'), 'discount' => Gate::allows('sale.discount'), 'belowCost' => (int) (Auth::user()['is_super'] ?? 0) === 1, 'override' => Gate::allows('sale.price_override'),
-                      'credit' => Gate::allows('sale.credit'), 'debt' => Gate::allows('debt.collect'), 'void' => Gate::allows('sale.void'), 'returns' => Gate::allows('return.create')],
+                      'credit' => Gate::allows('sale.credit'), 'debt' => Gate::allows('debt.collect'), 'returns' => Gate::allows('return.create')],
             'maxDiscount' => Settings::get('max_cashier_discount_pct', '0'),
         ], null);
     }

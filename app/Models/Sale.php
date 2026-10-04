@@ -5,7 +5,7 @@ namespace App\Models;
 
 use App\Core\Model;
 
-/** Sales, their lines and payments (spec §3.7). Append-only except the void status. */
+/** Sales, their lines and payments (spec §3.7). Append-only; a sale is undone with a return (old sales may still be 'voided'). */
 final class Sale extends Model
 {
     private const SELECT = 'SELECT s.*, u.username, r.name AS register_name, c.name AS customer_name, cs.session_no,
@@ -147,16 +147,6 @@ final class Sale extends Model
     {
         $this->execute('INSERT INTO sale_payments (sale_id, method, currency, amount, amount_usd) VALUES (:s, :m, :c, :a, :u)',
             ['s' => $saleId, 'm' => $method, 'c' => $currency, 'a' => $amount, 'u' => $amountUsd]);
-    }
-
-    public function void(int $id, int $userId, string $reason): void
-    {
-        $this->execute("UPDATE sales SET status = 'voided', void_reason = :r, voided_by = :u, voided_at = NOW() WHERE id = :id", ['r' => $reason, 'u' => $userId, 'id' => $id]);
-    }
-
-    public function hasReturns(int $saleId): bool
-    {
-        return (bool) $this->fetchValue('SELECT COUNT(*) FROM returns WHERE sale_id = :s', ['s' => $saleId]);
     }
 
     /** Session totals for X/Z: sales, retail/wholesale, payments by method+currency, counts. */

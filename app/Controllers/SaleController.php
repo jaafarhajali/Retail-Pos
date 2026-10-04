@@ -5,7 +5,6 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
-use App\Core\Flash;
 use App\Core\Gate;
 use App\Core\HttpException;
 use App\Core\View;
@@ -13,9 +12,8 @@ use App\Models\CashSession;
 use App\Models\Sale;
 use App\Models\SaleReturn;
 use App\Models\User;
-use App\Services\SaleService;
 
-/** Sales list, invoice view, receipt printing, voids. Cashiers see their own session's sales. */
+/** Sales list, invoice view, receipt printing. Cashiers see their own session's sales. */
 final class SaleController extends Controller
 {
     public function index(): void
@@ -36,7 +34,7 @@ final class SaleController extends Controller
         $sales = new Sale();
         $this->render('sales/view', [
             'sale' => $sale, 'items' => $sales->items((int) $sale['id']), 'payments' => $sales->payments((int) $sale['id']), 'returns' => (new SaleReturn())->forSale((int) $sale['id']),
-            'canVoid' => Gate::allows('sale.void') || Gate::allows('pos.use'), 'canReturn' => Gate::allows('return.create'), 'canReprint' => Gate::allows('sale.reprint'),
+            'canReturn' => Gate::allows('return.create'), 'canReprint' => Gate::allows('sale.reprint'),
         ], $sale['invoice_no']);
     }
 
@@ -53,18 +51,6 @@ final class SaleController extends Controller
             'credit' => $credit,
             'copy' => $this->query('copy') === '1', 'width' => $this->query('w') === '58' ? 'w58' : '', 'auto' => $this->query('auto') === '1',
         ], 'layouts/receipt');
-    }
-
-    public function void(): void
-    {
-        $id = $this->inputInt('id');
-        try {
-            (new SaleService())->void($id, $this->input('reason'), Auth::id(), $this->input('pin'));
-        } catch (\DomainException $e) {
-            $this->failBack('sales/view', ['id' => $id], ['reason' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Sale voided; stock and cash reversed.');
-        redirect('sales/view', ['id' => $id]);
     }
 
     private function load(int $id): array

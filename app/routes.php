@@ -128,7 +128,6 @@ return [
     ['GET',  'sales',            [SaleController::class, 'index'],   Router::AUTH],
     ['GET',  'sales/view',       [SaleController::class, 'view'],    Router::AUTH],
     ['GET',  'sales/receipt',    [SaleController::class, 'receipt'], Router::AUTH],
-    ['POST', 'sales/void',       [SaleController::class, 'void'],    'pos.use'],
     // Phase 6 — returns
     ['GET',  'returns',          [ReturnController::class, 'index'],   'return.create'],
     ['POST', 'returns/store',    [ReturnController::class, 'store'],   'return.create'],

@@ -150,14 +150,8 @@ return [
         assert_same('10000000', (new CashSession())->expected($s['session'])['LBP']);
     },
 
-    'void in the same session restocks and reverses cash; a stocktake applies only the difference (§12, §13)' => function () use ($setup, $sale): void {
+    'a stocktake applies only the difference (§12)' => function () use ($setup, $sale): void {   // voids were removed 2026-10-05: a return undoes a sale
         $s = $setup();
-        $r = $sale($s, [['product_id' => $s['charcoal'], 'unit_id' => $s['box'], 'qty' => '2']], [['method' => 'cash', 'currency' => 'USD', 'amount' => '560']]);
-        (new SaleService())->void($r['id'], 'customer changed mind', TEST_ADMIN_ID);
-        assert_same(200000, (int) (new Product())->find($s['charcoal'])['stock_base']);
-        assert_same('100.00', (new CashSession())->expected($s['session'])['USD']);
-        assert_same('voided', (new Sale())->find($r['id'])['status']);
-
         $count = (new CountService())->start('all', 0, '', TEST_ADMIN_ID);          // snapshot 200,000 g
         $sale($s, [['product_id' => $s['charcoal'], 'unit_id' => $s['box'], 'qty' => '1']], [['method' => 'card', 'currency' => 'USD', 'amount' => '280']]);   // sold during the count → 180,000
         $line = (new \App\Models\StockCount())->lines($count)[0];
