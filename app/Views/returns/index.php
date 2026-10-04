@@ -30,7 +30,7 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
               <td class="text-end text-nowrap"><?= e(rtrim(rtrim($i['qty'], '0'), '.')) ?> <?= e($i['unit_name']) ?></td>
               <td class="text-end text-nowrap"><?= (int) $i['returned_base_qty'] > 0 ? e(\App\Services\Quantity::unitQty((int) $i['returned_base_qty'], (int) $i['factor'])) . ' ' . e($i['unit_name']) : '—' ?></td>
               <td class="text-end"><?= usd($i['line_total_usd']) ?></td>
-              <td><div class="input-group input-group-sm"><input class="form-control form-control-sm" name="items[<?= (int) $i['id'] ?>][qty]" value="<?= e($oldItem((int) $i['id'], 'qty')) ?>" inputmode="decimal" aria-label="Quantity to return" placeholder="max <?= e(\App\Services\Quantity::unitQty($left, (int) $i['factor'])) ?>" <?= $left <= 0 ? 'disabled' : '' ?>><span class="input-group-text"><?= e($i['unit_name']) ?></span></div></td>
+              <td><div class="input-group input-group-sm"><input class="form-control form-control-sm" name="items[<?= (int) $i['id'] ?>][qty]" data-paid="<?= e($i['line_total_usd']) ?>" data-base-qty="<?= (int) $i['base_qty'] ?>" data-factor="<?= (int) $i['factor'] ?>" value="<?= e($oldItem((int) $i['id'], 'qty')) ?>" inputmode="decimal" aria-label="Quantity to return" placeholder="max <?= e(\App\Services\Quantity::unitQty($left, (int) $i['factor'])) ?>" <?= $left <= 0 ? 'disabled' : '' ?>><span class="input-group-text"><?= e($i['unit_name']) ?></span></div></td>
               <td><select class="form-select form-select-sm" name="items[<?= (int) $i['id'] ?>][condition]" aria-label="Condition"><option value="restock">Back to stock</option><option value="waste" <?= $oldItem((int) $i['id'], 'condition') === 'waste' ? 'selected' : '' ?>>Damaged (waste)</option></select></td>
             </tr>
           <?php endforeach; ?></tbody>
@@ -42,12 +42,17 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
               <label class="form-check-label" for="allow_short_drawer">I am adding the money to the drawer myself, record the refund anyway</label></div>
           </div>
         <?php endif; ?>
-        <div class="row g-2 align-items-end mt-2">
-          <div class="col-md-3"><label class="form-label" for="cash_currency">Cash refund in</label><select class="form-select" id="cash_currency" name="cash_currency"><option>USD</option><option <?= old('cash_currency') === 'LBP' ? 'selected' : '' ?>>LBP</option></select></div>
-          <div class="col-md-6"><label class="form-label" for="return-reason">Reason</label><input class="form-control" id="return-reason" name="reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour" value="<?= old('reason') ?>"></div>
+        <div class="refund-sum mt-3" id="refund-sum" data-rate="<?= (int) $rate ?>" data-step="<?= (int) $step ?>" data-owed="<?= e(number_format($owed, 2, '.', '')) ?>">Type how many items come back.</div>
+        <input type="hidden" name="cash_currency" value="MIX">
+        <div class="row g-2 align-items-end mt-1">
+          <div class="col-md-3"><label class="form-label" for="usd_part">Give back in USD</label>
+            <div class="input-group"><span class="input-group-text">$</span><input class="form-control" id="usd_part" name="usd_part" inputmode="decimal" placeholder="0.00" value="<?= old('usd_part') ?>"></div></div>
+          <div class="col-md-3"><label class="form-label" for="lbp_part">Give back in LBP</label>
+            <div class="input-group"><input class="form-control" id="lbp_part" name="lbp_part" inputmode="numeric" data-lbp="always" placeholder="0" value="<?= old('lbp_part') ?>"><span class="input-group-text">LBP</span></div></div>
+          <div class="col-md"><label class="form-label" for="return-reason">Reason</label><input class="form-control" id="return-reason" name="reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour" value="<?= old('reason') ?>"></div>
           <div class="col-md-3"><button class="btn btn-primary w-100" type="submit" <?= $session === null ? 'disabled' : '' ?>><i class="bi bi-arrow-return-left"></i> Record return</button></div>
         </div>
-        <div class="form-text mt-2">Refund = what was really paid for the items (discounts included). A customer who owes money gets their debt reduced first; the rest is cash at today's rate.</div>
+        <div class="form-text mt-2">Fill one amount, or both when you give back part in each: typing in one fills the other with the rest. Refund = what was really paid for the items (discounts included); a customer who owes money gets their debt reduced first.</div>
       </form>
     <?php else: ?>
       <p class="text-muted mb-0">A voided sale cannot be returned: its stock and cash were already reversed.</p>
@@ -63,3 +68,37 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
   <?php endforeach; ?>
   <?php if ($recent === []): ?><tr><td colspan="7" class="empty">No returns yet. Find an invoice above to start one.</td></tr><?php endif; ?></tbody>
 </table></div></div>
+<script>
+// The refund, live: what comes back, the debt reduced first, and the cash split into USD and LBP.
+// Typing in one amount fills the other with the rest (LBP rounded to 5,000). The server checks it all again.
+(function () {
+  var sum = document.getElementById('refund-sum'); if (!sum) return;
+  var usd = document.getElementById('usd_part'), lbp = document.getElementById('lbp_part');
+  var rate = parseInt(sum.dataset.rate, 10), step = parseInt(sum.dataset.step, 10), owed = parseFloat(sum.dataset.owed) || 0, cash = 0;
+  function num(v) { return parseFloat(String(v || '').replace(/,/g, '')) || 0; }
+  function money(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function groupLbp(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function roundLbp(n) { return Math.floor((n + Math.floor(step / 2)) / step) * step; }
+  function totals() {
+    var total = 0;
+    document.querySelectorAll('input[data-paid]').forEach(function (q) {
+      var base = Math.round(num(q.value) * parseInt(q.dataset.factor, 10)), all = parseInt(q.dataset.baseQty, 10);
+      if (base > 0 && all > 0) total += Math.round(parseFloat(q.dataset.paid) * base / all * 100) / 100;
+    });
+    var debt = Math.min(owed, total);
+    cash = Math.round((total - debt) * 100) / 100;
+    if (!total) { sum.textContent = 'Type how many items come back.'; return; }
+    sum.innerHTML = '';
+    var b = document.createElement('b'); b.textContent = 'Refund ' + money(total); sum.appendChild(b);
+    sum.appendChild(document.createTextNode((debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(cash)));
+  }
+  function fromUsd() { var rest = cash - num(usd.value); lbp.value = rest > 0.004 ? groupLbp(roundLbp(rest * rate)) : ''; }
+  function fromLbp() { var rest = Math.round((cash - num(lbp.value) / rate) * 100) / 100; usd.value = rest > (step / 2) / rate ? rest.toFixed(2) : ''; }
+  document.querySelectorAll('input[data-paid]').forEach(function (q) {
+    q.addEventListener('input', function () { totals(); usd.value = cash > 0 ? cash.toFixed(2) : ''; lbp.value = ''; });   // by default all in USD
+  });
+  usd.addEventListener('input', fromUsd);
+  lbp.addEventListener('input', fromLbp);
+  totals();
+})();
+</script>

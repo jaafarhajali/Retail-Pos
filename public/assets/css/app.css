@@ -801,3 +801,6 @@ body > .error-wrap .blocked { width: 100%; }
 .pl-photo img, .pl-photo span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: var(--surface-2); color: #A9B5BC; border: 1px solid var(--line); }
 .pl-name { font-weight: 600; color: var(--ink); text-decoration: none; }
 .pl-name:hover { color: var(--enamel); text-decoration: underline; }
+
+/* Returns: the live refund line above the two amounts */
+.refund-sum { padding: .6rem .9rem; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }

@@ -19,7 +19,7 @@ final class ReturnService
      * @param list<array{sale_item_id: int, qty: string, condition: string}> $items
      * @return array{id: int, return_no: string, total_usd: string, cash: array{currency: string, amount: string}|null, debt_reduction: string}
      */
-    public function create(int $saleId, array $items, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false): array
+    public function create(int $saleId, array $items, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false, ?string $usdPart = null, ?string $lbpPart = null): array
     {
         $sales = new Sale();
         $sale = $sales->find($saleId) ?? throw new \DomainException('Sale not found.');
@@ -58,13 +58,13 @@ final class ReturnService
         if ($lines === []) {
             throw new \DomainException('Choose at least one item to return.');
         }
-        if (!in_array($cashCurrency, ['USD', 'LBP'], true)) {
+        if (!in_array($cashCurrency, ['USD', 'LBP', 'MIX'], true)) {
             throw new \DomainException('Choose the refund currency.');
         }
         $totalUsd = Money::fmt($total);
         $rate = (new ExchangeRate())->current();
 
-        return Database::transaction(function () use ($sale, $saleId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate, $allowShortDrawer): array {
+        return Database::transaction(function () use ($sale, $saleId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate, $allowShortDrawer, $usdPart, $lbpPart): array {
             // Refund: debt first on a credit customer, the rest in cash from this session's drawer.
             // Worked out before the return is written, so its rounding is stored with it (records are never edited).
             $debtReduction = '0.00';
@@ -77,23 +77,61 @@ final class ReturnService
                     $remaining = round($remaining - (float) $debtReduction, 2);
                 }
             }
-            $cash = null;
-            $cashUsd = '0.00';
+            // The cash part, in one currency or split: USD, LBP, or "MIX" = the USD part typed by the cashier + the rest in LBP.
+            $parts = [];   // each ['currency', 'amount', 'usd']
             if ($remaining > 0.004) {
-                if ($cashCurrency === 'LBP') {
-                    // LBP is handed back in 5,000 notes, like change: 651,600 → 650,000
-                    $amount = (string) Money::roundLbp(Money::usdToLbp(Money::fmt($remaining), $rate));
-                    $cashUsd = Money::lbpToUsd((int) $amount, $rate);
-                } else {
-                    $amount = Money::fmt($remaining);
-                    $cashUsd = $amount;
+                $inLbp = $remaining;
+                if ($cashCurrency === 'MIX') {
+                    // Two amounts, as on the expenses form: "Give back in USD" and "Give back in LBP". One alone and the rest
+                    // goes in the other currency; both must add up to the cash part, give or take half a 5,000 LBP note.
+                    $usdGiven = (float) (Pricing::parse((string) $usdPart, true) ?? 0);
+                    $lbpGiven = CashService::parseLbp((string) ($lbpPart ?? ''), true);
+                    $lbpUsd = (float) Money::lbpToUsd($lbpGiven, $rate);
+                    $tolerance = (Money::step() / 2) / $rate + 0.005;
+                    if ($usdGiven <= 0 && $lbpGiven <= 0) {
+                        throw new \DomainException('Type how much you give back in USD, in LBP, or both: ' . usd($remaining) . ' in cash.');
+                    }
+                    if ($usdGiven + $lbpUsd > $remaining + $tolerance) {
+                        throw new \DomainException('That is more than the ' . usd($remaining) . ' to give back in cash (' . usd($usdGiven + $lbpUsd) . ').');
+                    }
+                    if ($usdGiven > 0 && $lbpGiven > 0 && $usdGiven + $lbpUsd < $remaining - $tolerance) {
+                        throw new \DomainException('USD + LBP must add up to the ' . usd($remaining) . ' to give back in cash (now ' . usd($usdGiven + $lbpUsd) . ').');
+                    }
+                    if ($usdGiven > 0) {
+                        $parts[] = ['currency' => 'USD', 'amount' => Money::fmt($usdGiven), 'usd' => Money::fmt($usdGiven)];
+                    }
+                    if ($lbpGiven > 0) {
+                        $parts[] = ['currency' => 'LBP', 'amount' => (string) $lbpGiven, 'usd' => Money::fmt($lbpUsd)];
+                        // LBP typed alone: the rest in USD, unless it is only what the 5,000 rounding leaves (then it is rounding)
+                        $rest = round($remaining - $usdGiven - $lbpUsd, 2);
+                        if ($usdGiven <= 0 && $rest > $tolerance) {
+                            array_unshift($parts, ['currency' => 'USD', 'amount' => Money::fmt($rest), 'usd' => Money::fmt($rest)]);
+                        }
+                        $inLbp = 0.0;
+                    } else {
+                        $inLbp = round($remaining - $usdGiven, 2);   // USD typed alone: the rest in LBP, rounded to 5,000 below
+                    }
+                } elseif ($cashCurrency === 'USD') {
+                    $parts[] = ['currency' => 'USD', 'amount' => Money::fmt($remaining), 'usd' => Money::fmt($remaining)];
+                    $inLbp = 0.0;
                 }
-                $cash = ['currency' => $cashCurrency, 'amount' => $amount];
+                if ($inLbp > 0.004) {
+                    // LBP is handed back in 5,000 notes, like change: 651,600 → 650,000
+                    $lbp = Money::roundLbp(Money::usdToLbp(Money::fmt($inLbp), $rate));
+                    if ($lbp > 0) {
+                        $parts[] = ['currency' => 'LBP', 'amount' => (string) $lbp, 'usd' => Money::lbpToUsd($lbp, $rate)];
+                    }
+                }
             }
+            $cashUsd = array_sum(array_map(static fn (array $p): float => (float) $p['usd'], $parts));
             // What the rounding kept: +0.02 when $7.24 was refunded as 650,000 LBP ($7.22). Same sign as sales.rounding_usd.
-            $rounding = Money::fmt((float) $totalUsd - (float) $debtReduction - (float) $cashUsd);
-            // The refund must come out of a drawer that has it (I5, warn and allow).
-            $short = $cash === null ? null : CashService::drawerShortfall($sessionId, [$cash['currency'] => $cash['amount']], [], 'refund');
+            $rounding = Money::fmt((float) $totalUsd - (float) $debtReduction - $cashUsd);
+            // The refund must come out of a drawer that has it, in each currency (I5, warn and allow).
+            $out = [];
+            foreach ($parts as $p) {
+                $out[$p['currency']] = $p['amount'];
+            }
+            $short = $parts === [] ? null : CashService::drawerShortfall($sessionId, $out, [], 'refund');
             if ($short !== null && !$allowShortDrawer) {
                 throw new \DomainException($short, CashService::SHORT_DRAWER);
             }
@@ -117,17 +155,19 @@ final class ReturnService
                                        'amount_original' => $debtReduction, 'exchange_rate' => $rate, 'return_id' => $id, 'sale_id' => $saleId, 'session_id' => $sessionId, 'user_id' => $userId, 'note' => $no]);
                 $returns->addRefund($id, 'debt_reduction', 'USD', $debtReduction, $debtReduction);
             }
-            if ($cash !== null) {
-                $returns->addRefund($id, 'cash', $cash['currency'], $cash['amount'], $cashUsd);
-                (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $cash['currency'], 'amount' => '-' . $cash['amount'], 'type' => 'refund',
+            foreach ($parts as $p) {   // one refund line and one cash movement per currency
+                $returns->addRefund($id, 'cash', $p['currency'], $p['amount'], $p['usd']);
+                (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $p['currency'], 'amount' => '-' . $p['amount'], 'type' => 'refund',
                                                   'ref_type' => 'return', 'ref_id' => $id, 'user_id' => $userId, 'note' => $no]);
             }
+            $cashParts = array_map(static fn (array $p): array => ['currency' => $p['currency'], 'amount' => $p['amount']], $parts);
+            $cash = count($cashParts) === 1 ? $cashParts[0] : ($cashParts === [] ? null : ['currency' => 'USD+LBP', 'amount' => null]);
             Audit::log('return.created', 'return', $id, ['no' => $no, 'invoice' => $sale['invoice_no'], 'lines' => count($lines), 'rounding_usd' => $rounding], (float) $totalUsd, 'USD');
             if ($short !== null) {   // confirmed: the owner sees who refunded money the drawer did not hold
                 Audit::log('drawer.short', 'return', $id, ['no' => $no, 'warning' => $short]);
             }
 
-            return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'cash' => $cash, 'debt_reduction' => $debtReduction];
+            return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'cash' => $cash, 'cash_parts' => $cashParts, 'debt_reduction' => $debtReduction];
         });
     }
 }

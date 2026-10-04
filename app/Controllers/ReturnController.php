@@ -30,6 +30,9 @@ final class ReturnController extends Controller
         $this->render('returns/index', [
             'q' => $q, 'sale' => $sale, 'items' => $sale === null ? [] : (new Sale())->items((int) $sale['id']), 'recent' => (new SaleReturn())->recent(50),
             'session' => (new CashSession())->openForUser(Auth::id()),
+            // For the live "Refund … · paid back in cash …" line: today's rate, and what a credit customer owes (debt goes first)
+            'rate' => (new \App\Models\ExchangeRate())->current(), 'step' => \App\Services\Money::step(),
+            'owed' => $sale !== null && $sale['customer_id'] !== null ? (float) (new \App\Models\Customer())->balance((int) $sale['customer_id']) : 0.0,
         ], 'Returns');
     }
 
@@ -49,15 +52,15 @@ final class ReturnController extends Controller
             $register = RegisterDevice::current() ?? throw new \DomainException('This device is not linked to a register.');
             $session = (new CashSession())->openForUser(Auth::id()) ?? throw new \DomainException('Open your cash session first: the refund comes from its drawer.');
             $result = (new ReturnService())->create($saleId, $items, $this->input('cash_currency'), $this->input('reason'), (int) $session['id'], (int) $register['id'], Auth::id(),
-                isset($_POST['allow_short_drawer']));
+                isset($_POST['allow_short_drawer']), $this->input('usd_part'), $this->input('lbp_part'));
         } catch (\DomainException $e) {
             $sale = (new Sale())->find($saleId);
             // A short drawer comes back with the form as it was and a tick box to continue (I5, warn and allow)
             $this->failBack('returns', ['invoice' => $sale['invoice_no'] ?? ''], [$e->getCode() === \App\Services\CashService::SHORT_DRAWER ? 'short_drawer' : 'form' => $e->getMessage()]);
         }
         $msg = 'Return ' . $result['return_no'] . ' recorded.';
-        if ($result['cash'] !== null) {
-            $msg .= ' Refund in cash: ' . ($result['cash']['currency'] === 'USD' ? usd($result['cash']['amount']) : lbp($result['cash']['amount'])) . '.';
+        if ($result['cash_parts'] !== []) {   // "$5.00 + 405,000 LBP" when split
+            $msg .= ' Refund in cash: ' . implode(' + ', array_map(static fn (array $p): string => $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']), $result['cash_parts'])) . '.';
         }
         if ((float) $result['debt_reduction'] > 0) {
             $msg .= ' Debt reduced by ' . usd($result['debt_reduction']) . '.';
