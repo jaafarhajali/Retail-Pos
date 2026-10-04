@@ -181,11 +181,12 @@ final class PosController extends Controller
         [, $session] = $this->requireSession();
         $in = $this->jsonInput();
         try {
-            $usd = (new CashService())->collectDebt((int) ($in['customer_id'] ?? 0), (string) ($in['currency'] ?? 'USD'), (string) ($in['amount'] ?? ''), (int) $session['id'], Auth::id());
+            $r = (new CashService())->collectDebt((int) ($in['customer_id'] ?? 0), (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''), (int) $session['id'], Auth::id(),
+                ($in['change_currency'] ?? 'LBP') === 'USD' ? 'USD' : 'LBP', ($in['allow_short_drawer'] ?? false) === true);
         } catch (\DomainException $e) {
-            $this->json(['error' => $e->getMessage()], 422);
+            $this->json(['error' => $e->getMessage(), 'short_drawer' => $e->getCode() === CashService::SHORT_DRAWER], 422);
         }
-        $this->json(['ok' => true, 'usd' => $usd, 'balance' => (new Customer())->balance((int) $in['customer_id'])]);
+        $this->json(['ok' => true, 'usd' => $r['paid_usd'], 'change_usd' => $r['change_usd'], 'change_lbp' => $r['change_lbp'], 'balance' => $r['balance']]);
     }
 
     /** @return array{0: array, 1: array} register and this user's open session on it */

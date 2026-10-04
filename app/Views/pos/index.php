@@ -140,9 +140,14 @@
     <?php if ($can['debt']): ?>
       <div id="debt-box" class="debt-box" hidden>
         <div class="debt-title">Collect debt from <span id="debt-name" dir="auto"></span>, who owes <b id="debt-owes"></b></div>
-        <div class="row g-2"><div class="col-4"><select class="form-select" id="debt-cur"><option>USD</option><option>LBP</option></select></div>
-          <div class="col-5"><input class="form-control" id="debt-amount" inputmode="decimal" placeholder="Amount"></div>
-          <div class="col-3"><button class="btn btn-primary w-100" id="debt-ok">Collect</button></div></div>
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label" for="debt-usd">Received in USD</label><input class="form-control" id="debt-usd" inputmode="decimal" placeholder="0.00"></div>
+          <div class="col-6"><label class="form-label" for="debt-lbp">Received in LBP</label><input class="form-control" id="debt-lbp" inputmode="numeric" placeholder="0"></div>
+        </div>
+        <div class="debt-change mt-2" id="debt-change-row" hidden><label class="form-label" for="debt-change-cur">Give change in</label>
+          <select class="form-select" id="debt-change-cur"><option value="LBP">LBP</option><option value="USD">USD (cents in LBP)</option></select></div>
+        <div class="debt-result" id="debt-result"></div>
+        <button class="btn btn-primary w-100" id="debt-ok">Collect</button>
       </div>
     <?php endif; ?>
   </div>

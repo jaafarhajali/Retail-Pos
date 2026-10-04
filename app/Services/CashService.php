@@ -162,7 +162,14 @@ final class CashService
     }
 
     /** Debt payment at the till: customer ledger − and a cash movement + (spec §10). Returns the USD value. */
-    public function collectDebt(int $customerId, string $currency, string $amount, int $sessionId, int $userId): string
+    /**
+     * Debt paid at the till, in USD, LBP or both (2026-10-04). Less than he owes: a part payment. Within half a 5,000 LBP
+     * note of it: paid in full. More: the debt is cleared and the rest is change, in LBP (rounded to 5,000) or USD
+     * (whole dollars, the cents in LBP), as on a sale. Change the drawer cannot give is warned about (I5).
+     *
+     * @return array{paid_usd: string, change_usd: string, change_lbp: int, balance: string}
+     */
+    public function collectDebt(int $customerId, string $usd, string $lbp, int $sessionId, int $userId, string $changeCurrency = 'LBP', bool $allowShortDrawer = false): array
     {
         $customers = new Customer();
         $customer = $customers->find($customerId) ?? throw new \DomainException('Customer not found.');
@@ -171,27 +178,69 @@ final class CashService
             throw new \DomainException('The session is closed.');
         }
         $rate = (new ExchangeRate())->current();
-        if ($currency === 'USD') {
-            $original = Pricing::parse($amount);
-            $usd = $original;
-        } elseif ($currency === 'LBP') {
-            $original = (string) self::parseLbp($amount, false);
-            $usd = Money::lbpToUsd((int) $original, $rate);
+        $step = Money::step();
+        $usdIn = Pricing::parse($usd, true) ?? '0.00';
+        $lbpIn = self::parseLbp($lbp, true);
+        $received = (float) $usdIn + (float) Money::lbpToUsd($lbpIn, $rate);
+        if ($received <= 0.004) {
+            throw new \DomainException('Type what he gives: in USD, in LBP, or both.');
+        }
+        $owed = (float) $customers->balance($customerId);
+        if ($owed <= 0.004) {
+            throw new \DomainException($customer['name'] . ' owes nothing.');
+        }
+
+        $tolerance = ($step / 2) / $rate;
+        $changeUsd = '0.00';
+        $changeLbp = 0;
+        if ($received < $owed - $tolerance) {
+            $paid = Money::fmt($received);   // part of it
         } else {
-            throw new \DomainException('Choose USD or LBP.');
+            $paid = Money::fmt($owed);       // all of it; what is over is change
+            $over = round($received - $owed, 2);
+            if ($over > $tolerance) {
+                if ($changeCurrency === 'USD') {
+                    $whole = floor($over);
+                    $changeUsd = Money::fmt($whole);
+                    $rest = round($over - $whole, 2);
+                    $changeLbp = $rest > 0.004 ? Money::roundLbp(Money::usdToLbp(Money::fmt($rest), $rate), $step) : 0;
+                } else {
+                    $changeLbp = Money::roundLbp(Money::usdToLbp(Money::fmt($over), $rate), $step);
+                }
+            }
         }
-        if ((float) $usd <= 0) {
-            throw new \DomainException('Enter an amount.');
+        $short = self::drawerShortfall($sessionId, ['USD' => $changeUsd, 'LBP' => $changeLbp], ['USD' => $usdIn, 'LBP' => $lbpIn], 'change');
+        if ($short !== null && !$allowShortDrawer) {
+            throw new \DomainException($short, self::SHORT_DRAWER);
         }
-        Database::transaction(function () use ($customers, $customer, $customerId, $currency, $original, $usd, $rate, $sessionId, $userId): void {
-            $customers->addLedger(['customer_id' => $customerId, 'type' => 'payment', 'amount_usd' => '-' . $usd, 'currency' => $currency,
-                                   'amount_original' => $original, 'exchange_rate' => $rate, 'session_id' => $sessionId, 'user_id' => $userId, 'note' => 'Paid at the till']);
-            (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $currency, 'amount' => $original, 'type' => 'debt_collection',
-                                              'ref_type' => 'customer', 'ref_id' => $customerId, 'user_id' => $userId, 'note' => $customer['name']]);
-            Audit::log('debt.collected', 'customer', $customerId, ['currency' => $currency, 'amount' => $original], (float) $usd, 'USD');
+
+        $given = implode(' + ', array_filter([(float) $usdIn > 0 ? usd($usdIn) : '', $lbpIn > 0 ? lbp($lbpIn) : '']));
+        Database::transaction(function () use ($customers, $customer, $customerId, $usdIn, $lbpIn, $paid, $changeUsd, $changeLbp, $rate, $sessionId, $userId, $given, $short): void {
+            $single = (float) $usdIn > 0 xor $lbpIn > 0;   // one currency: the ledger keeps the amount as typed
+            $customers->addLedger(['customer_id' => $customerId, 'type' => 'payment', 'amount_usd' => '-' . $paid,
+                                   'currency' => $single ? ((float) $usdIn > 0 ? 'USD' : 'LBP') : null,
+                                   'amount_original' => $single ? ((float) $usdIn > 0 ? $usdIn : (string) $lbpIn) : null,
+                                   'exchange_rate' => $rate, 'session_id' => $sessionId, 'user_id' => $userId, 'note' => 'Paid at the till' . ($single ? '' : ': ' . $given)]);
+            $cash = new CashSession();
+            foreach (['USD' => $usdIn, 'LBP' => (string) $lbpIn] as $cur => $in) {
+                if ((float) $in > 0) {
+                    $cash->addMovement(['session_id' => $sessionId, 'currency' => $cur, 'amount' => $in, 'type' => 'debt_collection',
+                                        'ref_type' => 'customer', 'ref_id' => $customerId, 'user_id' => $userId, 'note' => $customer['name']]);
+                }
+            }
+            foreach (['USD' => $changeUsd, 'LBP' => (string) $changeLbp] as $cur => $out) {
+                if ((float) $out > 0) {
+                    $cash->addMovement(['session_id' => $sessionId, 'currency' => $cur, 'amount' => '-' . $out, 'type' => 'change',
+                                        'ref_type' => 'customer', 'ref_id' => $customerId, 'user_id' => $userId, 'note' => 'Debt change: ' . $customer['name']]);
+                }
+            }
+            Audit::log('debt.collected', 'customer', $customerId, ['given' => $given, 'change_usd' => $changeUsd, 'change_lbp' => $changeLbp], (float) $paid, 'USD');
+            if ($short !== null) {
+                Audit::log('drawer.short', 'customer', $customerId, ['warning' => $short]);
+            }
         });
 
-        return $usd;
+        return ['paid_usd' => $paid, 'change_usd' => $changeUsd, 'change_lbp' => $changeLbp, 'balance' => $customers->balance($customerId)];
     }
 
     /** Everything the X and Z printouts show (spec §8.2). */

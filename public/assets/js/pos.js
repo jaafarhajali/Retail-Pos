@@ -319,18 +319,43 @@
   function setCustomer(c) {
     customer = c; $('customer-name').textContent = c ? c.name : 'Walk-in';
     if (c && c.level !== level) { level = c.level; $('btn-level').textContent = level.charAt(0).toUpperCase() + level.slice(1); $('btn-level').classList.toggle('is-wholesale', level === 'wholesale'); renderGrid(); renderCart(); }
-    var box = $('debt-box'); if (box) { box.hidden = !(c && parseFloat(c.balance) > 0); if (c) { $('debt-name').textContent = c.name; $('debt-owes').textContent = money(c.balance); } }
+    var box = $('debt-box'); if (box) { box.hidden = !(c && parseFloat(c.balance) > 0); if (c) { $('debt-name').textContent = c.name; $('debt-owes').textContent = money(c.balance); } $('debt-usd').value = ''; $('debt-lbp').value = ''; debtText(); }
     if (!c || !(parseFloat(c.balance) > 0)) modals['m-customer'].hide();
   }
   $('cust-clear').addEventListener('click', function () { setCustomer(null); });
-  if ($('debt-amount')) {
-    $('debt-amount').addEventListener('input', function () { if ($('debt-cur').value === 'LBP') { groupField(this); } });
-    $('debt-cur').addEventListener('change', function () { var f = $('debt-amount'); f.value = this.value === 'LBP' ? groupDigits(f.value.split('.')[0]) : f.value.replace(/,/g, ''); });
+  // Debt paid at the till: USD, LBP or both. The line under the amounts says what happens before Collect:
+  // a part payment and what is still owed, paid in full, or the change to give back. The server decides again.
+  var debtAllowShort = false;
+  function changeText(over, cur) {
+    if (cur === 'USD') { var w = Math.floor(over), r = Math.round((over - w) * 100) / 100, l = r > 0.004 ? lbp(roundLbp(r * P.rate)) : ''; return w > 0 ? money(w) + (l ? ' + ' + l : '') : l; }
+    return lbp(roundLbp(over * P.rate));
+  }
+  function debtText() {
+    debtAllowShort = false; $('debt-ok').textContent = 'Collect';
+    var owed = parseFloat(customer ? customer.balance : 0) || 0, got = num($('debt-usd').value) + num($('debt-lbp').value) / P.rate, tol = (P.step / 2) / P.rate;
+    var el = $('debt-result'), over = Math.round((got - owed) * 100) / 100;
+    $('debt-change-row').hidden = !(got > 0 && over > tol);
+    el.className = 'debt-result';
+    if (got <= 0.004) { el.textContent = ''; return; }
+    if (got < owed - tol) { el.textContent = 'Pays ' + money(got) + ' · still owes ' + money(owed - got); return; }
+    if (over > tol) { el.classList.add('is-change'); el.textContent = 'Pays ' + money(owed) + ' · Change: ' + changeText(over, $('debt-change-cur').value); return; }
+    el.textContent = 'Pays it all · no change';
+  }
+  if ($('debt-usd')) {
+    $('debt-usd').addEventListener('input', debtText);
+    $('debt-lbp').addEventListener('input', function () { groupField(this); debtText(); });
+    $('debt-change-cur').addEventListener('change', debtText);
   }
   if ($('debt-ok')) $('debt-ok').addEventListener('click', function () {
-    api(P.urls.debt, { customer_id: customer.id, currency: $('debt-cur').value, amount: $('debt-amount').value }).then(function (j) {
-      msg('Collected ' + money(j.usd) + '. Balance now ' + money(j.balance)); customer.balance = j.balance; $('debt-amount').value = ''; setCustomer(customer);
-    }).catch(function (e) { msg(e.error || 'Failed', true); });
+    api(P.urls.debt, { customer_id: customer.id, usd: $('debt-usd').value, lbp: $('debt-lbp').value, change_currency: $('debt-change-cur').value, allow_short_drawer: debtAllowShort }).then(function (j) {
+      var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
+      msg('Collected ' + money(j.usd) + '.' + (ch.length ? ' Give back ' + ch.join(' + ') + '.' : '') + ' Balance now ' + money(j.balance));
+      customer.balance = j.balance; $('debt-usd').value = ''; $('debt-lbp').value = ''; debtText(); setCustomer(customer);
+      searchCustomers($('cust-q').value);   // the list shows the new balance at once (U12)
+    }).catch(function (e) {
+      if (e.short_drawer) { var el = $('debt-result'); el.className = 'debt-result is-due'; el.textContent = e.error; debtAllowShort = true; $('debt-ok').textContent = 'Continue: I add the money myself'; }
+      else { msg(e.error || 'Failed', true); }
+    });
   });
 
   // ---- payment

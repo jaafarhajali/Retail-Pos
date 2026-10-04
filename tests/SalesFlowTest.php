@@ -145,7 +145,7 @@ return [
         $cust = (new Customer())->create(['name' => 'أحمد', 'phone' => null, 'notes' => null, 'default_price_level' => 'retail', 'credit_limit_usd' => null]);
         $sale($s, [['product_id' => $s['charcoal'], 'unit_id' => $s['box'], 'qty' => '1']], [['method' => 'cash', 'currency' => 'USD', 'amount' => '80'], ['method' => 'credit', 'currency' => 'USD', 'amount' => '200']], ['customer_id' => $cust]);
         assert_same('200.00', (new Customer())->balance($cust));
-        (new CashService())->collectDebt($cust, 'LBP', '9000000', $s['session'], TEST_ADMIN_ID);
+        (new CashService())->collectDebt($cust, '', '9000000', $s['session'], TEST_ADMIN_ID);
         assert_same('100.00', (new Customer())->balance($cust));
         assert_same('10000000', (new CashSession())->expected($s['session'])['LBP']);
     },
