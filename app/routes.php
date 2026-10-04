@@ -120,6 +120,11 @@ return [
     ['GET',  'pos/held',         [PosController::class, 'held'],      'pos.use'],
     ['POST', 'pos/resume',       [PosController::class, 'resume'],    'pos.use'],
     ['POST', 'pos/debt',         [PosController::class, 'debt'],      'debt.collect'],
+    // Returns in the till (2026-10-04): pos.use to open; without return.create every step needs the administrator's PIN
+    ['POST', 'pos/return-pin',    [PosController::class, 'returnPin'],    'pos.use'],
+    ['GET',  'pos/return-search', [PosController::class, 'returnSearch'], 'pos.use'],
+    ['GET',  'pos/return-sale',   [PosController::class, 'returnSale'],   'pos.use'],
+    ['POST', 'pos/return',        [PosController::class, 'returnStore'],  'pos.use'],
     ['GET',  'sales',            [SaleController::class, 'index'],   Router::AUTH],
     ['GET',  'sales/view',       [SaleController::class, 'view'],    Router::AUTH],
     ['GET',  'sales/receipt',    [SaleController::class, 'receipt'], Router::AUTH],
@@ -128,7 +133,7 @@ return [
     ['GET',  'returns',          [ReturnController::class, 'index'],   'return.create'],
     ['POST', 'returns/store',    [ReturnController::class, 'store'],   'return.create'],
     ['GET',  'returns/view',     [ReturnController::class, 'view'],    'return.create'],
-    ['GET',  'returns/receipt',  [ReturnController::class, 'receipt'], 'return.create'],
+    ['GET',  'returns/receipt',  [ReturnController::class, 'receipt'], 'pos.use'],   // a cashier prints the receipt of a return approved with the PIN
     // Phase 7 — expenses
     ['GET',  'expenses',         [ExpenseController::class, 'index'], 'expense.manage'],
     ['POST', 'expenses/store',   [ExpenseController::class, 'store'], 'expense.manage'],

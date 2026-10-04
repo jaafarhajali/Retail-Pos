@@ -8,7 +8,7 @@
   var low = [], lowSig = '', lowTimer = null;
   var $ = function (id) { return document.getElementById(id); };
   var modals = {};
-  ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold', 'm-pin'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
+  ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold', 'm-pin', 'm-return'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
 
   function money(n) { n = Math.round(n * 100) / 100; return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function lbp(n) { return Math.round(n).toLocaleString('en-US') + ' LBP'; }
@@ -502,11 +502,117 @@
     api(P.urls.hold, { name: $('hold-name').value, cart: cart }).then(function () { cart = []; selected = -1; renderCart(); modals['m-hold'].hide(); msg('Cart held'); $('hold-name').value = ''; }).catch(function (e) { msg(e.error || 'Failed', true); });
   });
 
+  // ---- Returns in the till (2026-10-04): the administrator's PIN for a cashier, then find the sale by customer,
+  // item or number, choose what comes back and give the money back in USD, LBP or both. The server checks it all again.
+  var ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null };
+  function retStep(name) {
+    ['pin', 'find', 'sale', 'done'].forEach(function (s) { $('ret-' + s + '-step').hidden = s !== name; });
+    $('ret-pin-ok').hidden = name !== 'pin'; $('ret-ok').hidden = name !== 'sale';
+    $('ret-print').hidden = name !== 'done'; $('ret-close').hidden = name !== 'done';
+    $('ret-title').textContent = name === 'done' ? 'Return recorded' : 'Return';
+  }
+  function retFind() { retStep('find'); $('ret-q').value = ''; $('ret-results').innerHTML = '<div class="empty">Type a customer name, an item or the invoice number.</div>'; setTimeout(function () { $('ret-q').focus(); }, 300); }
+  $('btn-returns').addEventListener('click', function (e) {
+    e.preventDefault();
+    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null };
+    $('ret-pin').value = ''; $('ret-pin-error').textContent = '';
+    if (P.can.returns) {   // a role that may process returns: no PIN
+      api(P.urls.returnPin, { pin: '' }).then(function () { retFind(); modals['m-return'].show(); }).catch(function (er) { msg(er.error || 'Failed', true); });
+    } else { retStep('pin'); modals['m-return'].show(); setTimeout(function () { $('ret-pin').focus(); }, 300); }
+  });
+  function retPinOk() {
+    var pin = $('ret-pin').value.trim();
+    api(P.urls.returnPin, { pin: pin }).then(function () { ret.pin = pin; retFind(); })
+      .catch(function (er) { $('ret-pin-error').textContent = er.error || 'Wrong PIN.'; $('ret-pin').value = ''; $('ret-pin').focus(); });
+  }
+  $('ret-pin-ok').addEventListener('click', retPinOk);
+  $('ret-pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); retPinOk(); } });
+  $('ret-q').addEventListener('input', function () {
+    var q = this.value.trim(); clearTimeout(ret.timer);
+    ret.timer = setTimeout(function () {
+      if (!q) { $('ret-results').innerHTML = '<div class="empty">Type a customer name, an item or the invoice number.</div>'; return; }
+      api(P.urls.returnSearch + '&q=' + encodeURIComponent(q)).then(function (j) {
+        var list = $('ret-results'); list.innerHTML = '';
+        j.sales.forEach(function (s) {
+          var a = document.createElement('button'); a.type = 'button'; a.className = 'list-group-item list-group-item-action';
+          a.innerHTML = '<span class="li-main"><b></b><small dir="auto"></small></span><span class="li-meta"></span>';
+          a.querySelector('b').textContent = s.invoice_no + ' · ' + (s.customer || 'Walk-in');
+          a.querySelector('small').textContent = s.date + ' · ' + (s.products || '');
+          a.querySelector('.li-meta').textContent = money(s.total);
+          a.addEventListener('click', function () { retOpen(s.id); });
+          list.appendChild(a);
+        });
+        if (!j.sales.length) list.innerHTML = '<div class="empty">No sale matches “' + q.replace(/[<>&]/g, '') + '”.</div>';
+      }).catch(function (er) { if (er.needs_pin) { retStep('pin'); } msg(er.error || 'Failed', true); });
+    }, 250);
+  });
+  function retOpen(id) {
+    api(P.urls.returnSale + '&id=' + id).then(function (j) {
+      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
+      $('ret-inv').textContent = j.sale.invoice_no; $('ret-meta').textContent = '· ' + j.sale.date + ' · ' + (j.sale.customer || 'Walk-in') + ' · ' + money(j.sale.total);
+      var body = $('ret-lines'); body.innerHTML = '';
+      j.lines.forEach(function (l, i) {
+        var tr = document.createElement('tr'); if (!l.left_base) tr.className = 'is-done';
+        tr.innerHTML = '<td dir="auto"></td><td class="text-end"></td><td class="text-end"></td><td class="text-end"></td>' +
+          '<td><input class="form-control form-control-sm" inputmode="decimal" aria-label="Quantity to return"></td>' +
+          '<td><select class="form-select form-select-sm" aria-label="Condition"><option value="restock">Back to stock</option><option value="waste">Damaged (waste)</option></select></td>';
+        tr.children[0].textContent = l.name; tr.children[1].textContent = l.sold + ' ' + l.unit; tr.children[2].textContent = l.left_base ? l.left + ' ' + l.unit : 'fully returned';
+        tr.children[3].textContent = money(l.paid);
+        var q = tr.querySelector('input'); q.placeholder = l.left_base ? 'max ' + l.left : '—'; q.disabled = !l.left_base; q.dataset.i = i;
+        q.addEventListener('input', function () { retTotals(); $('ret-usd').value = ret.cash > 0 ? ret.cash.toFixed(2) : ''; $('ret-lbp').value = ''; });   // all in USD by default
+        body.appendChild(tr);
+      });
+      $('ret-usd').value = ''; $('ret-lbp').value = ''; $('ret-reason').value = ''; $('ret-error').textContent = '';
+      retTotals(); retStep('sale');
+    }).catch(function (er) { if (er.needs_pin) { retStep('pin'); } msg(er.error || 'Failed', true); });
+  }
+  $('ret-back').addEventListener('click', retFind);
+  function retTotals() {
+    var total = 0;
+    $('ret-lines').querySelectorAll('input').forEach(function (q) {
+      var l = ret.lines[+q.dataset.i], base = Math.round(num(q.value) * l.factor);
+      if (base > 0 && l.base_qty > 0) total += Math.round(parseFloat(l.paid) * base / l.base_qty * 100) / 100;
+    });
+    var debt = Math.min(parseFloat(ret.sale.owed) || 0, total);
+    ret.cash = Math.round((total - debt) * 100) / 100; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
+    $('ret-sum').textContent = total ? 'Refund ' + money(total) + (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(ret.cash) : 'Type how many items come back.';
+  }
+  $('ret-usd').addEventListener('input', function () { var rest = ret.cash - num(this.value); $('ret-lbp').value = rest > 0.004 ? groupDigits(String(roundLbp(rest * P.rate))) : ''; ret.allowShort = false; $('ret-ok').textContent = 'Record return'; });
+  $('ret-lbp').addEventListener('input', function () {
+    groupField(this); var rest = Math.round((ret.cash - num(this.value) / P.rate) * 100) / 100;
+    $('ret-usd').value = rest > (P.step / 2) / P.rate ? rest.toFixed(2) : ''; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
+  });
+  $('ret-ok').addEventListener('click', function () {
+    var btn = this, items = [];
+    $('ret-lines').querySelectorAll('tr').forEach(function (tr) {
+      var q = tr.querySelector('input'); if (!q.disabled && num(q.value) > 0) items.push({ sale_item_id: ret.lines[+q.dataset.i].id, qty: q.value, condition: tr.querySelector('select').value });
+    });
+    if (!items.length) { $('ret-error').textContent = 'Type how many of an item come back.'; return; }
+    btn.disabled = true;
+    api(P.urls.returnStore, { sale_id: ret.sale.id, items: items, usd: $('ret-usd').value, lbp: $('ret-lbp').value, reason: $('ret-reason').value, pin: ret.pin, allow_short_drawer: ret.allowShort })
+      .then(function (j) {
+        var parts = j.cash_parts.map(function (p) { return p.currency === 'USD' ? money(p.amount) : lbp(p.amount); });
+        $('ret-done-no').textContent = j.return_no + ' · ' + ret.sale.invoice_no;
+        $('ret-done-money').textContent = parts.length ? parts.join('\n+ ') : 'Nothing in cash';
+        $('ret-done-debt').textContent = parseFloat(j.debt_reduction) > 0 ? 'Debt reduced by ' + money(j.debt_reduction) : '';
+        $('ret-print').href = j.receipt + '&auto=1';
+        retStep('done');
+      })
+      .catch(function (er) {
+        if (er.short_drawer) { ret.allowShort = true; btn.textContent = 'Continue: I add the money myself'; }
+        $('ret-error').textContent = er.error || 'Could not record the return';
+      })
+      .finally(function () { btn.disabled = false; });
+  });
+
   // ---- on-screen keypad: types into the last number field touched in its dialog, then
   // fires the same 'input' event as typing, so the existing listeners do the rest.
   document.querySelectorAll('[data-keypad]').forEach(function (pad) {
     var modal = pad.closest('.modal'), field = null, fresh = true;
-    function fallback() { return modal.id === 'm-pin' ? $('pin-input') : (modal.id === 'm-pay' ? modal.querySelector('#pay-lines .pay-line:last-child input') : $('line-qty')); }
+    function fallback() {
+      if (modal.id === 'm-return') return $('ret-pin-step').hidden ? $('ret-usd') : $('ret-pin');
+      return modal.id === 'm-pin' ? $('pin-input') : (modal.id === 'm-pay' ? modal.querySelector('#pay-lines .pay-line:last-child input') : $('line-qty'));
+    }
     modal.addEventListener('focusin', function (e) { if (e.target.matches('input[inputmode]')) { field = e.target; fresh = true; } });
     modal.addEventListener('show.bs.modal', function () { field = null; fresh = true; });
     pad.addEventListener('mousedown', function (e) { e.preventDefault(); });   // keep the focus (and selection) in the field

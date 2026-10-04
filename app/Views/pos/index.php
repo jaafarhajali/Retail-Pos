@@ -29,7 +29,7 @@
     <nav class="pos-links" aria-label="Leave the till">
       <a href="<?= url('sessions/view', ['id' => $session['id']]) ?>" title="Session"><i class="bi bi-cash-stack"></i><span>Session</span></a>
       <a href="<?= url('sales') ?>" title="Sales"><i class="bi bi-receipt"></i><span>Sales</span></a>
-      <?php if ($can['returns']): ?><a href="<?= url('returns') ?>" title="Returns"><i class="bi bi-arrow-return-left"></i><span>Returns</span></a><?php endif; ?>
+      <a href="#" id="btn-returns" role="button" title="Return items from a sale"><i class="bi bi-arrow-return-left"></i><span>Returns</span></a>
       <a class="exit" href="<?= url('dashboard') ?>" title="Exit"><i class="bi bi-box-arrow-left"></i><span>Exit</span></a>
     </nav>
   </header>
@@ -175,13 +175,65 @@
   <div class="modal-footer"><button class="pos-btn primary pos-apply" id="pin-ok">Approve</button></div>
 </div></div></div>
 
+<!-- Returns in the till (2026-10-04): PIN for a cashier → find the invoice by customer, item or number → items and money back -->
+<div class="modal fade pos-modal" id="m-return" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="ret-title">Return</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+  <div class="modal-body">
+    <div id="ret-pin-step" class="pos-split" hidden>
+      <div>
+        <p class="pin-for">A return needs the administrator's approval.</p>
+        <label class="form-label" for="ret-pin">Administrator's PIN</label>
+        <input class="form-control pin-mask ret-pin" id="ret-pin" type="text" inputmode="numeric" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="6">
+        <p class="pin-error" id="ret-pin-error" role="alert"></p>
+      </div>
+      <?php require APP_PATH . '/Views/pos/_keypad.php'; ?>
+    </div>
+    <div id="ret-find-step" hidden>
+      <label class="form-label" for="ret-q">Find the sale</label>
+      <input class="form-control" id="ret-q" dir="auto" autocomplete="off" placeholder="Customer name, item, phone or invoice number">
+      <div class="list-group ret-results" id="ret-results"></div>
+    </div>
+    <div id="ret-sale-step" class="pos-split" hidden>
+      <div>
+      <div class="ret-head"><b id="ret-inv"></b> <span id="ret-meta" dir="auto"></span> <button type="button" class="btn btn-link btn-sm" id="ret-back">Another sale</button></div>
+      <div class="table-responsive"><table class="table ret-table">
+        <thead><tr><th>Item</th><th class="text-end">Sold</th><th class="text-end">Can return</th><th class="text-end">Paid</th><th style="width:9rem">Return</th><th style="width:11rem">Condition</th></tr></thead>
+        <tbody id="ret-lines"></tbody>
+      </table></div>
+      <div class="ret-sum" id="ret-sum">Type how many items come back.</div>
+      <div class="row g-2 mt-1">
+        <div class="col-md-3"><label class="form-label" for="ret-usd">Give back in USD</label><input class="form-control" id="ret-usd" inputmode="decimal" placeholder="0.00"></div>
+        <div class="col-md-3"><label class="form-label" for="ret-lbp">Give back in LBP</label><input class="form-control" id="ret-lbp" inputmode="numeric" placeholder="0"></div>
+        <div class="col-md-6"><label class="form-label" for="ret-reason">Reason</label><input class="form-control" id="ret-reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour"></div>
+      </div>
+      <p class="pin-error mt-2" id="ret-error" role="alert"></p>
+      </div>
+      <?php require APP_PATH . '/Views/pos/_keypad.php'; ?>
+    </div>
+    <div id="ret-done-step" class="done-body" hidden>
+      <div class="done-check"><i class="bi bi-arrow-return-left"></i></div>
+      <div class="done-inv" id="ret-done-no"></div>
+      <div class="done-label">Give back</div>
+      <div class="done-change" id="ret-done-money"></div>
+      <div class="done-sub" id="ret-done-debt"></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="pos-btn primary pos-apply" id="ret-pin-ok" hidden>Open the return</button>
+    <button class="pay-ok" id="ret-ok" hidden>Record return</button>
+    <a class="pos-btn" id="ret-print" target="_blank" hidden><i class="bi bi-printer"></i> Print receipt</a>
+    <button class="pos-btn primary" id="ret-close" data-bs-dismiss="modal" hidden>Done</button>
+  </div>
+</div></div></div>
+
 <script>
 window.POS = {
   session: <?= json_encode($session['session_no']) ?>, signIn: <?= json_encode(url('auth/login')) ?>,
   token: <?= json_encode($token) ?>, rate: <?= (int) $rate ?>, step: <?= (int) $step ?>,
   can: <?= json_encode($can) ?>, maxDiscount: <?= (float) $maxDiscount ?>,
   urls: { data: <?= json_encode(url('pos/data')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,
-          resume: <?= json_encode(url('pos/resume')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?>, check: <?= json_encode(url('pos/check')) ?> }
+          resume: <?= json_encode(url('pos/resume')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?>, check: <?= json_encode(url('pos/check')) ?>,
+          returnPin: <?= json_encode(url('pos/return-pin')) ?>, returnSearch: <?= json_encode(url('pos/return-search')) ?>, returnSale: <?= json_encode(url('pos/return-sale')) ?>, returnStore: <?= json_encode(url('pos/return')) ?> }
 };
 </script>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>

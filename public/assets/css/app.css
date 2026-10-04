@@ -811,3 +811,12 @@ body > .error-wrap .blocked { width: 100%; }
 .debt-result.is-change { color: var(--t-brass); }
 .debt-result.is-due { color: #F2A89D; font-weight: 600; }
 .debt-box .form-label { color: var(--t-ink-2); font-size: .9rem; margin-bottom: .2rem; }
+
+/* Till: the return pop-up */
+#m-return .ret-results { margin-top: .6rem; max-height: 46vh; overflow-y: auto; }
+#m-return .ret-head { margin-bottom: .6rem; color: var(--t-ink-2); }
+#m-return .ret-head b { color: var(--t-ink); font-size: 1.1rem; }
+#m-return .ret-table { --bs-table-bg: transparent; --bs-table-color: var(--t-ink); font-variant-numeric: tabular-nums; }
+#m-return .ret-table tr.is-done { opacity: .5; }
+#m-return .ret-sum { padding: .6rem .9rem; border-radius: 10px; background: #0B1C28; font-weight: 700; font-variant-numeric: tabular-nums; }
+#m-return .form-label { color: var(--t-ink-2); }

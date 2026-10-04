@@ -23,6 +23,31 @@ final class Sale extends Model
         return $this->fetch(self::SELECT . ' WHERE s.invoice_no = :n', ['n' => $no]);
     }
 
+    /**
+     * Completed sales a return can be made from, found by invoice number ("12" = INV-000012), customer name or item
+     * (spec §9: "search by number, customer, date, or product"). Newest first.
+     */
+    public function forReturn(string $q, int $limit = 20): array
+    {
+        $q = trim($q);
+        if ($q === '') {
+            return [];
+        }
+        $like = '%' . addcslashes($q, '%_\\') . '%';
+        $number = ctype_digit($q) ? 'INV-' . str_pad($q, 6, '0', STR_PAD_LEFT) : strtoupper($q);
+
+        return $this->fetchAll(
+            "SELECT s.id, s.invoice_no, s.created_at, s.total_usd, c.name AS customer_name,
+                    (SELECT GROUP_CONCAT(si.product_name ORDER BY si.id SEPARATOR ', ') FROM sale_items si WHERE si.sale_id = s.id) AS products
+             FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
+             WHERE s.status = 'completed'
+               AND (s.invoice_no = :n OR s.invoice_no LIKE :q1 OR c.name LIKE :q2 OR c.phone LIKE :q3
+                    OR EXISTS (SELECT 1 FROM sale_items x WHERE x.sale_id = s.id AND x.product_name LIKE :q4))
+             ORDER BY s.id DESC LIMIT " . $limit,
+            ['n' => $number, 'q1' => $like, 'q2' => $like, 'q3' => $like, 'q4' => $like]
+        );
+    }
+
     public function items(int $saleId): array
     {
         return $this->fetchAll(

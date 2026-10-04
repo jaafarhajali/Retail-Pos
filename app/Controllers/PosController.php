@@ -189,6 +189,96 @@ final class PosController extends Controller
         $this->json(['ok' => true, 'usd' => $r['paid_usd'], 'change_usd' => $r['change_usd'], 'change_lbp' => $r['change_lbp'], 'balance' => $r['balance']]);
     }
 
+    // ---- Returns in the till (2026-10-04). Without return.create (the Cashier role since migration 007) the administrator's
+    // PIN opens the pop-up and gives a 15-minute pass to search; saving the return checks the PIN again.
+
+    private const RETURN_PASS_SECONDS = 900;
+
+    /** The PIN that opens the return pop-up. Nothing is asked of a role that may process returns. */
+    public function returnPin(): void
+    {
+        $in = $this->jsonInput();
+        try {
+            $approver = $this->approveReturn((string) ($in['pin'] ?? ''));
+        } catch (\DomainException $e) {
+            $this->json(['error' => $e->getMessage(), 'needs_pin' => true], 422);
+        }
+        $_SESSION['return_pass'] = time();
+        $this->json(['ok' => true, 'approved_by' => $approver['username'] ?? null]);
+    }
+
+    public function returnSearch(): void
+    {
+        $this->requireReturnPass();
+        $this->json(['sales' => array_map(static fn (array $s): array => [
+            'id' => (int) $s['id'], 'invoice_no' => $s['invoice_no'], 'date' => date('d/m/Y H:i', strtotime($s['created_at'])),
+            'customer' => $s['customer_name'], 'total' => $s['total_usd'], 'products' => $s['products'],
+        ], (new \App\Models\Sale())->forReturn($this->query('q')))]);
+    }
+
+    public function returnSale(): void
+    {
+        $this->requireReturnPass();
+        $sales = new \App\Models\Sale();
+        $sale = $sales->find($this->queryInt('id'));
+        if ($sale === null || $sale['status'] !== 'completed') {
+            $this->json(['error' => 'This invoice cannot be returned.'], 404);
+        }
+        $lines = [];
+        foreach ($sales->items((int) $sale['id']) as $i) {
+            $left = (int) $i['base_qty'] - (int) $i['returned_base_qty'];
+            $lines[] = [
+                'id' => (int) $i['id'], 'name' => $i['product_name'], 'unit' => $i['unit_name'], 'factor' => (int) $i['factor'],
+                'fraction' => (int) $i['allows_fraction'] === 1, 'base_qty' => (int) $i['base_qty'], 'paid' => $i['line_total_usd'],
+                'sold' => \App\Services\Quantity::unitQty((int) $i['base_qty'], (int) $i['factor']),
+                'left' => \App\Services\Quantity::unitQty(max(0, $left), (int) $i['factor']), 'left_base' => max(0, $left),
+            ];
+        }
+        $this->json(['sale' => [
+            'id' => (int) $sale['id'], 'invoice_no' => $sale['invoice_no'], 'date' => date('d/m/Y H:i', strtotime($sale['created_at'])),
+            'customer' => $sale['customer_name'], 'total' => $sale['total_usd'],
+            'owed' => $sale['customer_id'] !== null ? (new Customer())->balance((int) $sale['customer_id']) : '0.00',
+        ], 'lines' => $lines]);
+    }
+
+    public function returnStore(): void
+    {
+        [$register, $session] = $this->requireSession();
+        $in = $this->jsonInput();
+        try {
+            $approver = $this->approveReturn((string) ($in['pin'] ?? ''));
+            $items = [];
+            foreach (is_array($in['items'] ?? null) ? $in['items'] : [] as $it) {
+                if (is_array($it)) {
+                    $items[] = ['sale_item_id' => (int) ($it['sale_item_id'] ?? 0), 'qty' => (string) ($it['qty'] ?? ''), 'condition' => (string) ($it['condition'] ?? 'restock')];
+                }
+            }
+            $r = (new \App\Services\ReturnService())->create((int) ($in['sale_id'] ?? 0), $items, 'MIX', (string) ($in['reason'] ?? ''), (int) $session['id'], (int) $register['id'],
+                Auth::id(), ($in['allow_short_drawer'] ?? false) === true, (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''));
+        } catch (\DomainException $e) {
+            $this->json(['error' => $e->getMessage(), 'needs_pin' => str_starts_with($e->getMessage(), 'Needs an Admin PIN') || $e->getMessage() === 'Wrong PIN.',
+                         'short_drawer' => $e->getCode() === CashService::SHORT_DRAWER], 422);
+        }
+        if ($approver !== null) {
+            \App\Core\Audit::log('pin.override', 'return', (int) $r['id'], ['approved_by' => $approver['username'], 'for' => ['return']]);
+        }
+        $this->json(['ok' => true, 'id' => $r['id'], 'return_no' => $r['return_no'], 'total_usd' => $r['total_usd'], 'cash_parts' => $r['cash_parts'],
+                     'debt_reduction' => $r['debt_reduction'], 'receipt' => url('returns/receipt', ['id' => $r['id']])]);
+    }
+
+    /** @return array|null the approving administrator, or null when the user's role may process returns */
+    private function approveReturn(string $pin): ?array
+    {
+        return Gate::allows('return.create') ? null : (new SaleService())->verifyPin($pin, ['return']);
+    }
+
+    private function requireReturnPass(): void
+    {
+        if (!Gate::allows('return.create') && time() - (int) ($_SESSION['return_pass'] ?? 0) > self::RETURN_PASS_SECONDS) {
+            $this->json(['error' => 'The administrator PIN is needed to open a return.', 'needs_pin' => true], 403);
+        }
+    }
+
     /** @return array{0: array, 1: array} register and this user's open session on it */
     private function requireSession(): array
     {
