@@ -6,6 +6,12 @@ namespace App\Services;
 /** One zip per backup: the SQL dump + public/uploads (owner decision 2026-09-24). Used by the page and bin/backup.php. */
 final class BackupService
 {
+    /** The test suite backs up its own database into its own folder, so its zips never crowd out the real ones. */
+    public static function dir(): string
+    {
+        return STORAGE_PATH . '/backups' . (APP_ENV === 'test' ? '/test' : '');
+    }
+
     public static function mysqldumpPath(): string
     {
         foreach (['C:/xampp/mysql/bin/mysqldump.exe', '/usr/bin/mysqldump'] as $p) {
@@ -43,7 +49,7 @@ final class BackupService
         if (($problems = self::problems()) !== []) {
             throw new \RuntimeException($problems[0]);
         }
-        $dir = STORAGE_PATH . '/backups';
+        $dir = self::dir();
         if (!is_dir($dir) && !mkdir($dir, 0777, true)) {
             throw new \RuntimeException('Cannot create the backups folder.');
         }
@@ -96,7 +102,7 @@ final class BackupService
 
     public function list(): array
     {
-        $files = glob(STORAGE_PATH . '/backups/*.zip') ?: [];
+        $files = glob(self::dir() . '/*.zip') ?: [];
         rsort($files);
 
         return array_map(static fn (string $f): array => ['name' => basename($f), 'size' => filesize($f), 'at' => date('d/m/Y H:i', filemtime($f) ?: 0)], $files);

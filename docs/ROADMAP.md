@@ -43,8 +43,9 @@ built, what comes next, and what was decided (and why) during the design convers
 | 11 | The old per-part product addresses (`products/unit-store`, `products/prices`, `products/cost`…) still answer but no page uses them; remove them together with the tests that call them. | Claude, when asked |
 | 12 | "A lot of settings are missing" (owner, 2026-09-24): which ones was never said. Only the logo was added. | Owner to list |
 
-**Tools:** `php bin/seed-demo.php` fills an empty database with demo data;
-`php bin/restore-drill.php` proves that a backup restores (run it monthly).
+**Tools:** `php bin/seed-demo.php` fills an empty database with demo data; `php bin/reset-data.php` takes a backup,
+empties the shop (users, roles, registers, settings and the rate stay) and seeds again, `--keep-products` keeps the
+catalogue, `--no-seed` leaves it empty; `php bin/restore-drill.php` proves that a backup restores (run it monthly).
 **Workflow for every phase:** Claude asks the phase's "Decide before the plan" questions
 and writes the plan from the spec and the existing code → the owner reviews it →
 implement task by task (tests first, every task ends green and committed) → the owner
