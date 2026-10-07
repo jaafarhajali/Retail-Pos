@@ -9,6 +9,10 @@
   <link rel="stylesheet" href="<?= e(asset('assets/css/app.css')) ?>">
 </head>
 <body class="pos-body">
+<script>
+// Light or dark is this terminal's own choice (localStorage, set by the button in the top bar). Applied here, before anything is drawn.
+try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttribute('data-theme', 'light'); } } catch (e) { /* no storage: the till stays dark */ }
+</script>
 <div class="pos-msg" id="msg" role="status" aria-live="polite"></div>
 <div class="pos-out" id="signed-out" role="alertdialog" aria-labelledby="signed-out-title" hidden>
   <div class="pos-out-box">
@@ -27,6 +31,7 @@
       <span class="pos-chip"><i class="bi bi-person"></i><span dir="auto"><?= e($user['full_name']) ?></span></span>
     </div>
     <nav class="pos-links" aria-label="Leave the till">
+      <button type="button" class="pos-theme" id="btn-theme" title="Switch to light mode" aria-label="Switch to light mode"><i class="bi bi-sun to-light" aria-hidden="true"></i><span class="to-light">Light</span><i class="bi bi-moon-stars to-dark" aria-hidden="true"></i><span class="to-dark">Dark</span></button>
       <a href="<?= url('sessions/view', ['id' => $session['id']]) ?>" title="Session"><i class="bi bi-cash-stack"></i><span>Session</span></a>
       <a href="<?= url('sales') ?>" title="Sales"><i class="bi bi-receipt"></i><span>Sales</span></a>
       <a href="#" id="btn-returns" role="button" title="Return items from a sale"><i class="bi bi-arrow-return-left"></i><span>Returns</span></a>
@@ -197,7 +202,7 @@
       <div>
       <div class="ret-head"><b id="ret-inv"></b> <span id="ret-meta" dir="auto"></span> <button type="button" class="btn btn-link btn-sm" id="ret-back">Another sale</button></div>
       <div class="table-responsive"><table class="table ret-table">
-        <thead><tr><th>Item</th><th class="text-end">Sold</th><th class="text-end">Can return</th><th class="text-end">Paid</th><th style="width:9rem">Return</th><th style="width:11rem">Condition</th></tr></thead>
+        <thead><tr><th>Item</th><th class="text-end">Sold</th><th class="text-end">Can return</th><th class="text-end">Paid</th><th style="width:9rem">Return</th><th style="width:14rem">Condition</th></tr></thead>
         <tbody id="ret-lines"></tbody>
       </table></div>
       <div class="ret-sum" id="ret-sum">Type how many items come back.</div>

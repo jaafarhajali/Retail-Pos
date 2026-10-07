@@ -38,6 +38,22 @@
     while (pos < after.length && seen < digits) { if (/\d/.test(after.charAt(pos))) { seen++; } pos++; }
     try { input.setSelectionRange(pos, pos); } catch (e) { /* not a text field */ }
   }
+  // ---- light / dark: a screen preference of this terminal (this browser), not a setting of the shop.
+  // Dark is the default; the page applies a saved 'light' before it is drawn (the script at the top of the till's <body>).
+  var THEME = 'pos.theme';
+  function themeNow() { return document.body.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; }
+  function themeButton() {   // the button says what the next press does
+    var next = themeNow() === 'light' ? 'dark' : 'light', b = $('btn-theme');
+    b.title = 'Switch to ' + next + ' mode'; b.setAttribute('aria-label', b.title);
+  }
+  $('btn-theme').addEventListener('click', function () {
+    var next = themeNow() === 'light' ? 'dark' : 'light';
+    if (next === 'light') { document.body.setAttribute('data-theme', 'light'); } else { document.body.removeAttribute('data-theme'); }
+    try { localStorage.setItem(THEME, next); } catch (e) { /* private mode or a full disk: the choice lasts until the page is left */ }
+    themeButton();
+    $('search').focus();   // back to the scan field, so the next scan is not lost
+  });
+  themeButton();
   // The sign-in ended while the till was open: say so over everything; the cart is already saved.
   function signedOut() {
     Object.keys(modals).forEach(function (id) { modals[id].hide(); });
