@@ -242,9 +242,10 @@
     modals['m-line'].hide(); apply();
   });
   $('btn-qty').addEventListener('click', openLine);
-  $('btn-remove').addEventListener('click', function () { if (selected >= 0) { cart.splice(selected, 1); selected = cart.length - 1; renderCart(); } });
-  $('btn-discount').addEventListener('click', function () { if (!cart.length) return; modals['m-pay'].show(); setTimeout(function () { $('pay-discount').focus(); }, 300); });
-  // The payment dialog opens with one cash payment for the whole amount; while nobody changed it, it follows the discount.
+  $('btn-remove').addEventListener('click', function () { if (selected >= 0) { cart.splice(selected, 1); selected = cart.length - 1; if (!cart.length) { clearPayment(); } renderCart(); } });
+  $('btn-discount').addEventListener('click', function () { if (!cart.length) return; openPay(); setTimeout(function () { $('pay-discount').focus(); }, 300); });
+  // The payment dialog opens with one cash payment for the whole amount; while nobody changed it, it follows the discount
+  // and the sale (an item added after the dialog was closed).
   function followTotal() {
     var p = payments.length === 1 ? payments[0] : null;
     if (p && p.method === 'cash' && p.currency === 'USD' && Math.abs(num(p.amount) - payTotal) < 0.005) { p.amount = totals().total.toFixed(2); }
@@ -485,7 +486,19 @@
   $('pay-exact-usd').addEventListener('click', function () { payments = []; payLine('cash', 'USD', totals().total.toFixed(2)); });
   $('pay-exact-lbp').addEventListener('click', function () { payments = []; payLine('cash', 'LBP', String(roundLbp(totals().total * P.rate))); });
   $('pay-add').addEventListener('click', function () { var t = totals(), rest = Math.max(0, t.total - paidUsd()); payLine('cash', 'USD', rest > 0 ? rest.toFixed(2) : ''); });
-  $('btn-pay').addEventListener('click', function () { if (!payments.length) payments = [{ method: 'cash', currency: 'USD', amount: totals().total.toFixed(2) }]; renderPay(); modals['m-pay'].show(); });
+  // Nothing of a sale that ended (paid, held, or emptied) follows the next one: its payments, its invoice discount,
+  // its note and the administrator's approval it was given.
+  function clearPayment() {
+    payments = []; allowShort = false; approvedPin = '';
+    $('pay-discount').value = ''; $('pay-discount-hint').textContent = ''; $('pay-pin').value = ''; $('pay-note').value = '';
+  }
+  // Take payment and Discount open the same dialog, always drawn for the sale as it is now: never the amounts of the
+  // sale before (2026-10-07: Discount opened it with the last sale's $5.00 still showing).
+  function openPay() {
+    if (!payments.length) { payments = [{ method: 'cash', currency: 'USD', amount: totals().total.toFixed(2) }]; } else { followTotal(); }
+    renderPay(); modals['m-pay'].show();
+  }
+  $('btn-pay').addEventListener('click', openPay);
   $('pay-ok').addEventListener('click', function () {
     var btn = this, again = function () { modals['m-pay'].show(); btn.click(); }, reopen = function () { modals['m-pay'].show(); };
     if (needsApproval(0)) {   // a discount typed with the keypad never left the field
@@ -506,7 +519,7 @@
       $('done-warn').textContent = (j.warnings || []).join(' ');
       $('done-print').href = j.receipt + '&auto=1';
       modals['m-done'].show();
-      cart = []; payments = []; selected = -1; $('pay-discount').value = ''; $('pay-discount-hint').textContent = ''; $('pay-pin').value = ''; approvedPin = ''; $('pay-note').value = ''; setCustomer(null); renderCart(); loadData();
+      cart = []; selected = -1; clearPayment(); setCustomer(null); renderCart(); renderPay(); loadData();
     }).catch(function (e) {
       if (e.needs_pin) {   // wholesale prices, a sale on credit, a price change…: the administrator approves, then the sale completes
         approvedPin = ''; swapModal('m-pay', function () { askPin(String(e.error).replace('Needs an Admin PIN: ', 'Approve: '), again, reopen); });
@@ -536,7 +549,7 @@
     });
   });
   $('hold-ok').addEventListener('click', function () {
-    api(P.urls.hold, { name: $('hold-name').value, cart: cart }).then(function () { cart = []; selected = -1; renderCart(); modals['m-hold'].hide(); msg('Cart held'); $('hold-name').value = ''; }).catch(function (e) { msg(e.error || 'Failed', true); });
+    api(P.urls.hold, { name: $('hold-name').value, cart: cart }).then(function () { cart = []; selected = -1; clearPayment(); renderCart(); modals['m-hold'].hide(); msg('Cart held'); $('hold-name').value = ''; }).catch(function (e) { msg(e.error || 'Failed', true); });
   });
 
   // ---- Returns in the till (2026-10-04): the administrator's PIN for a cashier, then find the sale by customer,
