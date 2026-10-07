@@ -8,7 +8,7 @@
   var low = [], lowSig = '', lowTimer = null;
   var $ = function (id) { return document.getElementById(id); };
   var modals = {};
-  ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold', 'm-pin', 'm-return'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
+  ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold', 'm-pin', 'm-return', 'm-unit'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
 
   function money(n) { n = Math.round(n * 100) / 100; return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function lbp(n) { return Math.round(n).toLocaleString('en-US') + ' LBP'; }
@@ -99,18 +99,39 @@
       if (q === '' && !p.grid) return;
       if (q === '' && tab !== 0 && p.cat !== tab) return;
       if (q !== '' && p.name.toLowerCase().indexOf(q) < 0 && p.code.toLowerCase().indexOf(q) < 0) return;
-      var u = p.units.find(function (x) { return x.default; }) || p.units[0]; if (!u) return;
+      var sold = soldUnits(p), u = sold[0] || p.units.find(function (x) { return x.default; }) || p.units[0]; if (!u) return;
       var price = unitPrice(u);
       var b = document.createElement('button'); b.className = 'tile' + (price === null ? ' is-off' : ''); b.style.setProperty('--tile', p.color || '#4A5561');
       b.innerHTML = (p.img ? '<img src="' + p.img + '" alt="">' : '') + '<div class="name" dir="auto"></div><div class="price"><b></b><span></span></div>';
       b.querySelector('.name').textContent = p.name;
       b.querySelector('.price b').textContent = price === null ? 'not sold' : money(price);
-      b.querySelector('.price span').textContent = price === null ? '' : ' / ' + u.name;
-      b.addEventListener('click', function () { addLine(p, u); });
+      // sold in more than one way: the button says so ("$18.00 / kg · Box"), and a tap asks which one
+      b.querySelector('.price span').textContent = price === null ? '' : ' / ' + u.name + (sold.length === 2 ? ' · ' + sold[1].name : (sold.length > 2 ? ' +' + (sold.length - 1) + ' more' : ''));
+      b.addEventListener('click', function () { pick(p); });
       g.appendChild(b);
     });
     if (!g.children.length) g.innerHTML = '<div class="empty" style="grid-column:1/-1">' + (q === '' ? 'No products in this category.' : 'No product matches. Press Enter to look up a barcode.') + '</div>';
   }
+
+  // ---- which way to sell it (2026-10-07): a product with one priced unit goes into the sale at one tap; with two or
+  // more (kg and Box) a window asks which one. The "Till button" unit comes first. A scanned barcode never asks.
+  function soldUnits(p) {
+    return p.units.filter(function (u) { return unitPrice(u) !== null; }).sort(function (a, b) { return (b.default ? 1 : 0) - (a.default ? 1 : 0); });
+  }
+  function pick(p) {
+    var sold = soldUnits(p), list = $('unit-list');
+    if (sold.length < 2) { addLine(p, sold[0] || p.units.find(function (x) { return x.default; }) || p.units[0]); return; }
+    $('unit-title').textContent = p.name; list.innerHTML = '';
+    sold.forEach(function (u) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'pos-btn unit-opt';
+      b.innerHTML = '<span class="unit-name" dir="auto"></span><span class="unit-price"></span>';
+      b.children[0].textContent = u.name; b.children[1].textContent = money(unitPrice(u));
+      b.addEventListener('click', function () { modals['m-unit'].hide(); addLine(p, u); });
+      list.appendChild(b);
+    });
+    modals['m-unit'].show();   // no button is focused: a barcode scanned now ends with Enter and must not choose one
+  }
+  $('m-unit').addEventListener('hidden.bs.modal', function () { $('search').focus(); });
 
   // ---- cart
   function addLine(p, u, qty) {
@@ -661,7 +682,7 @@
     var code = this.value.trim(), hit = data.barcodes[code];
     if (hit) { var p = product(hit.p); addLine(p, p.units.find(function (u) { return u.id === hit.u; })); this.value = ''; filter = ''; renderGrid(); return; }
     var byCode = data.products.find(function (p) { return p.code.toLowerCase() === code.toLowerCase(); });
-    if (byCode) { var u = byCode.units.find(function (x) { return x.default; }) || byCode.units[0]; addLine(byCode, u); this.value = ''; filter = ''; renderGrid(); return; }
+    if (byCode) { pick(byCode); this.value = ''; filter = ''; renderGrid(); return; }
     var visible = $('grid').querySelectorAll('.tile'); if (visible.length === 1) { visible[0].click(); this.value = ''; filter = ''; renderGrid(); return; }
     msg('No product for "' + code + '"', true);
   });

@@ -638,6 +638,11 @@ body > .error-wrap .blocked { width: 100%; }
 .pay-head .pay-label { color: var(--t-ink-2); font-weight: 600; font-size: 1rem; }
 .pay-head #pay-due { font-family: var(--font-display); font-size: 2.2rem; font-weight: 700; color: var(--t-money); letter-spacing: -.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .pay-head #pay-due-lbp { font-size: 1.2rem; font-weight: 600; color: var(--t-ink); font-variant-numeric: tabular-nums; }
+/* Which way to sell it: one big button per unit that has a price (kg, Box). */
+.unit-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; }
+.unit-pick .unit-opt { flex-direction: column; gap: .35rem; min-height: 110px; padding: .8rem .6rem; }
+.unit-opt .unit-name { font-size: 1.3rem; color: var(--t-strong); }
+.unit-opt .unit-price { font-size: 1.15rem; font-weight: 700; color: var(--t-money); font-variant-numeric: tabular-nums; }
 .pay-quick { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; margin-bottom: .8rem; }
 .pay-quick .pos-btn { min-height: 60px; font-size: 1.02rem; }
 .pay-quick .pos-btn i { color: var(--t-money); }

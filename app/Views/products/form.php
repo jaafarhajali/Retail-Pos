@@ -169,7 +169,7 @@ $natural = ['piece' => ['piece', 1], 'g' => ['kg', 1000], 'ml' => ['L', 1000]][$
         <div class="table-responsive">
           <table class="table align-middle pf-table">
             <thead><tr>
-              <th class="pf-main" title="The till shows this one on the product's button">Till button</th><th>Sold as</th><th>Holds</th><th>Retail</th><th>Wholesale</th><th>Barcodes</th><th></th>
+              <th class="pf-main" title="The till shows this price on the product's button and offers this way first">Till button</th><th>Sold as</th><th>Holds</th><th>Retail</th><th>Wholesale</th><th>Barcodes</th><th></th>
             </tr></thead>
             <tbody data-rows>
               <?php foreach ($rows as $key => $row): ?><?= $renderRow((string) $key, $row, $unitsById[$row['id']] ?? null) ?><?php endforeach; ?>

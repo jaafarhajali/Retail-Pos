@@ -166,6 +166,12 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
   </div>
 </div></div></div>
 
+<?php /* A product sold in more than one way (kg, Box): which one? One big button per way that has a price. */ ?>
+<div class="modal fade pos-modal" id="m-unit" tabindex="-1" aria-labelledby="unit-title"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="unit-title" dir="auto">Which one?</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+  <div class="modal-body"><div class="unit-pick" id="unit-list"></div></div>
+</div></div></div>
+
 <div class="modal fade pos-modal" id="m-pin" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
   <div class="modal-header"><h5 class="modal-title">Administrator approval</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
   <div class="modal-body pos-split">
