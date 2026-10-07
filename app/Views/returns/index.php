@@ -87,10 +87,15 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
     });
     var debt = Math.min(owed, total);
     cash = Math.round((total - debt) * 100) / 100;
+    // all of it comes off the debt: no cash leaves the drawer, so the two amounts are locked
+    var none = total > 0 && cash <= 0;
+    usd.disabled = lbp.disabled = none;
+    if (none) { usd.value = ''; lbp.value = ''; }
     if (!total) { sum.textContent = 'Type how many items come back.'; return; }
     sum.innerHTML = '';
     var b = document.createElement('b'); b.textContent = 'Refund ' + money(total); sum.appendChild(b);
-    sum.appendChild(document.createTextNode((debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(cash)));
+    sum.appendChild(document.createTextNode(none ? ' · nothing to give back in cash: the ' + money(debt) + ' comes off the customer\'s debt'
+      : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(cash)));
   }
   function fromUsd() { var rest = cash - num(usd.value); lbp.value = rest > 0.004 ? groupLbp(roundLbp(rest * rate)) : ''; }
   function fromLbp() { var rest = Math.round((cash - num(lbp.value) / rate) * 100) / 100; usd.value = rest > (step / 2) / rate ? rest.toFixed(2) : ''; }

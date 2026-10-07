@@ -6,6 +6,7 @@ require_once __DIR__ . '/support/http.php';
 use App\Core\Auth;
 use App\Core\Database;
 use App\Models\CashSession;
+use App\Models\Customer;
 use App\Models\Register;
 use App\Models\Sale;
 use App\Services\CashService;
@@ -117,5 +118,33 @@ return [
         assert_same(302, $r->status);
         $view = $client->get('returns/view', ['id' => 1])->body;
         assert_contains('$5.00 + 405,000 LBP', $view);
+    },
+
+    'a refund that all goes to the debt gives no cash, whatever was typed ($8 owed, $8 back)' => function () use ($setup, $refunds): void {
+        // 2026-10-07 (Aya): the two "Give back" boxes are locked on screen when the cash part is $0; the server never pays it either.
+        $s = $setup('8.00');
+        $customer = (new Customer())->create(['name' => 'Lounge 961', 'phone' => null, 'notes' => null, 'default_price_level' => 'retail', 'credit_limit_usd' => null]);
+        $item = (new Sale())->items($s['sale'])[0];
+        $credit = (new SaleService())->complete([
+            'register_id' => $s['register'], 'session_id' => $s['session'], 'user_id' => TEST_ADMIN_ID, 'customer_id' => $customer, 'price_level' => 'retail',
+            'lines' => [['product_id' => (int) $item['product_id'], 'unit_id' => (int) $item['product_unit_id'], 'qty' => '1']], 'invoice_discount' => '',
+            'payments' => [['method' => 'credit', 'currency' => 'USD', 'amount' => '8']], 'change_currency' => 'LBP', 'notes' => '', 'pin' => '',
+        ]);
+        $line = (new Sale())->items((int) $credit['id'])[0];
+        $before = (new CashSession())->expected($s['session']);
+        $ret = (new ReturnService())->create((int) $credit['id'], [['sale_item_id' => (int) $line['id'], 'qty' => '1', 'condition' => 'restock']], 'MIX', '', $s['session'], $s['register'], TEST_ADMIN_ID, false, '6', '180000');
+        assert_same('8.00', $ret['debt_reduction']);
+        assert_same([['method' => 'debt_reduction', 'currency' => 'USD', 'amount' => '8.00', 'amount_usd' => '8.00']], $refunds((int) $ret['id']));
+        assert_same($before, (new CashSession())->expected($s['session']), 'the drawer did not move');
+        assert_same('0.00', (new Customer())->balance($customer));
+    },
+
+    'the returns page can lock the two amounts when nothing comes back in cash' => function () use ($setup): void {
+        $s = $setup('9.50');
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $client->get('registers');
+        $client->post('registers/bind', ['id' => $s['register']]);
+        assert_contains('nothing to give back in cash', $client->get('returns', ['invoice' => 'INV-000001'])->body);
+        assert_contains('nothing to give back in cash', (string) file_get_contents(__DIR__ . '/../public/assets/js/pos.js'), 'the till pop-up locks them too');
     },
 ];

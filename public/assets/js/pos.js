@@ -575,7 +575,13 @@
     });
     var debt = Math.min(parseFloat(ret.sale.owed) || 0, total);
     ret.cash = Math.round((total - debt) * 100) / 100; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
-    $('ret-sum').textContent = total ? 'Refund ' + money(total) + (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(ret.cash) : 'Type how many items come back.';
+    // all of it comes off the debt: no cash leaves the drawer, so the two amounts are locked
+    var none = total > 0 && ret.cash <= 0;
+    $('ret-usd').disabled = $('ret-lbp').disabled = none;
+    if (none) { $('ret-usd').value = ''; $('ret-lbp').value = ''; }
+    $('ret-sum').textContent = !total ? 'Type how many items come back.'
+      : 'Refund ' + money(total) + (none ? ' · nothing to give back in cash: the ' + money(debt) + ' comes off the customer\'s debt'
+        : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(ret.cash));
   }
   $('ret-usd').addEventListener('input', function () { var rest = ret.cash - num(this.value); $('ret-lbp').value = rest > 0.004 ? groupDigits(String(roundLbp(rest * P.rate))) : ''; ret.allowShort = false; $('ret-ok').textContent = 'Record return'; });
   $('ret-lbp').addEventListener('input', function () {
