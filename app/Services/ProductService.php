@@ -19,11 +19,13 @@ final class ProductService
     public const CODE_PREFIX = 'P-';
 
     /** Offered in the unit dropdown (owner decision 2026-09-24); any other name may be typed. */
-    public const DEFAULT_UNIT_NAMES = ['Piece', 'Pack', 'Box', 'Carton', 'Dozen', 'kg', 'g', 'L', 'ml'];
+    public const DEFAULT_UNIT_NAMES = ['Piece', 'Pack', 'Box', 'Dozen', 'kg', 'g', 'L', 'ml'];
 
     /**
      * The unit types an administrator can pick; there is no free text. Each type lists the base units it fits
      * and, for the plain measures, its fixed factor. Containers (Pack, Box…) ask how many base units they hold.
+     * Carton, Case, Can and Set left the list on 2026-10-07 (a carton or a case is a bigger Box; a can or a set is
+     * sold as a Piece); a unit already stored under one of those names is kept "as it is" (KEEP_TYPE).
      */
     public const UNIT_TYPES = [
         'Piece'  => ['bases' => ['piece'],            'factor' => 1],
@@ -34,13 +36,9 @@ final class ProductService
         'L'      => ['bases' => ['ml'],               'factor' => 1000],
         'Pack'   => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
         'Box'    => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
-        'Carton' => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
-        'Case'   => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
         'Bag'    => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
         'Roll'   => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
         'Bottle' => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
-        'Can'    => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
-        'Set'    => ['bases' => ['piece', 'g', 'ml'], 'factor' => null],
     ];
 
     /** "Box" of 6 pieces → "Box of 6"; "Pack" of 250 g → "Pack 250g"; "Box" of 1000 g → "Box 1kg"; plain measures keep their name. */

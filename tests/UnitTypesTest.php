@@ -25,7 +25,21 @@ return [
         assert_same('kg', $units->find($svc->addUnit($tobacco, 'KG', '', true, false))['name']);
         $syrup = make_product('Syrup', 'ml');
         assert_same('Bottle 500ml', $units->find($svc->addUnit($syrup, 'Bottle', '500', false, false))['name']);
-        assert_same('Can', $units->find($svc->addUnit($syrup, 'Can', '1', false, false))['name']);
+        assert_same('Bag', $units->find($svc->addUnit($syrup, 'Bag', '1', false, false))['name']);
+    },
+
+    'Carton, Case, Can and Set are not in the list any more (2026-10-07): five containers are left' => function (): void {
+        $containers = array_keys(array_filter(ProductService::UNIT_TYPES, static fn (array $def): bool => $def['factor'] === null));
+        assert_same(['Pack', 'Box', 'Bag', 'Roll', 'Bottle'], $containers);
+        $svc = new ProductService();
+        $pepsi = make_product('Pepsi 330ml', 'piece');
+        foreach (['Carton', 'Case', 'Can', 'Set'] as $gone) {
+            assert_throws(DomainException::class, fn () => $svc->addUnit($pepsi, $gone, '24', false, false));
+            assert_same(null, ProductService::canonicalType($gone));
+        }
+        // a carton is a bigger Box: one product can have a Box of 6 and a Box of 24
+        assert_same('Box of 6', (new ProductUnit())->find($svc->addUnit($pepsi, 'Box', '6', false, false))['name']);
+        assert_same('Box of 24', (new ProductUnit())->find($svc->addUnit($pepsi, 'Box', '24', false, false))['name']);
     },
 
     'a type must come from the list, fit the base unit, and a size is one unit only once' => function (): void {
@@ -44,8 +58,8 @@ return [
         $svc = new ProductService();
         $coal = make_product('Charcoal', 'piece');
         $id = $svc->addUnit($coal, 'Box', '6', false, false);
-        $svc->updateUnit($id, 'Carton', '6', false, false);
-        assert_same('Carton of 6', (new ProductUnit())->find($id)['name']);
+        $svc->updateUnit($id, 'Pack', '6', false, false);
+        assert_same('Pack of 6', (new ProductUnit())->find($id)['name']);
     },
 
     'unitType finds the dropdown value for a stored name' => function (): void {

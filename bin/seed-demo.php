@@ -122,9 +122,9 @@ $catalog = [
     ['Silicone Phunnel Bowl', 'Hoses & Bowls', 'piece', [['Piece', 1, false, '10.00', '8.00', '6970001112247']], '5.00', ['10', 0], ['3', 0], false],
     ['Disposable Mouthpieces', 'Accessories', 'piece', [['Pack', 100, false, '5.00', '4.00', '6970001112254'], ['Piece', 1, false, '0.10', '']], '3.00', ['30', 0], ['5', 0], false],
     ['Aluminium Foil Roll', 'Accessories', 'piece', [['Roll', 1, false, '2.00', '1.50', '6970001112261']], '0.90', ['40', 0], ['10', 0], false],
-    ['Hookah Cleaning Brush Set', 'Accessories', 'piece', [['Set', 1, false, '3.50', '2.80', '6970001112278']], '1.60', ['15', 0], ['3', 0], false],
+    ['Hookah Cleaning Brush Set', 'Accessories', 'piece', [['Piece', 1, false, '3.50', '2.80', '6970001112278']], '1.60', ['15', 0], ['3', 0], false],
     ['Heat Management Device (Kaloud style)', 'Accessories', 'piece', [['Piece', 1, false, '15.00', '12.00', '6970001112285']], '7.50', ['6', 0], ['2', 0], false],
-    ['Pepsi 330ml', 'Drinks', 'piece', [['Can', 1, false, '1.00', '0.80', '012000001291'], ['Case', 24, false, '20.00', '18.00']], '0.55', ['3', 1], ['24', 0], false],
+    ['Pepsi 330ml', 'Drinks', 'piece', [['Piece', 1, false, '1.00', '0.80', '012000001291'], ['Box', 24, false, '20.00', '18.00']], '0.55', ['3', 1], ['24', 0], false],
     ['Water 500ml', 'Drinks', 'piece', [['Bottle', 1, false, '0.50', '0.40', '6281001101017'], ['Pack', 12, false, '5.00', '4.20']], '0.25', ['5', 1], ['12', 0], false],
 ];
 

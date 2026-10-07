@@ -57,12 +57,12 @@ return [
         $svc = new ProductService();
         $id = make_product('Tobacco');
         $piece = $svc->addUnit($id, 'Piece', '1', false, false);
-        $carton = $svc->addUnit($id, 'Carton', '24', false, true);
+        $carton = $svc->addUnit($id, 'Box', '24', false, true);
         $svc->setDefaultUnit($carton, 'purchase');
         $units = array_column((new ProductUnit())->forProduct($id), null, 'name');
         assert_same(1, (int) $units['Piece']['is_default_sale']);
         assert_same(0, (int) $units['Piece']['is_default_purchase']);
-        assert_same(1, (int) $units['Carton of 24']['is_default_purchase']);
+        assert_same(1, (int) $units['Box of 24']['is_default_purchase']);
         assert_throws(DomainException::class, fn () => $svc->setDefaultUnit($carton, 'nonsense'));
 
         $svc->deleteUnit($piece);

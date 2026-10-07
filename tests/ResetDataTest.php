@@ -29,12 +29,13 @@ return [
         $registers->bind(1, hash('sha256', 'device'));
         $before = ['sales' => $count('sales'), 'products' => $count('products'), 'sessions' => $count('cash_sessions')];
         assert_true($before['sales'] > 0 && $before['products'] > 0 && $before['sessions'] > 0, 'there was something to empty');
-        $backupsBefore = count(glob(\App\Services\BackupService::dir() . '/*.zip') ?: []);
+        $backupsBefore = glob(\App\Services\BackupService::dir() . '/*.zip') ?: [];
 
         [$rc, $log] = $run('--yes');
         assert_same(0, $rc, $log);
         assert_contains('the old data is in there', $log);
-        assert_same($backupsBefore + 1, count(glob(\App\Services\BackupService::dir() . '/*.zip') ?: []), 'one backup was taken before anything was emptied');
+        // one new zip, not "one more": the backup folder keeps its 30 newest, so a full folder stays at 30
+        assert_same(1, count(array_diff(glob(\App\Services\BackupService::dir() . '/*.zip') ?: [], $backupsBefore)), 'one backup was taken before anything was emptied');
 
         // Seeded again: the same demo shop, numbered from 1.
         assert_same($before['products'], $count('products'));

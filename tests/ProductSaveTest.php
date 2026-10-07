@@ -192,6 +192,34 @@ return [
         assert_same(1000, (int) $units['kg']['factor']);
     },
 
+    'a product that already sells by Can, Case or Set keeps them after the three left the list' => function () use ($product, $row, $unitsOf): void {
+        $id = make_product('Pepsi 330ml', 'piece');
+        $can = (new ProductUnit())->create($id, 'Can', 1, false, false);   // as they were stored while the list still had them
+        $case = (new ProductUnit())->create($id, 'Case of 24', 24, false, false);
+        (new ProductUnit())->setPrices($can, '1.00', '0.80');
+        (new ProductUnit())->setPrices($case, '20.00', '18.00');
+        (new ProductService())->save($id, $product(['name' => 'Pepsi 330ml', 'base_unit' => 'piece', 'units' => [
+            "u{$can}" => $row(ProductService::KEEP_TYPE, ['id' => (string) $can, 'retail' => '1.25', 'wholesale' => '0.80']),
+            "u{$case}" => $row(ProductService::KEEP_TYPE, ['id' => (string) $case, 'retail' => '20.00', 'wholesale' => '18.00']),
+        ]]), TEST_ADMIN_ID);
+        $units = $unitsOf($id);
+        assert_same(['Can', 'Case of 24'], array_keys($units));
+        assert_same(24, (int) $units['Case of 24']['factor']);
+        assert_same('1.25', $units['Can']['retail_price'], 'the price can still change');
+
+        // the edit page offers each as "(as it is)", and no new product can pick them
+        require_once __DIR__ . '/support/http.php';
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $edit = $client->get('products/edit', ['id' => $id])->body;
+        assert_contains('Case of 24 (as it is)', $edit);
+        assert_contains('Can (as it is)', $edit);
+        $new = $client->get('products/create')->body;
+        foreach (['Carton', 'Case', 'Can', 'Set'] as $gone) {
+            assert_not_contains('<option value="' . $gone . '"', $new);
+        }
+        assert_contains('<option value="Box"', $new);
+    },
+
     'the same name is asked about, not refused' => function () use ($charcoal, $product, $row): void {
         $charcoal();
         $svc = new ProductService();
