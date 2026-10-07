@@ -561,7 +561,26 @@
     $('ret-print').hidden = name !== 'done'; $('ret-close').hidden = name !== 'done';
     $('ret-title').textContent = name === 'done' ? 'Return recorded' : 'Return';
   }
-  function retFind() { retStep('find'); $('ret-q').value = ''; $('ret-results').innerHTML = '<div class="empty">Type a customer name, an item or the invoice number.</div>'; setTimeout(function () { $('ret-q').focus(); }, 300); }
+  function retFind() { retStep('find'); $('ret-q').value = ''; $('ret-results').innerHTML = ''; retList(''); setTimeout(function () { $('ret-q').focus(); }, 300); }
+  // The sales to choose from: the latest ones while nothing is typed (most returns are for something sold today),
+  // then whatever matches the customer, item or number typed. A slower, older answer never replaces a newer one.
+  function retList(q) {
+    var seq = ret.seq = (ret.seq || 0) + 1;
+    api(P.urls.returnSearch + '&q=' + encodeURIComponent(q)).then(function (j) {
+      if (seq !== ret.seq) return;
+      var list = $('ret-results'); list.innerHTML = '';
+      j.sales.forEach(function (s) {
+        var a = document.createElement('button'); a.type = 'button'; a.className = 'list-group-item list-group-item-action';
+        a.innerHTML = '<span class="li-main"><b></b><small dir="auto"></small></span><span class="li-meta"></span>';
+        a.querySelector('b').textContent = s.invoice_no + ' · ' + (s.customer || 'Walk-in');
+        a.querySelector('small').textContent = s.date + ' · ' + (s.products || '');
+        a.querySelector('.li-meta').textContent = money(s.total);
+        a.addEventListener('click', function () { retOpen(s.id); });
+        list.appendChild(a);
+      });
+      if (!j.sales.length) list.innerHTML = '<div class="empty">' + (q ? 'No sale matches “' + q.replace(/[<>&]/g, '') + '”.' : 'No sales yet.') + '</div>';
+    }).catch(function (er) { if (er.needs_pin) { retStep('pin'); } msg(er.error || 'Failed', true); });
+  }
   $('btn-returns').addEventListener('click', function (e) {
     e.preventDefault();
     ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null };
@@ -579,22 +598,7 @@
   $('ret-pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); retPinOk(); } });
   $('ret-q').addEventListener('input', function () {
     var q = this.value.trim(); clearTimeout(ret.timer);
-    ret.timer = setTimeout(function () {
-      if (!q) { $('ret-results').innerHTML = '<div class="empty">Type a customer name, an item or the invoice number.</div>'; return; }
-      api(P.urls.returnSearch + '&q=' + encodeURIComponent(q)).then(function (j) {
-        var list = $('ret-results'); list.innerHTML = '';
-        j.sales.forEach(function (s) {
-          var a = document.createElement('button'); a.type = 'button'; a.className = 'list-group-item list-group-item-action';
-          a.innerHTML = '<span class="li-main"><b></b><small dir="auto"></small></span><span class="li-meta"></span>';
-          a.querySelector('b').textContent = s.invoice_no + ' · ' + (s.customer || 'Walk-in');
-          a.querySelector('small').textContent = s.date + ' · ' + (s.products || '');
-          a.querySelector('.li-meta').textContent = money(s.total);
-          a.addEventListener('click', function () { retOpen(s.id); });
-          list.appendChild(a);
-        });
-        if (!j.sales.length) list.innerHTML = '<div class="empty">No sale matches “' + q.replace(/[<>&]/g, '') + '”.</div>';
-      }).catch(function (er) { if (er.needs_pin) { retStep('pin'); } msg(er.error || 'Failed', true); });
-    }, 250);
+    ret.timer = setTimeout(function () { retList(q); }, 250);
   });
   function retOpen(id) {
     api(P.urls.returnSale + '&id=' + id).then(function (j) {

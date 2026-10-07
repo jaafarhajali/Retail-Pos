@@ -75,6 +75,29 @@ return [
         assert_same([], $json($c->get('pos/return-search', ['q' => 'nobody']))['sales']);
     },
 
+    'before anything is typed the pop-up lists the latest sales, newest first (2026-10-07)' => function () use ($cashierOnTill, $json): void {
+        $t = $cashierOnTill();
+        $first = (new \App\Models\Sale())->find($t['sale']);
+        $item = (new \App\Models\Sale())->items($t['sale'])[0];
+        foreach ([1, 2, 3] as $n) {   // three walk-in sales after the first one: INV-000002 … INV-000004
+            (new SaleService())->complete([
+                'register_id' => $t['register'], 'session_id' => (int) $first['session_id'], 'user_id' => TEST_ADMIN_ID, 'customer_id' => null, 'price_level' => 'retail',
+                'lines' => [['product_id' => (int) $item['product_id'], 'unit_id' => (int) $item['product_unit_id'], 'qty' => '1']], 'invoice_discount' => '',
+                'payments' => [['method' => 'cash', 'currency' => 'USD', 'amount' => '8']], 'change_currency' => 'LBP', 'notes' => '', 'pin' => '',
+            ]);
+        }
+        assert_same(403, $t['client']->get('pos/return-search', ['q' => ''])->status, 'not before the PIN either');
+        $t['client']->postJson('pos/return-pin', ['pin' => '1234']);
+        $latest = $json($t['client']->get('pos/return-search', ['q' => '']))['sales'];
+        assert_same(['INV-000004', 'INV-000003', 'INV-000002', 'INV-000001'], array_column($latest, 'invoice_no'));
+        assert_same(null, $latest[0]['customer'], 'a walk-in sale');
+        assert_same('Lounge 961', $latest[3]['customer']);
+        assert_contains('Gummi Bear', (string) $latest[0]['products']);
+        // only the newest few, so the list stays short in a shop with thousands of sales
+        assert_same(['INV-000004', 'INV-000003'], array_column((new \App\Models\Sale())->forReturn('', 20, 2), 'invoice_no'));
+        assert_same(10, (new ReflectionMethod(\App\Models\Sale::class, 'forReturn'))->getParameters()[2]->getDefaultValue(), 'ten by default');
+    },
+
     'the pop-up gets the lines that can still come back' => function () use ($cashierOnTill, $json): void {
         $t = $cashierOnTill();
         $t['client']->postJson('pos/return-pin', ['pin' => '1234']);
