@@ -8,8 +8,9 @@ use App\Core\Model;
 /** Cash sessions, their movements and the blind count (spec §3.9, §8). */
 final class CashSession extends Model
 {
-    private const SELECT = 'SELECT s.*, r.name AS register_name, u.username, u.full_name FROM cash_sessions s
-                            JOIN registers r ON r.id = s.register_id JOIN users u ON u.id = s.user_id';
+    private const SELECT = 'SELECT s.*, r.name AS register_name, u.username, u.full_name, cb.username AS closed_by_username FROM cash_sessions s
+                            JOIN registers r ON r.id = s.register_id JOIN users u ON u.id = s.user_id
+                            LEFT JOIN users cb ON cb.id = s.closed_by';
 
     public function find(int $id): ?array
     {

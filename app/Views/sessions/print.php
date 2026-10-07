@@ -1,13 +1,17 @@
 <?php
 $s = $session; $isZ = $s['status'] !== 'open';
+$counter = $s['closed_by_username'] ?? null;   // who counted the drawer: the proof of who answers for a difference
 $minus = static fn ($amount, string $shown): string => (float) $amount != 0 ? '-' . $shown : $shown;   // no "-$0.00" on paper
 ?>
 <div class="receipt <?= e($width) ?>">
   <?php if (($logo = logo_url()) !== null): ?><img class="receipt-logo" src="<?= e($logo) ?>" alt=""><?php endif; ?>
   <div class="c big" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?></div>
+  <?php if (setting('shop_address') !== ''): ?><div class="c" dir="auto"><?= e(setting('shop_address')) ?></div><?php endif; ?>
+  <?php if (setting('shop_phone') !== ''): ?><div class="c"><?= e(setting('shop_phone')) ?></div><?php endif; ?>
   <div class="c big"><?= $isZ ? 'Z REPORT ' . e($s['z_no']) : 'X REPORT' ?></div>
   <div class="c">Session <?= e($s['session_no']) ?> · <?= e($s['register_name']) ?></div>
   <div class="c">Cashier <?= e($s['username']) ?></div>
+  <?php if ($isZ && $counter !== null): ?><div class="c">Counted by <?= e($counter) ?></div><?php endif; ?>
   <div class="c">Opened <?= e(date('d/m/Y H:i', strtotime($s['opened_at']))) ?><?= $isZ ? '<br>Closed ' . e(date('d/m/Y H:i', strtotime($s['counted_at']))) : '<br>Printed ' . e(date('d/m/Y H:i')) ?></div>
   <div class="rule"></div>
   <table>
@@ -50,4 +54,8 @@ $minus = static fn ($amount, string $shown): string => (float) $amount != 0 ? '-
   <?php endif; ?>
   <div class="rule"></div>
   <div class="c">Expenses from drawer <?= usd($expenses_usd) ?></div>
+  <?php if ($isZ): ?>
+    <div class="receipt-sign">Cashier signature: ____________</div>
+    <?php if ($counter !== null && (int) $s['closed_by'] !== (int) $s['user_id']): ?><div class="receipt-sign">Counted by signature: ____________</div><?php endif; ?>
+  <?php endif; ?>
 </div>
