@@ -78,6 +78,18 @@ final class PartyService
         }
     }
 
+    /** A supplier that never had a purchase or a payment is removed; any other is deactivated instead (like products and categories). */
+    public function deleteSupplier(int $id): void
+    {
+        $suppliers = new Supplier();
+        $supplier = $suppliers->find($id) ?? throw new \DomainException('Supplier not found.');
+        if ($suppliers->isUsed($id)) {
+            throw new \DomainException("{$supplier['name']} has purchases or payments, so it cannot be deleted. Switch off \"Active\" instead.");
+        }
+        $suppliers->delete($id);
+        Audit::log('supplier.deleted', 'supplier', $id, ['name' => $supplier['name']]);
+    }
+
     public function saveCustomer(int $id, array $in): int
     {
         $name = trim((string) ($in['name'] ?? ''));

@@ -89,6 +89,7 @@ return [
     ['GET',  'suppliers',        [SupplierController::class, 'index'], 'supplier.manage'],
     ['GET',  'suppliers/edit',   [SupplierController::class, 'edit'],  'supplier.manage'],
     ['POST', 'suppliers/save',   [SupplierController::class, 'save'],  'supplier.manage'],
+    ['POST', 'suppliers/delete', [SupplierController::class, 'delete'], 'supplier.manage'],
     ['GET',  'purchases',        [PurchaseController::class, 'index'],  'purchase.manage'],
     ['GET',  'purchases/create', [PurchaseController::class, 'create'], 'purchase.manage'],
     ['POST', 'purchases/store',  [PurchaseController::class, 'store'],  'purchase.manage'],

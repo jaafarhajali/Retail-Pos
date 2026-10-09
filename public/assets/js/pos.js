@@ -159,7 +159,8 @@
       var t = lineTotals(l);
       var under = low.some(function (x) { return x.i === i; });
       var d = document.createElement('div'); d.className = 'cart-line' + (i === selected ? ' active' : '') + (under ? ' is-low' : '');
-      d.innerHTML = '<div class="q"><b></b><small dir="auto"></small></div><div class="n" dir="auto"></div><div class="t"></div><div class="d"></div><div class="x"></div>';
+      d.innerHTML = '<div class="q"><b></b><small dir="auto"></small></div><div class="n" dir="auto"></div><div class="t"></div><div class="d"></div><div class="x"></div>'
+        + '<button type="button" class="line-del" aria-label="Remove this line" title="Remove"><i class="bi bi-trash3"></i></button>';
       d.querySelector('.q b').textContent = +t.qty.toFixed(3);
       d.querySelector('.q small').textContent = t.u.name;
       d.querySelector('.n').textContent = t.p.name;
@@ -167,6 +168,7 @@
       d.querySelector('.d').textContent = '× ' + money(t.price) + (l.mode === 'amount' ? ', sold by amount' : '') + (l.price !== null ? ', price changed' : '') + (under ? ' · BELOW COST' : '');
       d.querySelector('.x').textContent = l.discount ? '-' + money(l.discount) : '';
       d.addEventListener('click', function () { selected = i; renderCart(); });
+      d.querySelector('.line-del').addEventListener('click', function (ev) { ev.stopPropagation(); removeLine(i); });
       c.appendChild(d);
     });
     var t = totals();
@@ -209,11 +211,22 @@
     $('m-line-title').textContent = t.p.name;
     $('line-qty').value = l.mode === 'qty' ? l.qty : ''; $('line-amount').value = l.mode === 'amount' ? l.amount : ''; $('line-amount-lbp').value = '';
     $('line-price').value = l.price !== null ? l.price : ''; $('line-price').placeholder = money(unitPrice(t.u)); $('line-price').disabled = !t.p.override;
+    amountBoxes(t.u);
     discMode.line = l.dmode || discMode.line; syncModes();
     $('line-discount').value = l.discount ? (discMode.line === 'pct' ? trimNum(t.gross > 0 ? l.discount / t.gross * 100 : 0) : l.discount) : '';
     discountHint('line', t.gross);
     modals['m-line'].show(); setTimeout(function () { $('line-qty').focus(); $('line-qty').select(); }, 300);
   }
+  // "Sell by amount" means a weight or a volume for the money: only a unit sold in parts (kg, L) can do it.
+  // For a Piece or a Box the two boxes are locked, instead of a red error after Apply.
+  function amountBoxes(u) {
+    var off = !u || !u.fraction;
+    ['line-amount', 'line-amount-lbp'].forEach(function (id) { var f = $(id); f.disabled = off; if (off) { f.value = ''; } f.placeholder = off ? 'only by weight' : (id === 'line-amount' ? '0.00' : '0'); });
+  }
+  $('line-unit').addEventListener('change', function () {
+    var l = cart[selected], p = l ? product(l.p) : null, id = parseInt(this.value, 10);
+    amountBoxes(p ? p.units.find(function (x) { return x.id === id; }) : null);
+  });
   $('line-amount-lbp').addEventListener('input', function () { groupField(this); var v = num(this.value); $('line-amount').value = v ? (v / P.rate).toFixed(2) : ''; });
   $('line-ok').addEventListener('click', function () {
     var l = cart[selected], p = product(l.p); l.u = parseInt($('line-unit').value, 10);
@@ -226,13 +239,13 @@
     var d = discountUsd('line', lineTotals(l).gross); l.discount = before;
     var apply = function () { l.discount = d; l.dmode = discMode.line; renderCart(); };
     // The administrator approves a discount over the allowed percentage, and any discount that sells the line below cost.
-    if (d > before + 0.004 && !approvedPin && (!P.can.discount || !P.can.belowCost)) {
+    if (d > before + 0.004 && (!P.can.discount || !P.can.belowCost)) {
       var over = needsApproval(d - before), idx = selected;
       renderCart();
       l.discount = d; var probe = probeCost(); l.discount = before;   // the cart as it would be
       swapModal('m-line', function () {
         probe.then(function (found) {
-          var under = !P.can.belowCost && found.some(function (x) { return x.i === idx && x.lowered; });
+          var under = !P.can.belowCost && !approvedPin && found.some(function (x) { return x.i === idx && x.lowered; });
           if (!over && !under) { apply(); return; }
           askPin('Discount of ' + money(d) + ' on ' + p.name + (under ? ' — BELOW COST' : ''), apply);
         });
@@ -242,7 +255,8 @@
     modals['m-line'].hide(); apply();
   });
   $('btn-qty').addEventListener('click', openLine);
-  $('btn-remove').addEventListener('click', function () { if (selected >= 0) { cart.splice(selected, 1); selected = cart.length - 1; if (!cart.length) { clearPayment(); } renderCart(); } });
+  function removeLine(i) { cart.splice(i, 1); selected = Math.min(selected, cart.length - 1); if (!cart.length) { clearPayment(); } renderCart(); }
+  $('btn-remove').addEventListener('click', function () { if (selected >= 0) { removeLine(selected); } });
   $('btn-discount').addEventListener('click', function () { if (!cart.length) return; openPay(); setTimeout(function () { $('pay-discount').focus(); }, 300); });
   // The payment dialog opens with one cash payment for the whole amount; while nobody changed it, it follows the discount
   // and the sale (an item added after the dialog was closed).
@@ -284,12 +298,21 @@
     });
   });
   // A user without the discount permission needs the administrator's PIN above the allowed percentage (Settings).
-  function needsApproval(extra) {
-    if (P.can.discount || approvedPin) return false;
+  // The whole sale's discount, line and invoice together, as a percentage of what it would cost without any.
+  function discountPct(extra) {
     var gross = 0, disc = extra || 0;
     cart.forEach(function (l) { var t = lineTotals(l); gross += t.gross; disc += (l.discount || 0); });
     disc += discountUsd('pay', subtotal());
-    return disc > 0.004 && gross > 0 && disc / gross * 100 > parseFloat(P.maxDiscount) + 0.0001;
+    return disc > 0.004 && gross > 0 ? disc / gross * 100 : 0;
+  }
+  // The administrator's approval covers the discount he approved (approvedPct). Raising it afterwards asks again:
+  // 15 % approved, 30 % typed next is a new question (bug of 2026-10-09: one approval used to cover anything after it).
+  var approvedPct = 0;
+  function needsApproval(extra) {
+    if (P.can.discount) return false;
+    var pct = discountPct(extra);
+    if (pct <= parseFloat(P.maxDiscount) + 0.0001) return false;
+    return !(approvedPin && pct <= approvedPct + 0.0001);
   }
   // Closes one dialog and runs `then` once it is gone. Bootstrap drops a hide() during the opening animation, so wait for it.
   function swapModal(from, then) {
@@ -315,7 +338,7 @@
   $('pin-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('pin-ok').click(); } });
   $('m-pin').addEventListener('hidden.bs.modal', function () {
     var then = pinThen, cancel = pinCancel, ok = pinOk; pinThen = null; pinCancel = null; pinOk = false;
-    if (ok) { if (then) then(); } else if (cancel) cancel();
+    if (ok) { if (then) then(); approvedPct = Math.max(approvedPct, discountPct(0)); } else if (cancel) cancel();
   });
   // Invoice discount typed by a cashier: ask for the PIN when the field is left; without it the discount is removed.
   $('pay-discount').addEventListener('change', function () {
@@ -489,7 +512,7 @@
   // Nothing of a sale that ended (paid, held, or emptied) follows the next one: its payments, its invoice discount,
   // its note and the administrator's approval it was given.
   function clearPayment() {
-    payments = []; allowShort = false; approvedPin = '';
+    payments = []; allowShort = false; approvedPin = ''; approvedPct = 0;
     $('pay-discount').value = ''; $('pay-discount-hint').textContent = ''; $('pay-pin').value = ''; $('pay-note').value = '';
   }
   // Take payment and Discount open the same dialog, always drawn for the sale as it is now: never the amounts of the

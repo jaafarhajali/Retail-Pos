@@ -54,6 +54,9 @@ final class BackupService
             throw new \RuntimeException('Cannot create the backups folder.');
         }
         $stamp = date('Y-m-d_His');
+        for ($n = 2; is_file("{$dir}/{$stamp}.zip"); $n++) {   // two backups in the same second get their own names
+            $stamp = date('Y-m-d_His') . '-' . $n;
+        }
         $sql = "{$dir}/{$stamp}.sql";
         $err = "{$dir}/{$stamp}.err";
         // What mysqldump complains about goes to its own file: mixed into the dump it would break the restore.

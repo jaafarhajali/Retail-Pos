@@ -37,6 +37,20 @@ final class Supplier extends Model
             ['n' => $name, 'p' => $phone, 'o' => $notes, 'a' => (int) $active, 'id' => $id]);
     }
 
+    /** With a purchase, a payment or a ledger line, a supplier is deactivated, never deleted. */
+    public function isUsed(int $id): bool
+    {
+        return (bool) $this->fetchValue(
+            'SELECT EXISTS(SELECT 1 FROM purchases WHERE supplier_id = :a) OR EXISTS(SELECT 1 FROM supplier_ledger WHERE supplier_id = :b) OR EXISTS(SELECT 1 FROM expenses WHERE supplier_id = :c)',
+            ['a' => $id, 'b' => $id, 'c' => $id]
+        );
+    }
+
+    public function delete(int $id): void
+    {
+        $this->execute('DELETE FROM suppliers WHERE id = :id', ['id' => $id]);
+    }
+
     public function ledger(int $supplierId, int $limit = 200): array
     {
         return $this->fetchAll(

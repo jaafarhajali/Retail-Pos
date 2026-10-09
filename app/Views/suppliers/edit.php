@@ -12,7 +12,13 @@
         <?php endif; ?>
         <button class="btn btn-primary" type="submit">Save supplier</button>
         <a class="btn btn-link" href="<?= url('suppliers') ?>">Back</a>
+        <?php if ($supplier !== null && !$used): ?><button class="btn btn-outline-danger float-end" type="submit" form="supplier-delete"><i class="bi bi-trash"></i> Delete</button><?php endif; ?>
       </form>
+      <?php if ($supplier !== null): ?>
+        <?php if ($used): ?><p class="form-text mt-3 mb-0">This supplier has purchases or payments, so it cannot be deleted; switch off Active to hide it.</p>
+        <?php else: ?><form method="post" action="<?= url('suppliers/delete') ?>" id="supplier-delete" data-confirm="Delete <?= e($supplier['name']) ?>? This cannot be undone."><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $supplier['id'] ?>"></form>
+        <?php endif; ?>
+      <?php endif; ?>
     </div></div>
   </div>
   <?php if ($supplier !== null): ?>

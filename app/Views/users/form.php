@@ -67,13 +67,14 @@ $userIsAdmin = $isEdit && array_filter($roles, static fn (array $r): bool => (in
       </div></div>
       <?php if ($userIsAdmin): ?>
       <div class="card"><div class="card-body">
-        <h2 class="h5">Approval PIN</h2>
+        <h2 class="h5">Approval PIN <?= $user['pin_hash'] ? '<span class="badge text-bg-success align-middle"><i class="bi bi-check2"></i> PIN is set</span>' : '<span class="badge text-bg-warning align-middle">No PIN yet</span>' ?></h2>
         <p class="text-muted small">4–6 digits. The administrator types it on a cashier's till to approve a discount, a price change, wholesale prices, a sale on credit or a return. Save it empty to remove the PIN.</p>
         <form method="post" action="<?= url('users/pin') ?>">
           <?= csrf_field() ?>
           <input type="hidden" name="id" value="<?= (int) $user['id'] ?>">
           <input class="form-control mb-2" name="pin" inputmode="numeric" pattern="\d{4,6}" maxlength="6" autocomplete="off"
-                 placeholder="<?= $user['pin_hash'] ? 'A PIN is set — type a new one' : 'No PIN yet' ?>">
+                 placeholder="<?= $user['pin_hash'] ? 'Type a new PIN to replace it' : 'Choose 4 to 6 digits' ?>">
+          <?php if ($user['pin_hash']): ?><div class="form-text">The PIN is never shown, not even here. Leave this empty to keep it.</div><?php endif; ?>
           <button class="btn btn-outline-primary" type="submit">Save PIN</button>
         </form>
       </div></div>

@@ -21,7 +21,8 @@ final class SupplierController extends Controller
     {
         $id = $this->queryInt('id');
         $supplier = $id > 0 ? ((new Supplier())->find($id) ?? throw new HttpException(404)) : null;
-        $this->render('suppliers/edit', ['supplier' => $supplier, 'ledger' => $id > 0 ? (new Supplier())->ledger($id) : []], $supplier === null ? 'New supplier' : $supplier['name']);
+        $this->render('suppliers/edit', ['supplier' => $supplier, 'ledger' => $id > 0 ? (new Supplier())->ledger($id) : [], 'used' => $id > 0 && (new Supplier())->isUsed($id)],
+            $supplier === null ? 'New supplier' : $supplier['name']);
     }
 
     public function save(): void
@@ -34,5 +35,18 @@ final class SupplierController extends Controller
         }
         Flash::set('success', 'Supplier saved.');
         redirect('suppliers/edit', ['id' => $id]);
+    }
+
+    public function delete(): void
+    {
+        $id = $this->inputInt('id');
+        try {
+            $name = (string) ((new Supplier())->find($id)['name'] ?? '');
+            (new PartyService())->deleteSupplier($id);
+        } catch (\DomainException $e) {
+            $this->failBack('suppliers/edit', ['id' => $id], ['name' => $e->getMessage()]);
+        }
+        Flash::set('success', $name . ' was deleted.');
+        redirect('suppliers');
     }
 }
