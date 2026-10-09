@@ -58,6 +58,19 @@ final class Product extends Model
         );
     }
 
+    /** The ids among $ids that have history (one query for a list page). @return array<int, true> */
+    public function usedIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) { return []; }
+        $in = implode(',', $ids);
+        $rows = $this->fetchAll("SELECT product_id FROM stock_movements WHERE product_id IN ($in)
+            UNION SELECT product_id FROM sale_items WHERE product_id IN ($in)
+            UNION SELECT product_id FROM purchase_items WHERE product_id IN ($in)
+            UNION SELECT product_id FROM stock_count_lines WHERE product_id IN ($in)");
+        return array_fill_keys(array_map(fn ($r) => (int) $r['product_id'], $rows), true);
+    }
+
     /** Its units and barcodes go with it (ON DELETE CASCADE). */
     public function delete(int $id): void
     {

@@ -29,6 +29,7 @@ final class ProductController extends Controller
             'categories' => (new Category())->all(),
             'showCost'   => Gate::allows('product.view_cost'),
             'canManage'  => Gate::allows('product.manage'),
+            'usedIds'    => (new Product())->usedIds(array_column($pg['rows'], 'id')),
         ], 'Products');
     }
 

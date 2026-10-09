@@ -15,6 +15,7 @@
             </td>
             <td class="text-end">
               <a class="btn btn-sm btn-outline-primary" href="<?= url('roles/edit', ['id' => $r['id']]) ?>"><?= (int) $r['is_super'] ? 'View' : 'Permissions' ?></a>
+              <?= bin_button('roles/delete', ['id' => $r['id']], 'Delete the role ' . $r['name'] . '? This cannot be undone.', (int) $r['is_system'] ? 'System roles cannot be deleted.' : ((int) $r['user_count'] > 0 ? 'This role is assigned to users. Move them to another role first.' : null)) ?>
             </td>
           </tr>
         <?php endforeach; ?>

@@ -187,6 +187,9 @@ td.empty { background: var(--surface) !important; }
 .table td.audit-details { min-width: 16rem; max-width: 30rem; font-family: var(--font-small); font-size: .84rem; color: var(--ink-2); overflow-wrap: anywhere; }
 .wrap-code code { white-space: normal; overflow-wrap: anywhere; }
 .table td.text-end:last-child { white-space: nowrap; }
+.table .btn-bin { margin-left: .35rem; width: 2rem; padding: .25rem 0; color: #6c757d; border: 1px solid transparent; background: transparent; }
+.table .btn-bin:hover:not(:disabled), .table .btn-bin:focus-visible:not(:disabled) { color: #b3261e; border-color: rgba(179, 38, 30, .35); background: rgba(179, 38, 30, .08); }
+.table .btn-bin:disabled { opacity: .3; cursor: not-allowed; }
 .table td.text-end:last-child > form + form, .table td.text-end:last-child > .btn + form { margin-left: .35rem; }
 
 /* ───────────── Controls ───────────── */

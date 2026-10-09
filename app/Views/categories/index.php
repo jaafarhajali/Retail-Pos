@@ -11,7 +11,8 @@
             <td dir="auto"><?= e($c['name']) ?></td>
             <td><?= (int) $c['product_count'] ?></td>
             <td><?= (int) $c['is_active'] ? 'yes' : '<span class="text-muted">no</span>' ?></td>
-            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('categories/edit', ['id' => $c['id']]) ?>">Edit</a></td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('categories/edit', ['id' => $c['id']]) ?>">Edit</a>
+              <?= bin_button('categories/delete', ['id' => $c['id']], 'Delete ' . $c['name'] . '? This cannot be undone.', (int) $c['product_count'] > 0 ? 'This category still has products. Move them first, or switch it off.' : null) ?></td>
           </tr>
         <?php endforeach; ?>
         <?php if ($categories === []): ?>

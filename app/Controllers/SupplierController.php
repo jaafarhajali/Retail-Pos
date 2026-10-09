@@ -14,7 +14,8 @@ final class SupplierController extends Controller
 {
     public function index(): void
     {
-        $this->render('suppliers/index', ['suppliers' => (new Supplier())->all()], 'Suppliers');
+        $suppliers = (new Supplier())->all();
+        $this->render('suppliers/index', ['suppliers' => $suppliers, 'usedIds' => (new Supplier())->usedIds(array_column($suppliers, 'id'))], 'Suppliers');
     }
 
     public function edit(): void

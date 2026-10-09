@@ -68,6 +68,23 @@ function logo_url(): ?string
     return UPLOADS_URL . '/' . $file;
 }
 
+/**
+ * The bin on a list row: a one-click delete (POST form that asks first) or, when the row
+ * cannot be deleted, a greyed-out bin whose title says why. The server checks the same rule.
+ */
+function bin_button(string $route, array $hidden, string $confirm, ?string $blocked = null): string
+{
+    if ($blocked !== null) {
+        return '<button class="btn btn-sm btn-bin" type="button" disabled title="' . e($blocked) . '" aria-label="' . e($blocked) . '"><i class="bi bi-trash3"></i></button>';
+    }
+    $fields = '';
+    foreach ($hidden as $name => $value) {
+        $fields .= '<input type="hidden" name="' . e($name) . '" value="' . e((string) $value) . '">';
+    }
+    return '<form method="post" action="' . url($route) . '" class="d-inline" data-confirm="' . e($confirm) . '">' . csrf_field() . $fields
+        . '<button class="btn btn-sm btn-bin" type="submit" title="Delete" aria-label="Delete"><i class="bi bi-trash3"></i></button></form>';
+}
+
 function csrf_field(): string
 {
     return \App\Core\Csrf::field();

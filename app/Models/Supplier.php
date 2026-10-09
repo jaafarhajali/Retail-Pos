@@ -46,6 +46,18 @@ final class Supplier extends Model
         );
     }
 
+    /** The ids among $ids with a purchase, a payment or an expense (one query for the list). @return array<int, true> */
+    public function usedIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) { return []; }
+        $in = implode(',', $ids);
+        $rows = $this->fetchAll("SELECT supplier_id FROM purchases WHERE supplier_id IN ($in)
+            UNION SELECT supplier_id FROM supplier_ledger WHERE supplier_id IN ($in)
+            UNION SELECT supplier_id FROM expenses WHERE supplier_id IN ($in)");
+        return array_fill_keys(array_map(fn ($r) => (int) $r['supplier_id'], $rows), true);
+    }
+
     public function delete(int $id): void
     {
         $this->execute('DELETE FROM suppliers WHERE id = :id', ['id' => $id]);

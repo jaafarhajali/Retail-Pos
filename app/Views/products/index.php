@@ -59,6 +59,7 @@ $printWith = array_filter(['q' => $filters['q'], 'category_id' => $filters['cate
     <thead><tr>
       <th></th><th>Product</th><th>Category</th><th>Stock</th><th>Price</th>
       <?php if ($showCost): ?><th data-col="cost">Cost</th><th data-col="cost" class="text-end">Stock value</th><?php endif; ?>
+      <?php if ($canManage): ?><th></th><?php endif; ?>
     </tr></thead>
     <tbody>
     <?php foreach ($pg['rows'] as $p): $units = $unitsById[(int) $p['id']] ?? []; $stock = (int) $p['stock_base']; $photo = ProductImageService::url($p['image_file']); ?>
@@ -87,10 +88,13 @@ $printWith = array_filter(['q' => $filters['q'], 'category_id' => $filters['cate
           <td data-col="cost" class="text-nowrap"><?= (float) $p['cost_per_base'] > 0 ? usd(Pricing::unitCost($p['cost_per_base'], $natural[$p['base_unit']][1])) . ' <span class="text-muted">per ' . e($natural[$p['base_unit']][0]) . '</span>' : '<span class="text-muted">—</span>' ?></td>
           <td data-col="cost" class="text-end"><?= usd(Pricing::stockValue($stock, $p['cost_per_base'])) ?></td>
         <?php endif; ?>
+        <?php if ($canManage): ?>
+          <td class="text-end"><?= bin_button('products/delete', ['product_id' => $p['id']], 'Delete ' . $p['name'] . '? This cannot be undone.', isset($usedIds[(int) $p['id']]) ? 'Has sales, purchases or stock history, so it cannot be deleted. Switch it off instead.' : null) ?></td>
+        <?php endif; ?>
       </tr>
     <?php endforeach; ?>
     <?php if ($pg['rows'] === []): ?>
-      <tr><td colspan="<?= $showCost ? 7 : 5 ?>" class="empty"><?= $printWith === [] ? 'No products yet. Press Add product to enter the first one.' : 'Nothing matches. Clear the search to see everything.' ?></td></tr>
+      <tr><td colspan="<?= ($showCost ? 7 : 5) + ($canManage ? 1 : 0) ?>" class="empty"><?= $printWith === [] ? 'No products yet. Press Add product to enter the first one.' : 'Nothing matches. Clear the search to see everything.' ?></td></tr>
     <?php endif; ?>
     </tbody>
   </table>

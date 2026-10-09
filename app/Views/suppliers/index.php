@@ -12,7 +12,8 @@
         <td class="text-nowrap"><?= e($s['phone'] ?? '—') ?></td>
         <td class="text-end <?= (float) $s['balance_usd'] > 0 ? 'text-danger fw-semibold' : ((float) $s['balance_usd'] == 0 ? 'text-muted' : '') ?>"><?= usd($s['balance_usd']) ?></td>
         <td><?= (int) $s['is_active'] ? '<span class="badge text-bg-success">Active</span>' : '<span class="badge text-bg-secondary">Inactive</span>' ?></td>
-        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('suppliers/edit', ['id' => $s['id']]) ?>">Open</a></td>
+        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('suppliers/edit', ['id' => $s['id']]) ?>">Open</a>
+          <?= bin_button('suppliers/delete', ['id' => $s['id']], 'Delete ' . $s['name'] . '? This cannot be undone.', isset($usedIds[(int) $s['id']]) ? 'Has purchases or payments, so it cannot be deleted. Switch off Active instead.' : null) ?></td>
       </tr>
     <?php endforeach; ?>
     <?php if ($suppliers === []): ?><tr><td colspan="5" class="empty">No suppliers yet. Add the ones you buy from on credit to track what you owe.</td></tr><?php endif; ?>

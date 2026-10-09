@@ -635,15 +635,19 @@
           '<td><select class="form-select form-select-sm" aria-label="Condition"><option value="restock">Back to stock</option><option value="waste">Damaged (waste)</option></select></td>';
         tr.children[0].textContent = l.name; tr.children[1].textContent = l.sold + ' ' + l.unit; tr.children[2].textContent = l.left_base ? l.left + ' ' + l.unit : 'fully returned';
         tr.children[3].textContent = money(l.paid);
+        // Every box starts at everything that can still come back (owner, 2026-10-09); the cashier lowers it for a partial return.
         var q = tr.querySelector('input'); q.placeholder = l.left_base ? 'max ' + l.left : '—'; q.disabled = !l.left_base; q.dataset.i = i;
-        q.addEventListener('input', function () { retTotals(); $('ret-usd').value = ret.cash > 0 ? ret.cash.toFixed(2) : ''; $('ret-lbp').value = ''; });   // all in USD by default
+        q.value = l.left_base ? String(l.left) : '';
+        q.addEventListener('input', retRefill);
         body.appendChild(tr);
       });
-      $('ret-usd').value = ''; $('ret-lbp').value = ''; $('ret-reason').value = ''; $('ret-error').textContent = '';
-      retTotals(); retStep('sale');
+      $('ret-reason').value = ''; $('ret-error').textContent = '';
+      retRefill(); retStep('sale');
     }).catch(function (er) { if (er.needs_pin) { retStep('pin'); } msg(er.error || 'Failed', true); });
   }
   $('ret-back').addEventListener('click', retFind);
+  /** The quantities changed: recompute, and offer the whole cash part in USD (the cashier can split it into LBP). */
+  function retRefill() { retTotals(); $('ret-usd').value = ret.cash > 0 ? ret.cash.toFixed(2) : ''; $('ret-lbp').value = ''; }
   function retTotals() {
     var total = 0;
     $('ret-lines').querySelectorAll('input').forEach(function (q) {
