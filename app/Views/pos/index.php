@@ -34,6 +34,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
       <button type="button" class="pos-theme" id="btn-theme" title="Switch to light mode" aria-label="Switch to light mode"><i class="bi bi-sun to-light" aria-hidden="true"></i><span class="to-light">Light</span><i class="bi bi-moon-stars to-dark" aria-hidden="true"></i><span class="to-dark">Dark</span></button>
       <a href="<?= url('sessions/view', ['id' => $session['id']]) ?>" title="Session"><i class="bi bi-cash-stack"></i><span>Session</span></a>
       <a href="<?= url('sales') ?>" title="Sales"><i class="bi bi-receipt"></i><span>Sales</span></a>
+      <a href="#" id="btn-expense" role="button" title="Pay an expense from this drawer"><i class="bi bi-cash-stack"></i><span>Expense</span></a>
       <a href="#" id="btn-returns" role="button" title="Return items from a sale"><i class="bi bi-arrow-return-left"></i><span>Returns</span></a>
       <a class="exit" href="<?= url('dashboard') ?>" title="Exit"><i class="bi bi-box-arrow-left"></i><span>Exit</span></a>
     </nav>
@@ -167,6 +168,31 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
   </div>
 </div></div></div>
 
+<?php /* An expense paid from this drawer (2026-10-10): what for, how much in USD and/or LBP, the administrator's PIN for a cashier. */ ?>
+<div class="modal fade pos-modal" id="m-expense" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">Expense from the drawer</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+  <div class="modal-body pos-split">
+    <div>
+      <label class="form-label" for="exp-category">What for</label>
+      <input class="form-control" id="exp-category" list="exp-cats" dir="auto" autocomplete="off" placeholder="electricity, delivery, water…">
+      <datalist id="exp-cats"><?php foreach ($expenseCats as $c): ?><option value="<?= e($c) ?>"><?php endforeach; ?></datalist>
+      <label class="form-label mt-2" for="exp-desc">Note</label>
+      <input class="form-control" id="exp-desc" dir="auto" maxlength="255" placeholder="e.g. generator, October">
+      <div class="row g-2 mt-1">
+        <div class="col-6"><label class="form-label" for="exp-usd">Paid in USD</label><input class="form-control" id="exp-usd" inputmode="decimal" placeholder="0.00"></div>
+        <div class="col-6"><label class="form-label" for="exp-lbp">Paid in LBP</label><input class="form-control" id="exp-lbp" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <?php if (!$can['expense']): ?>
+        <label class="form-label mt-2" for="exp-pin">Administrator's PIN</label>
+        <input class="form-control pin-mask" id="exp-pin" type="text" inputmode="numeric" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="6">
+      <?php endif; ?>
+      <p class="pin-error mt-2" id="exp-error" role="alert"></p>
+    </div>
+    <?php require APP_PATH . '/Views/pos/_keypad.php'; ?>
+  </div>
+  <div class="modal-footer"><button class="pay-ok" id="exp-ok">Record expense</button></div>
+</div></div></div>
+
 <?php /* A product sold in more than one way (kg, Box): which one? One big button per way that has a price. */ ?>
 <div class="modal fade pos-modal" id="m-unit" tabindex="-1" aria-labelledby="unit-title"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
   <div class="modal-header"><h5 class="modal-title" id="unit-title" dir="auto">Which one?</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
@@ -250,7 +276,7 @@ window.POS = {
   token: <?= json_encode($token) ?>, rate: <?= (int) $rate ?>, step: <?= (int) $step ?>,
   can: <?= json_encode($can) ?>, maxDiscount: <?= (float) $maxDiscount ?>,
   urls: { data: <?= json_encode(url('pos/data')) ?>, prices: <?= json_encode(url('pos/prices')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,
-          resume: <?= json_encode(url('pos/resume')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?>, check: <?= json_encode(url('pos/check')) ?>,
+          resume: <?= json_encode(url('pos/resume')) ?>, expense: <?= json_encode(url('pos/expense')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?>, check: <?= json_encode(url('pos/check')) ?>,
           returnPin: <?= json_encode(url('pos/return-pin')) ?>, returnSearch: <?= json_encode(url('pos/return-search')) ?>, returnSale: <?= json_encode(url('pos/return-sale')) ?>, returnStore: <?= json_encode(url('pos/return')) ?> }
 };
 </script>

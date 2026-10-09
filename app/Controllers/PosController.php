@@ -41,8 +41,9 @@ final class PosController extends Controller
             'pageTitle' => 'Till', 'register' => $register, 'session' => $session, 'user' => Auth::user(), 'token' => Csrf::token(),
             'rate' => (new ExchangeRate())->current(), 'step' => Money::step(),
             'can' => ['wholesale' => Gate::allows('sale.wholesale'), 'discount' => Gate::allows('sale.discount'), 'belowCost' => (int) (Auth::user()['is_super'] ?? 0) === 1, 'override' => Gate::allows('sale.price_override'),
-                      'credit' => Gate::allows('sale.credit'), 'debt' => Gate::allows('debt.collect'), 'returns' => Gate::allows('return.create')],
+                      'credit' => Gate::allows('sale.credit'), 'debt' => Gate::allows('debt.collect'), 'returns' => Gate::allows('return.create'), 'expense' => Gate::allows('expense.manage')],
             'maxDiscount' => Settings::get('max_cashier_discount_pct', '0'),
+            'expenseCats' => array_values(array_filter((new \App\Models\Expense())->categories(), static fn (string $c): bool => $c !== \App\Services\ExpenseService::SUPPLIER_PAYMENT)),
         ], null);
     }
 
@@ -87,6 +88,29 @@ final class PosController extends Controller
                 'pending' => $pending['amount'], 'pending_note' => $debts->describe($pending),
             ];
         }, $rows)]);
+    }
+
+    /**
+     * An expense paid from this drawer at the till (owner, 2026-10-10): the electricity man paid by the cashier. Without
+     * expense.manage the administrator's PIN approves it. It lands in Expenses and on this session's Z like any drawer expense.
+     */
+    public function expense(): void
+    {
+        [, $session] = $this->requireSession();
+        $in = $this->jsonInput();
+        try {
+            $approver = Gate::allows('expense.manage') ? null : (new SaleService())->verifyPin(trim((string) ($in['pin'] ?? '')), ['expense from the drawer']);
+            $id = (new \App\Services\ExpenseService())->create(['kind' => 'expense', 'category' => (string) ($in['category'] ?? ''), 'description' => (string) ($in['description'] ?? ''),
+                'usd' => (string) ($in['usd'] ?? ''), 'lbp' => (string) ($in['lbp'] ?? ''), 'expense_date' => date('Y-m-d'), 'paid_from' => 'drawer'], Auth::id());
+        } catch (\DomainException $e) {
+            $this->json(['error' => $e->getMessage(), 'needs_pin' => str_starts_with($e->getMessage(), 'Needs an Admin PIN') || $e->getMessage() === 'Wrong PIN.'], 422);
+        }
+        if ($approver !== null) {
+            \App\Core\Audit::log('pin.override', 'expense', $id, ['approved_by' => $approver['username'], 'for' => ['expense from the drawer']]);
+        }
+        $usd = \App\Services\Pricing::parse((string) ($in['usd'] ?? ''), true) ?? '0.00';
+        $lbp = CashService::parseLbp((string) ($in['lbp'] ?? ''), true);
+        $this->json(['ok' => true, 'id' => $id, 'text' => implode(' + ', array_filter([(float) $usd > 0 ? usd($usd) : '', $lbp > 0 ? lbp($lbp) : ''])) . ' for ' . trim((string) ($in['category'] ?? ''))]);
     }
 
     /** Floating prices for the tills, polled every minute; the stamp changes with every price change. */

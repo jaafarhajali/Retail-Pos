@@ -126,6 +126,7 @@ return [
     ['GET',  'pos/held',         [PosController::class, 'held'],      'pos.use'],
     ['POST', 'pos/resume',       [PosController::class, 'resume'],    'pos.use'],
     ['POST', 'pos/debt',         [PosController::class, 'debt'],      'debt.collect'],
+    ['POST', 'pos/expense',      [PosController::class, 'expense'],   'pos.use'],   // from the drawer; the administrator's PIN without expense.manage (2026-10-10)
     // Returns in the till (2026-10-04): pos.use to open; without return.create every step needs the administrator's PIN
     ['POST', 'pos/return-pin',    [PosController::class, 'returnPin'],    'pos.use'],
     ['GET',  'pos/return-search', [PosController::class, 'returnSearch'], 'pos.use'],

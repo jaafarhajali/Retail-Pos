@@ -8,7 +8,7 @@
   var low = [], lowSig = '', lowTimer = null;
   var $ = function (id) { return document.getElementById(id); };
   var modals = {};
-  ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold', 'm-pin', 'm-return', 'm-unit'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
+  ['m-line', 'm-pay', 'm-done', 'm-customer', 'm-hold', 'm-pin', 'm-return', 'm-unit', 'm-expense'].forEach(function (id) { modals[id] = new bootstrap.Modal($(id)); });
 
   function money(n) { n = Math.round(n * 100) / 100; return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function lbp(n) { return Math.round(n).toLocaleString('en-US') + ' LBP'; }
@@ -585,6 +585,23 @@
     api(P.urls.hold, { name: $('hold-name').value, cart: cart }).then(function () { cart = []; selected = -1; clearPayment(); renderCart(); modals['m-hold'].hide(); msg('Cart held'); $('hold-name').value = ''; }).catch(function (e) { msg(e.error || 'Failed', true); });
   });
 
+  // ---- An expense from this drawer (2026-10-10): the cashier pays the electricity man and records it here with the
+  // administrator's PIN; a role with expense.manage needs no PIN. The server writes it like any expense paid from the drawer.
+  $('btn-expense').addEventListener('click', function (e) {
+    e.preventDefault();
+    ['exp-category', 'exp-desc', 'exp-usd', 'exp-lbp'].forEach(function (id) { $(id).value = ''; });
+    if ($('exp-pin')) $('exp-pin').value = '';
+    $('exp-error').textContent = ''; modals['m-expense'].show(); setTimeout(function () { $('exp-category').focus(); }, 300);
+  });
+  $('exp-lbp').addEventListener('input', function () { groupField(this); });
+  $('exp-ok').addEventListener('click', function () {
+    var btn = this; btn.disabled = true; $('exp-error').textContent = '';
+    api(P.urls.expense, { category: $('exp-category').value, description: $('exp-desc').value, usd: $('exp-usd').value, lbp: $('exp-lbp').value, pin: $('exp-pin') ? $('exp-pin').value.trim() : '' })
+      .then(function (j) { modals['m-expense'].hide(); msg('Expense recorded: ' + j.text); })
+      .catch(function (er) { $('exp-error').textContent = er.error || 'Could not record the expense'; })
+      .finally(function () { btn.disabled = false; });
+  });
+
   // ---- Returns in the till (2026-10-04): the administrator's PIN for a cashier, then find the sale by customer,
   // item or number, choose what comes back and give the money back in USD, LBP or both. The server checks it all again.
   var ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [] };
@@ -783,6 +800,7 @@
     var modal = pad.closest('.modal'), field = null, fresh = true;
     function fallback() {
       if (modal.id === 'm-return') return $('ret-pin-step').hidden ? $('ret-usd') : $('ret-pin');
+      if (modal.id === 'm-expense') return $('exp-usd');
       return modal.id === 'm-pin' ? $('pin-input') : (modal.id === 'm-pay' ? modal.querySelector('#pay-lines .pay-line:last-child input') : $('line-qty'));
     }
     modal.addEventListener('focusin', function (e) { if (e.target.matches('input[inputmode]')) { field = e.target; fresh = true; } });
