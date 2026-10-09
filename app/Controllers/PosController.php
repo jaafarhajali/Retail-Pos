@@ -247,14 +247,22 @@ final class PosController extends Controller
         $in = $this->jsonInput();
         try {
             $approver = $this->approveReturn((string) ($in['pin'] ?? ''));
+            $saleId = (int) ($in['sale_id'] ?? 0);
             $items = [];
             foreach (is_array($in['items'] ?? null) ? $in['items'] : [] as $it) {
                 if (is_array($it)) {
-                    $items[] = ['sale_item_id' => (int) ($it['sale_item_id'] ?? 0), 'qty' => (string) ($it['qty'] ?? ''), 'condition' => (string) ($it['condition'] ?? 'restock')];
+                    $items[] = $saleId > 0
+                        ? ['sale_item_id' => (int) ($it['sale_item_id'] ?? 0), 'qty' => (string) ($it['qty'] ?? ''), 'condition' => (string) ($it['condition'] ?? 'restock')]
+                        : ['product_id' => (int) ($it['product_id'] ?? 0), 'unit_id' => (int) ($it['unit_id'] ?? 0), 'qty' => (string) ($it['qty'] ?? ''),
+                           'price' => (string) ($it['price'] ?? ''), 'condition' => (string) ($it['condition'] ?? 'restock')];
                 }
             }
-            $r = (new \App\Services\ReturnService())->create((int) ($in['sale_id'] ?? 0), $items, 'MIX', (string) ($in['reason'] ?? ''), (int) $session['id'], (int) $register['id'],
-                Auth::id(), ($in['allow_short_drawer'] ?? false) === true, (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''));
+            $svc = new \App\Services\ReturnService();
+            $r = $saleId > 0
+                ? $svc->create($saleId, $items, 'MIX', (string) ($in['reason'] ?? ''), (int) $session['id'], (int) $register['id'],
+                    Auth::id(), ($in['allow_short_drawer'] ?? false) === true, (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''))
+                : $svc->createWithoutSale($items, (int) ($in['customer_id'] ?? 0) ?: null, (string) ($in['reason'] ?? ''), (int) $session['id'], (int) $register['id'],
+                    Auth::id(), ($in['allow_short_drawer'] ?? false) === true, (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''));
         } catch (\DomainException $e) {
             $this->json(['error' => $e->getMessage(), 'needs_pin' => str_starts_with($e->getMessage(), 'Needs an Admin PIN') || $e->getMessage() === 'Wrong PIN.',
                          'short_drawer' => $e->getCode() === CashService::SHORT_DRAWER], 422);

@@ -587,7 +587,7 @@
 
   // ---- Returns in the till (2026-10-04): the administrator's PIN for a cashier, then find the sale by customer,
   // item or number, choose what comes back and give the money back in USD, LBP or both. The server checks it all again.
-  var ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null };
+  var ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [] };
   function retStep(name) {
     ['pin', 'find', 'sale', 'done'].forEach(function (s) { $('ret-' + s + '-step').hidden = s !== name; });
     $('ret-pin-ok').hidden = name !== 'pin'; $('ret-ok').hidden = name !== 'sale';
@@ -616,7 +616,7 @@
   }
   $('btn-returns').addEventListener('click', function (e) {
     e.preventDefault();
-    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null };
+    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [] };
     $('ret-pin').value = ''; $('ret-pin-error').textContent = '';
     if (P.can.returns) {   // a role that may process returns: no PIN
       api(P.urls.returnPin, { pin: '' }).then(function () { retFind(); modals['m-return'].show(); }).catch(function (er) { msg(er.error || 'Failed', true); });
@@ -635,7 +635,8 @@
   });
   function retOpen(id) {
     api(P.urls.returnSale + '&id=' + id).then(function (j) {
-      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
+      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; ret.mode = 'sale'; ret.free = []; $('ret-ok').textContent = 'Record return';
+      retMode('sale');
       $('ret-inv').textContent = j.sale.invoice_no; $('ret-meta').textContent = '· ' + j.sale.date + ' · ' + (j.sale.customer || 'Walk-in') + ' · ' + money(j.sale.total);
       var body = $('ret-lines'); body.innerHTML = '';
       j.lines.forEach(function (l, i) {
@@ -656,21 +657,90 @@
     }).catch(function (er) { if (er.needs_pin) { retStep('pin'); } msg(er.error || 'Failed', true); });
   }
   $('ret-back').addEventListener('click', retFind);
+  function retMode(mode) {
+    $('ret-sale-head').hidden = mode !== 'sale'; $('ret-free-head').hidden = mode !== 'free'; $('ret-free-find').hidden = mode !== 'free';
+    $('ret-back').textContent = mode === 'free' ? 'Find the sale instead' : 'Another sale';
+  }
+  // ---- Return without an invoice (owner, 2026-10-09): the customer has it, the shop cannot find it. The cashier picks
+  // the items; each is refunded at today's retail price of its unit, or at a lower price typed by hand, never more.
+  // The till's customer, if one is chosen, gets the refund off their debt first, like any return.
+  $('ret-free').addEventListener('click', function () {
+    ret.mode = 'free'; ret.sale = null; ret.lines = []; ret.free = []; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
+    $('ret-inv').textContent = 'No invoice'; $('ret-meta').textContent = '· returned by item · ' + (customer ? customer.name : 'Walk-in');
+    retMode('free'); $('ret-lines').innerHTML = ''; $('ret-free-q').value = ''; $('ret-free-results').innerHTML = '';
+    $('ret-reason').value = ''; $('ret-error').textContent = '';
+    retRefill(); retStep('sale'); setTimeout(function () { $('ret-free-q').focus(); }, 300);
+  });
+  function retFreeSearch(q) {
+    var list = $('ret-free-results'); list.innerHTML = ''; q = q.trim().toLowerCase(); if (!q) return [];
+    var hits = data.products.filter(function (p) { return p.name.toLowerCase().indexOf(q) >= 0 || p.code.toLowerCase().indexOf(q) >= 0; }).slice(0, 8);
+    hits.forEach(function (p) {
+      var a = document.createElement('button'); a.type = 'button'; a.className = 'list-group-item list-group-item-action';
+      a.innerHTML = '<span class="li-main"><b dir="auto"></b><small></small></span><span class="li-meta"></span>';
+      var priced = p.units.filter(function (u) { return u.retail !== null; });
+      a.querySelector('b').textContent = p.name; a.querySelector('small').textContent = p.code;
+      a.querySelector('.li-meta').textContent = priced.map(function (u) { return money(parseFloat(u.retail)) + ' / ' + u.name; }).join(' · ');
+      a.addEventListener('click', function () { retFreeAdd(p, null); });
+      list.appendChild(a);
+    });
+    if (!hits.length) list.innerHTML = '<div class="empty">No item matches “' + q.replace(/[<>&]/g, '') + '”.</div>';
+    return hits;
+  }
+  $('ret-free-q').addEventListener('input', function () { retFreeSearch(this.value); });
+  $('ret-free-q').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return; e.preventDefault();
+    var code = this.value.trim(), hit = data.barcodes[code];
+    if (hit) { retFreeAdd(product(hit.p), hit.u); return; }
+    var hits = retFreeSearch(code); if (hits.length === 1) retFreeAdd(hits[0], null);
+  });
+  function retFreeAdd(p, unitId) {
+    var priced = p.units.filter(function (u) { return u.retail !== null; });
+    if (!priced.length) { $('ret-error').textContent = p.name + ' has no retail price, so it cannot be refunded without its invoice.'; return; }
+    var u = priced.find(function (x) { return x.id === unitId; }) || priced.find(function (x) { return x.default; }) || priced[0];
+    ret.free.push({ p: p.id, u: u.id, qty: 1, price: parseFloat(u.retail), condition: 'restock' });
+    $('ret-free-q').value = ''; $('ret-free-results').innerHTML = ''; $('ret-error').textContent = '';
+    retFreeRender(); retRefill(); $('ret-free-q').focus();
+  }
+  function retFreeRender() {
+    var body = $('ret-lines'); body.innerHTML = '';
+    ret.free.forEach(function (l, i) {
+      var p = product(l.p), tr = document.createElement('tr');
+      tr.innerHTML = '<td dir="auto"></td><td><select class="form-select form-select-sm" aria-label="Unit"></select></td>' +
+        '<td><input class="form-control form-control-sm" inputmode="decimal" aria-label="Quantity"></td><td><input class="form-control form-control-sm" inputmode="decimal" aria-label="Price in USD"></td>' +
+        '<td><select class="form-select form-select-sm" aria-label="Condition"><option value="restock">Back to stock</option><option value="waste">Damaged (waste)</option></select></td>' +
+        '<td><button type="button" class="line-del" aria-label="Remove this line" title="Remove"><i class="bi bi-trash3"></i></button></td>';
+      tr.children[0].textContent = p.name;
+      var unitSel = tr.children[1].firstChild, qty = tr.children[2].firstChild, price = tr.children[3].firstChild, cond = tr.children[4].firstChild;
+      p.units.filter(function (u) { return u.retail !== null; }).forEach(function (u) { var o = document.createElement('option'); o.value = u.id; o.textContent = u.name + ' · ' + money(parseFloat(u.retail)); unitSel.appendChild(o); });
+      unitSel.value = l.u; qty.value = l.qty; price.value = l.price.toFixed(2); cond.value = l.condition;
+      unitSel.addEventListener('change', function () { l.u = parseInt(this.value, 10); l.price = parseFloat(p.units.find(function (x) { return x.id === l.u; }).retail); price.value = l.price.toFixed(2); retRefill(); });
+      qty.addEventListener('input', function () { l.qty = num(this.value); retRefill(); });
+      price.addEventListener('input', function () { l.price = num(this.value); retRefill(); });
+      cond.addEventListener('change', function () { l.condition = this.value; });
+      tr.querySelector('.line-del').addEventListener('click', function () { ret.free.splice(i, 1); retFreeRender(); retRefill(); });
+      body.appendChild(tr);
+    });
+  }
   /** The quantities changed: recompute, and offer the whole cash part in USD (the cashier can split it into LBP). */
   function retRefill() { retTotals(); $('ret-usd').value = ret.cash > 0 ? ret.cash.toFixed(2) : ''; $('ret-lbp').value = ''; }
   function retTotals() {
     var total = 0;
-    $('ret-lines').querySelectorAll('input').forEach(function (q) {
-      var l = ret.lines[+q.dataset.i], base = Math.round(num(q.value) * l.factor);
-      if (base > 0 && l.base_qty > 0) total += Math.round(parseFloat(l.paid) * base / l.base_qty * 100) / 100;
-    });
-    var debt = Math.min(parseFloat(ret.sale.owed) || 0, total);
+    if (ret.mode === 'free') {
+      ret.free.forEach(function (l) { if (l.qty > 0 && l.price > 0) total += Math.round(l.qty * l.price * 100) / 100; });
+    } else {
+      $('ret-lines').querySelectorAll('input').forEach(function (q) {
+        var l = ret.lines[+q.dataset.i], base = Math.round(num(q.value) * l.factor);
+        if (base > 0 && l.base_qty > 0) total += Math.round(parseFloat(l.paid) * base / l.base_qty * 100) / 100;
+      });
+    }
+    var owed = ret.mode === 'free' ? (customer ? parseFloat(customer.balance) : 0) : parseFloat(ret.sale.owed);
+    var debt = Math.min(owed || 0, total);
     ret.cash = Math.round((total - debt) * 100) / 100; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
     // all of it comes off the debt: no cash leaves the drawer, so the two amounts are locked
     var none = total > 0 && ret.cash <= 0;
     $('ret-usd').disabled = $('ret-lbp').disabled = none;
     if (none) { $('ret-usd').value = ''; $('ret-lbp').value = ''; }
-    $('ret-sum').textContent = !total ? 'Type how many items come back.'
+    $('ret-sum').textContent = !total ? (ret.mode === 'free' ? 'Scan or type the items that come back.' : 'Type how many items come back.')
       : 'Refund ' + money(total) + (none ? ' · nothing to give back in cash: the ' + money(debt) + ' comes off the customer\'s debt'
         : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(ret.cash));
   }
@@ -681,15 +751,20 @@
   });
   $('ret-ok').addEventListener('click', function () {
     var btn = this, items = [];
-    $('ret-lines').querySelectorAll('tr').forEach(function (tr) {
-      var q = tr.querySelector('input'); if (!q.disabled && num(q.value) > 0) items.push({ sale_item_id: ret.lines[+q.dataset.i].id, qty: q.value, condition: tr.querySelector('select').value });
-    });
-    if (!items.length) { $('ret-error').textContent = 'Type how many of an item come back.'; return; }
+    if (ret.mode === 'free') {
+      ret.free.forEach(function (l) { if (l.qty > 0) items.push({ product_id: l.p, unit_id: l.u, qty: String(l.qty), price: l.price.toFixed(2), condition: l.condition }); });
+      if (!items.length) { $('ret-error').textContent = 'Scan or type the items that come back.'; return; }
+    } else {
+      $('ret-lines').querySelectorAll('tr').forEach(function (tr) {
+        var q = tr.querySelector('input'); if (!q.disabled && num(q.value) > 0) items.push({ sale_item_id: ret.lines[+q.dataset.i].id, qty: q.value, condition: tr.querySelector('select').value });
+      });
+      if (!items.length) { $('ret-error').textContent = 'Type how many of an item come back.'; return; }
+    }
     btn.disabled = true;
-    api(P.urls.returnStore, { sale_id: ret.sale.id, items: items, usd: $('ret-usd').value, lbp: $('ret-lbp').value, reason: $('ret-reason').value, pin: ret.pin, allow_short_drawer: ret.allowShort })
+    api(P.urls.returnStore, { sale_id: ret.sale ? ret.sale.id : 0, customer_id: ret.mode === 'free' && customer ? customer.id : null, items: items, usd: $('ret-usd').value, lbp: $('ret-lbp').value, reason: $('ret-reason').value, pin: ret.pin, allow_short_drawer: ret.allowShort })
       .then(function (j) {
         var parts = j.cash_parts.map(function (p) { return p.currency === 'USD' ? money(p.amount) : lbp(p.amount); });
-        $('ret-done-no').textContent = j.return_no + ' · ' + ret.sale.invoice_no;
+        $('ret-done-no').textContent = j.return_no + ' · ' + (ret.sale ? ret.sale.invoice_no : 'no invoice');
         $('ret-done-money').textContent = parts.length ? parts.join('\n+ ') : 'Nothing in cash';
         $('ret-done-debt').textContent = parseFloat(j.debt_reduction) > 0 ? 'Debt reduced by ' + money(j.debt_reduction) : '';
         $('ret-print').href = j.receipt + '&auto=1';

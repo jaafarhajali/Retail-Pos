@@ -202,13 +202,19 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
     <div id="ret-find-step" hidden>
       <label class="form-label" for="ret-q">Find the sale</label>
       <input class="form-control" id="ret-q" dir="auto" autocomplete="off" placeholder="Customer name, item, phone or invoice number">
+      <div class="ret-noinv"><button type="button" class="btn btn-link btn-sm" id="ret-free"><i class="bi bi-receipt-cutoff"></i> Can't find the sale? Return without an invoice</button></div>
       <div class="list-group ret-results" id="ret-results"></div>
     </div>
     <div id="ret-sale-step" class="pos-split" hidden>
       <div>
       <div class="ret-head"><b id="ret-inv"></b> <span id="ret-meta" dir="auto"></span> <button type="button" class="btn btn-link btn-sm" id="ret-back">Another sale</button></div>
+      <div id="ret-free-find" hidden>
+        <input class="form-control" id="ret-free-q" dir="auto" autocomplete="off" placeholder="Scan or type the item that comes back">
+        <div class="list-group ret-results ret-free-results" id="ret-free-results"></div>
+      </div>
       <div class="table-responsive"><table class="table ret-table">
-        <thead><tr><th>Item</th><th class="text-end">Sold</th><th class="text-end">Can return</th><th class="text-end">Paid</th><th style="width:9rem">Return</th><th style="width:14rem">Condition</th></tr></thead>
+        <thead id="ret-sale-head"><tr><th>Item</th><th class="text-end">Sold</th><th class="text-end">Can return</th><th class="text-end">Paid</th><th style="width:9rem">Return</th><th style="width:14rem">Condition</th></tr></thead>
+        <thead id="ret-free-head" hidden><tr><th>Item</th><th style="width:12rem">Unit</th><th style="width:7rem">Qty</th><th style="width:8rem">Price (USD)</th><th style="width:12rem">Condition</th><th style="width:3rem"></th></tr></thead>
         <tbody id="ret-lines"></tbody>
       </table></div>
       <div class="ret-sum" id="ret-sum">Type how many items come back.</div>

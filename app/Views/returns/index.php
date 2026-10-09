@@ -62,7 +62,7 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
 <div class="card"><div class="card-header">Recent returns</div><div class="table-responsive"><table class="table table-hover table-sm align-middle">
   <thead><tr><th>No</th><th>Invoice</th><th>When</th><th>By</th><th>Customer</th><th class="text-end">Refund</th><th></th></tr></thead>
   <tbody><?php foreach ($recent as $r): ?>
-    <tr><td><code><?= e($r['return_no']) ?></code></td><td class="text-nowrap"><?= e($r['invoice_no']) ?></td><td class="text-nowrap"><?= e(date('d/m/Y H:i', strtotime($r['created_at']))) ?></td><td><?= e($r['username']) ?></td>
+    <tr><td><code><?= e($r['return_no']) ?></code></td><td class="text-nowrap"><?= $r['invoice_no'] === null ? '<span class="text-muted">no invoice</span>' : e($r['invoice_no']) ?></td><td class="text-nowrap"><?= e(date('d/m/Y H:i', strtotime($r['created_at']))) ?></td><td><?= e($r['username']) ?></td>
       <td dir="auto" class="<?= $r['customer_name'] === null ? 'is-walkin' : '' ?>"><?= e($r['customer_name'] ?? 'Walk-in') ?></td>
       <td class="text-end"><?= usd($r['total_usd']) ?></td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= url('returns/view', ['id' => $r['id']]) ?>">Open</a></td></tr>
   <?php endforeach; ?>

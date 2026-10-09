@@ -891,6 +891,11 @@ body > .error-wrap .blocked { width: 100%; }
 /* Till: the return pop-up */
 #m-return .ret-results { margin-top: .6rem; max-height: 46vh; overflow-y: auto; }
 #m-return .ret-head { margin-bottom: .6rem; color: var(--t-ink-2); }
+#m-return .ret-noinv { margin-top: .5rem; }
+#m-return .ret-free-results { max-height: 26vh; margin-bottom: .6rem; }
+#m-return .ret-free-results:empty { display: none; }
+#m-return .ret-table .line-del { width: 2.2rem; height: 2.2rem; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--t-ink-2); }
+#m-return .ret-table .line-del:hover { color: var(--red); background: rgba(179, 38, 30, .12); }
 #m-return .ret-head b { color: var(--t-ink); font-size: 1.1rem; }
 .pos-modal .btn-link { --bs-btn-color: var(--t-accent); --bs-btn-hover-color: var(--t-accent-hover); --bs-btn-active-color: var(--t-accent-active); text-decoration: underline; text-underline-offset: .15em; }   /* readable on the dark dialog too */
 #m-return .ret-table { --bs-table-bg: transparent; --bs-table-color: var(--t-ink); font-variant-numeric: tabular-nums; }

@@ -5,10 +5,10 @@ namespace App\Models;
 
 use App\Core\Model;
 
-/** Returns linked to an invoice (spec §3.8, §9). */
+/** Returns linked to an invoice, or recorded without one (spec §3.8, §9; 2026-10-09). */
 final class SaleReturn extends Model
 {
-    private const SELECT = 'SELECT r.*, s.invoice_no, u.username, c.name AS customer_name FROM returns r JOIN sales s ON s.id = r.sale_id
+    private const SELECT = 'SELECT r.*, s.invoice_no, u.username, c.name AS customer_name FROM returns r LEFT JOIN sales s ON s.id = r.sale_id
                             JOIN users u ON u.id = r.user_id LEFT JOIN customers c ON c.id = r.customer_id';
 
     public function find(int $id): ?array
@@ -29,7 +29,9 @@ final class SaleReturn extends Model
     public function items(int $returnId): array
     {
         return $this->fetchAll(
-            'SELECT ri.*, si.product_name, si.unit_name, si.product_id FROM return_items ri JOIN sale_items si ON si.id = ri.sale_item_id WHERE ri.return_id = :r ORDER BY ri.id',
+            'SELECT ri.*, COALESCE(ri.product_name, si.product_name) AS product_name, COALESCE(ri.unit_name, si.unit_name) AS unit_name,
+                    COALESCE(ri.product_id, si.product_id) AS product_id
+             FROM return_items ri LEFT JOIN sale_items si ON si.id = ri.sale_item_id WHERE ri.return_id = :r ORDER BY ri.id',
             ['r' => $returnId]
         );
     }
@@ -56,8 +58,10 @@ final class SaleReturn extends Model
     public function addItem(int $returnId, array $l): int
     {
         $this->execute(
-            'INSERT INTO return_items (return_id, sale_item_id, qty, base_qty, item_condition, refund_usd, cost_usd) VALUES (:r, :si, :q, :b, :c, :ref, :cost)',
-            ['r' => $returnId, 'si' => $l['sale_item_id'], 'q' => $l['qty'], 'b' => $l['base_qty'], 'c' => $l['item_condition'], 'ref' => $l['refund_usd'], 'cost' => $l['cost_usd']]
+            'INSERT INTO return_items (return_id, sale_item_id, product_id, product_unit_id, product_name, unit_name, unit_price_usd, qty, base_qty, item_condition, refund_usd, cost_usd)
+             VALUES (:r, :si, :p, :pu, :pn, :un, :up, :q, :b, :c, :ref, :cost)',
+            ['r' => $returnId, 'si' => $l['sale_item_id'], 'p' => $l['product_id'], 'pu' => $l['product_unit_id'] ?? null, 'pn' => $l['product_name'], 'un' => $l['unit_name'] ?? null,
+             'up' => $l['unit_price_usd'] ?? null, 'q' => $l['qty'], 'b' => $l['base_qty'], 'c' => $l['item_condition'], 'ref' => $l['refund_usd'], 'cost' => $l['cost_usd']]
         );
 
         return $this->lastId();

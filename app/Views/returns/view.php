@@ -3,7 +3,7 @@
   <div class="col-lg-4"><div class="card"><div class="card-body">
     <dl class="kv">
       <dt>Return</dt><dd><code><?= e($r['return_no']) ?></code></dd>
-      <dt>Invoice</dt><dd><a href="<?= url('sales/view', ['id' => $r['sale_id']]) ?>"><?= e($r['invoice_no']) ?></a></dd>
+      <dt>Invoice</dt><dd><?= $r['sale_id'] === null ? '<span class="text-muted">none: returned by item</span>' : '<a href="' . url('sales/view', ['id' => $r['sale_id']]) . '">' . e($r['invoice_no']) . '</a>' ?></dd>
       <dt>When</dt><dd><?= e(date('d/m/Y H:i', strtotime($r['created_at']))) ?> · <?= e($r['username']) ?></dd>
       <dt>Customer</dt><dd dir="auto"><?= e($r['customer_name'] ?? 'Walk-in') ?></dd>
       <dt>Rate</dt><dd>1 USD = <?= number_format((int) $r['exchange_rate']) ?> LBP</dd>

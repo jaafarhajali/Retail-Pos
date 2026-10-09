@@ -440,6 +440,9 @@ A session's Z report always contains exactly the transactions linked to that
 - **Paying a supplier** is an expense with `supplier_id`. It creates a supplier
   ledger payment (−). It is always paid from outside (owner, bank), never from
   the drawer, so it creates no cash movement (owner's decision, 2026-10-09).
+- **Returns without an invoice** (2026-10-09): `returns.sale_id` is NULL and each
+  `return_items` row carries product, unit and the price refunded (today's retail
+  price at most). Stock, cash and debt behave exactly as for a return with an invoice.
 - **Expenses** paid from the drawer create a cash movement; expenses paid
   "outside" (owner's pocket, bank) do not.
 - Version 1 keeps suppliers simple: records, purchases, purchase history,

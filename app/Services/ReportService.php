@@ -89,7 +89,7 @@ final class ReportService
 
     public function returns(string $from, string $to): array
     {
-        return $this->rows("SELECT r.*, s.invoice_no, u.username, c.name AS customer_name FROM returns r JOIN sales s ON s.id = r.sale_id JOIN users u ON u.id = r.user_id
+        return $this->rows("SELECT r.*, s.invoice_no, u.username, c.name AS customer_name FROM returns r LEFT JOIN sales s ON s.id = r.sale_id JOIN users u ON u.id = r.user_id
                             LEFT JOIN customers c ON c.id = r.customer_id WHERE r.created_at BETWEEN :f AND :t ORDER BY r.id DESC", $this->range($from, $to));
     }
 
