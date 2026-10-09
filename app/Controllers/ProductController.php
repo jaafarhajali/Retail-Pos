@@ -317,6 +317,7 @@ final class ProductController extends Controller
             'target_margin_pct'    => $this->input('target_margin_pct'),
             'show_on_pos_grid'     => isset($_POST['show_on_pos_grid']),
             'allow_price_override' => isset($_POST['allow_price_override']),
+            'price_floats'         => isset($_POST['price_floats']),
         ];
     }
 

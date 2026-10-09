@@ -71,6 +71,28 @@ return [
         assert_same(403, login_as('cashier1', 'password123')->get('prices')->status);
     },
 
+    'the product page saves the Price floats tick box, and the product then shows on Today\'s prices' => function (): void {
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $client->get('products/create');
+        $form = ['product_id' => '0', 'then' => 'stay', 'name' => 'Mazaya', 'category_id' => '', 'base_unit' => 'g', 'internal_code' => '', 'description' => '',
+            'target_margin_pct' => '', 'show_on_pos_grid' => '1', 'price_floats' => '1', 'main_unit' => 'n1',
+            'units[n1][id]' => '0', 'units[n1][type]' => 'Pack', 'units[n1][size]' => '250', 'units[n1][size_unit]' => 'g', 'units[n1][retail]' => '7', 'units[n1][wholesale]' => '', 'units[n1][barcodes]' => '',
+            'cost' => '', 'cost_unit' => 'n1', 'min_qty' => '', 'min_unit' => 'n1', 'opening_qty' => '', 'opening_unit' => 'n1'];
+        assert_same(302, $client->post('products/save', $form)->status);
+        $id = (int) Database::pdo()->query("SELECT id FROM products WHERE name = 'Mazaya'")->fetchColumn();
+        assert_same(1, (int) Database::pdo()->query("SELECT price_floats FROM products WHERE id = {$id}")->fetchColumn());
+        assert_contains('Mazaya', $client->get('prices')->body);
+        assert_contains('id="price_floats" name="price_floats" value="1" checked', $client->get('products/edit', ['id' => $id])->body);
+        // untick: it leaves the page
+        unset($form['price_floats']);
+        $form['product_id'] = (string) $id;
+        $unit = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id}")->fetchColumn();
+        $form['units[n1][id]'] = (string) $unit;
+        assert_same(302, $client->post('products/save', $form)->status);
+        assert_same(0, (int) Database::pdo()->query("SELECT price_floats FROM products WHERE id = {$id}")->fetchColumn());
+        assert_not_contains('name="retail[' . $unit . ']"', $client->get('prices')->body, 'no longer in the price table (its history stays)');
+    },
+
     'a return refunds the lower of what was paid and today\'s price: $32 paid, today $35 → $32; today $30 → $30' => function () use ($setup, $sale, $price): void {
         $s = $setup();
         $r = $sale($s, [['product_id' => $s['tobacco'], 'unit_id' => $s['box'], 'qty' => '2']], [['method' => 'cash', 'currency' => 'USD', 'amount' => '64']]);
