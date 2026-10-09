@@ -26,12 +26,13 @@
     </div></div>
     <?php if ($customer !== null): ?>
       <div class="card mt-3"><div class="card-body">
-        <?php $owes = (float) $customer['balance_usd']; ?>
+        <?php $pending = (new \App\Services\DebtService())->pending((int) $customer['id']); $owes = (float) $customer['balance_usd'] + (float) $pending['amount']; ?>
         <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 mb-3">
           <div><div class="balance-label"><?= $owes >= 0 ? 'Owes the shop' : 'The shop owes them' ?></div>
             <div class="balance-value <?= $owes > 0 ? 'is-debt' : '' ?>"><?= usd(abs($owes)) ?></div></div>
           <?php if ($customer['credit_limit_usd'] !== null): ?><div class="text-muted small">Credit limit <?= usd($customer['credit_limit_usd']) ?></div><?php endif; ?>
         </div>
+        <?php if ((float) $pending['amount'] > 0): ?><p class="form-text">Includes <strong>+<?= usd($pending['amount']) ?></strong> price of the day, charged when they pay: <?= e((new \App\Services\DebtService())->describe($pending)) ?></p><?php endif; ?>
         <h2 class="h6">Adjust the balance</h2>
         <form method="post" action="<?= url('customers/adjust') ?>" class="row g-2 align-items-end">
           <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $customer['id'] ?>">

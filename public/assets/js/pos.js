@@ -390,7 +390,7 @@
   function setCustomer(c) {
     customer = c; $('customer-name').textContent = c ? c.name : 'Walk-in';
     if (c && c.level !== level) { level = c.level; $('btn-level').textContent = level.charAt(0).toUpperCase() + level.slice(1); $('btn-level').classList.toggle('is-wholesale', level === 'wholesale'); renderGrid(); renderCart(); }
-    var box = $('debt-box'); if (box) { box.hidden = !(c && parseFloat(c.balance) > 0); if (c) { $('debt-name').textContent = c.name; $('debt-owes').textContent = money(c.balance); } $('debt-usd').value = ''; $('debt-lbp').value = ''; debtText(); }
+    var box = $('debt-box'); if (box) { box.hidden = !(c && parseFloat(c.balance) > 0); if (c) { $('debt-name').textContent = c.name; $('debt-owes').textContent = money(c.balance); $('debt-note').hidden = !(parseFloat(c.pending) > 0); $('debt-note').textContent = parseFloat(c.pending) > 0 ? 'Includes +' + money(c.pending) + ' price of the day: ' + c.pending_note : ''; } $('debt-usd').value = ''; $('debt-lbp').value = ''; debtText(); }
     if (!c || !(parseFloat(c.balance) > 0)) modals['m-customer'].hide();
   }
   $('cust-clear').addEventListener('click', function () { setCustomer(null); });
@@ -421,7 +421,7 @@
     api(P.urls.debt, { customer_id: customer.id, usd: $('debt-usd').value, lbp: $('debt-lbp').value, change_currency: $('debt-change-cur').value, allow_short_drawer: debtAllowShort }).then(function (j) {
       var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
       msg('Collected ' + money(j.usd) + '.' + (ch.length ? ' Give back ' + ch.join(' + ') + '.' : '') + ' Balance now ' + money(j.balance));
-      customer.balance = j.balance; $('debt-usd').value = ''; $('debt-lbp').value = ''; debtText(); setCustomer(customer);
+      customer.balance = j.balance; customer.pending = '0'; customer.pending_note = ''; $('debt-usd').value = ''; $('debt-lbp').value = ''; debtText(); setCustomer(customer);
       searchCustomers($('cust-q').value);   // the list shows the new balance at once (U12)
     }).catch(function (e) {
       if (e.short_drawer) { var el = $('debt-result'); el.className = 'debt-result is-due'; el.textContent = e.error; debtAllowShort = true; $('debt-ok').textContent = 'Continue: I add the money myself'; }
@@ -645,7 +645,7 @@
           '<td><input class="form-control form-control-sm" inputmode="decimal" aria-label="Quantity to return"></td>' +
           '<td><select class="form-select form-select-sm" aria-label="Condition"><option value="restock">Back to stock</option><option value="waste">Damaged (waste)</option></select></td>';
         tr.children[0].textContent = l.name; tr.children[1].textContent = l.sold + ' ' + l.unit; tr.children[2].textContent = l.left_base ? l.left + ' ' + l.unit : 'fully returned';
-        tr.children[3].textContent = money(l.paid);
+        tr.children[3].textContent = money(l.paid) + (l.capped ? ' → ' + money(l.refund_left) + ' today' : '');
         // Every box starts at everything that can still come back (owner, 2026-10-09); the cashier lowers it for a partial return.
         var q = tr.querySelector('input'); q.placeholder = l.left_base ? 'max ' + l.left : '—'; q.disabled = !l.left_base; q.dataset.i = i;
         q.value = l.left_base ? String(l.left) : '';
@@ -730,7 +730,7 @@
     } else {
       $('ret-lines').querySelectorAll('input').forEach(function (q) {
         var l = ret.lines[+q.dataset.i], base = Math.round(num(q.value) * l.factor);
-        if (base > 0 && l.base_qty > 0) total += Math.round(parseFloat(l.paid) * base / l.base_qty * 100) / 100;
+        if (base > 0 && l.left_base > 0) total += Math.round(parseFloat(l.refund_left) * base / l.left_base * 100) / 100;   // the server's rule: paid, or today's price when lower
       });
     }
     var owed = ret.mode === 'free' ? (customer ? parseFloat(customer.balance) : 0) : parseFloat(ret.sale.owed);
@@ -831,4 +831,20 @@
     });
   }
   loadData().catch(function () { msg('Could not load the catalog', true); });
+
+  // Floating prices (2026-10-09): the till asks every minute whether "Today's prices" changed and follows at once,
+  // on the grid and on the lines already in the cart (the server sells at the list price of the moment anyway).
+  var priceStamp = null;
+  function pollPrices() {
+    if (!data) return;
+    api(P.urls.prices).then(function (j) {
+      if (priceStamp !== null && j.stamp !== priceStamp) {
+        var byId = {}; j.units.forEach(function (u) { byId[u.id] = u; });
+        data.products.forEach(function (p) { p.units.forEach(function (u) { var n = byId[u.id]; if (n) { u.retail = n.retail; u.wholesale = n.wholesale; } }); });
+        renderGrid(); renderCart(); msg('Prices updated');
+      }
+      priceStamp = j.stamp;
+    }).catch(function () {});
+  }
+  setTimeout(pollPrices, 3000); setInterval(pollPrices, 60000);
 })();

@@ -51,12 +51,13 @@ final class ReturnService
                 throw new \DomainException("Only " . Quantity::unitQty($left, (int) $sold['factor']) . " {$sold['unit_name']} of {$sold['product_name']} can still be returned.");
             }
             $condition = ($it['condition'] ?? 'restock') === 'waste' ? 'waste' : 'restock';
-            $refund = Money::fmt((float) $sold['line_total_usd'] * $base / (int) $sold['base_qty']);   // discount-adjusted
+            $refund = $this->refundFor($sale, $sold, $base);
             $cost = Money::fmt($base * (float) $sold['cost_per_base']);
             $total += (float) $refund;
             $lines[] = ['sale_item_id' => (int) $sold['id'], 'qty' => $qty, 'base_qty' => $base, 'item_condition' => $condition, 'refund_usd' => $refund,
                         'cost_usd' => $cost, 'product_id' => (int) $sold['product_id'], 'cost_per_base' => $sold['cost_per_base'], 'product_name' => $sold['product_name'],
-                        'product_unit_id' => (int) $sold['product_unit_id'], 'unit_name' => $sold['unit_name'], 'unit_price_usd' => $sold['unit_price_usd']];
+                        'product_unit_id' => (int) $sold['product_unit_id'], 'unit_name' => $sold['unit_name'],
+                        'unit_price_usd' => (float) $qty > 0 ? Money::fmt((float) $refund / (float) $qty) : $sold['unit_price_usd']];
         }
         if ($lines === []) {
             throw new \DomainException('Choose at least one item to return.');
@@ -121,6 +122,31 @@ final class ReturnService
         }
 
         return $this->write(null, $customer === null ? null : (int) $customer['id'], $lines, Money::fmt($total), 'MIX', $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart);
+    }
+
+    /**
+     * What $base of a sold line is refunded: its share of what was paid (discounts included). For a floating-price product
+     * (owner, 2026-10-09) it is the lower of that and today's price: bought at $32, today $35 → $32; bought at $35, today $32 → $32.
+     */
+    public function refundFor(array $sale, array $sold, int $base): string
+    {
+        if ($base <= 0 || (int) $sold['base_qty'] <= 0) {
+            return '0.00';
+        }
+        $refund = Money::fmt((float) $sold['line_total_usd'] * $base / (int) $sold['base_qty']);
+        $product = (new Product())->find((int) $sold['product_id']);
+        if ($product !== null && (int) $product['price_floats'] === 1) {
+            $unit = (new ProductUnit())->find((int) $sold['product_unit_id']);
+            $today = $unit === null ? null : (($sale['price_level'] ?? 'retail') === 'wholesale' ? $unit['wholesale_price'] : $unit['retail_price']);
+            if ($today !== null && (float) $today > 0) {
+                $atToday = Money::fmt((float) $today * $base / (int) $unit['factor']);
+                if (Money::cmp($atToday, $refund) < 0) {
+                    $refund = $atToday;
+                }
+            }
+        }
+
+        return $refund;
     }
 
     private function requireOpenSession(int $sessionId): void

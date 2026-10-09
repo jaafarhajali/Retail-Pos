@@ -71,12 +71,14 @@ final class ReportService
         ];
         $waste = (new StockMovement())->wasteCost($from, $to);
         $expenses = (new Expense())->totalUsd($from, $to);
-        $net = (float) $s['gross'] - (float) $r['refunds'] + (float) $s['rounding'];
+        // Debts re-priced at the price of the day (2026-10-09) are revenue on top of the invoices.
+        $repriced = $this->rows("SELECT COALESCE(SUM(amount_usd), 0) AS a FROM customer_ledger WHERE type = 'price_adjustment' AND created_at BETWEEN :f AND :t", $p)[0]['a'];
+        $net = (float) $s['gross'] - (float) $r['refunds'] + (float) $s['rounding'] + (float) $repriced;
         $cogs = (float) $s['cogs'] - (float) $r['cost'];
         $grossProfit = $net - $cogs - (float) $waste;
 
         return [
-            'invoices' => (int) $s['invoices'], 'gross_sales' => Money::fmt($s['gross']), 'returns' => Money::fmt($r['refunds']), 'rounding' => Money::fmt($s['rounding']),
+            'invoices' => (int) $s['invoices'], 'gross_sales' => Money::fmt($s['gross']), 'returns' => Money::fmt($r['refunds']), 'rounding' => Money::fmt($s['rounding']), 'repriced' => Money::fmt($repriced),
             'net_sales' => Money::fmt($net), 'cogs' => Money::fmt($cogs), 'waste' => $waste, 'gross_profit' => Money::fmt($grossProfit),
             'expenses' => $expenses, 'net_profit' => Money::fmt($grossProfit - (float) $expenses),
         ];
@@ -84,7 +86,11 @@ final class ReportService
 
     public function credit(): array
     {
-        return (new Customer())->debtors();
+        $debts = new \App\Services\DebtService();
+        return array_map(static function (array $c) use ($debts): array {
+            $c['pending_usd'] = $debts->pending((int) $c['id'])['amount'];
+            return $c;
+        }, (new Customer())->debtors());
     }
 
     public function returns(string $from, string $to): array

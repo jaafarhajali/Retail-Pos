@@ -482,6 +482,11 @@ final class ProductService
         }
         if ($changes !== []) {
             Audit::log('product.price_changed', 'product', (int) $unit['product_id'], ['unit' => $unit['name']] + $changes);
+            // Floating prices (2026-10-09): the history drives "Today's prices" and tells the tills something changed.
+            if ((int) ($this->products->find((int) $unit['product_id'])['price_floats'] ?? 0) === 1) {
+                Database::pdo()->prepare('INSERT INTO price_changes (product_unit_id, retail_old, retail_new, wholesale_old, wholesale_new, user_id) VALUES (:u, :ro, :rn, :wo, :wn, :by)')
+                    ->execute(['u' => $unitId, 'ro' => $unit['retail_price'], 'rn' => $newRetail, 'wo' => $unit['wholesale_price'], 'wn' => $newWholesale, 'by' => \App\Core\Auth::id()]);
+            }
         }
     }
 
@@ -640,6 +645,7 @@ final class ProductService
             'internal_code'        => $code,
             'base_unit'            => $baseUnit,
             'allow_price_override' => (bool) ($in['allow_price_override'] ?? false),
+            'price_floats'         => (bool) ($in['price_floats'] ?? false),
             'show_on_pos_grid'     => (bool) ($in['show_on_pos_grid'] ?? true),
             'target_margin_pct'    => $target,
         ];

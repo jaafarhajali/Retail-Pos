@@ -17,6 +17,7 @@ $navGroups = [
     ]],
     ['Stock', false, [
         ['products', 'box-seam', 'Products', 'product.view'],
+        ['prices', 'tag', "Today's prices", 'price.manage'],
         ['categories', 'tags', 'Categories', 'category.manage'],
         ['stock', 'boxes', 'Stock', 'stock.view'],
         ['purchases', 'truck', 'Purchases', 'purchase.manage'],

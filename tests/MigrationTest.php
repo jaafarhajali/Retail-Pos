@@ -19,7 +19,7 @@ return [
 
     'a fresh install records every migration and a second run applies nothing' => function (): void {
         $applied = Database::pdo()->query('SELECT filename FROM migrations ORDER BY filename')->fetchAll(PDO::FETCH_COLUMN);
-        assert_same(['001_foundation.sql', '002_catalog.sql', '003_operations.sql', '004_admin_closes_sessions.sql', '005_return_rounding.sql', '006_expense_two_currencies.sql', '007_cashier_returns_need_pin.sql', '008_remove_void.sql', '009_return_without_invoice.sql'], $applied);
+        assert_same(['001_foundation.sql', '002_catalog.sql', '003_operations.sql', '004_admin_closes_sessions.sql', '005_return_rounding.sql', '006_expense_two_currencies.sql', '007_cashier_returns_need_pin.sql', '008_remove_void.sql', '009_return_without_invoice.sql', '010_floating_prices.sql'], $applied);
         assert_same([], Installer::migrate());
     },
 

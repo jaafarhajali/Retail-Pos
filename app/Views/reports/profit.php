@@ -5,6 +5,7 @@
     <tr><td>Gross sales</td><td class="text-end"><?= usd($p['gross_sales']) ?></td></tr>
     <tr><td>− Returns</td><td class="text-end">-<?= usd($p['returns']) ?></td></tr>
     <tr><td>+ Rounding</td><td class="text-end"><?= usd($p['rounding']) ?></td></tr>
+    <?php if ((float) ($p['repriced'] ?? 0) > 0): ?><tr><td>+ Price of the day on debts</td><td class="text-end"><?= usd($p['repriced']) ?></td></tr><?php endif; ?>
     <tr class="fw-semibold"><td>Net sales</td><td class="text-end"><?= usd($p['net_sales']) ?></td></tr>
     <tr><td>− Cost of goods sold (returned items excluded)</td><td class="text-end">-<?= usd($p['cogs']) ?></td></tr>
     <tr><td>− Waste (damaged stock and damaged returns)</td><td class="text-end">-<?= usd($p['waste']) ?></td></tr>

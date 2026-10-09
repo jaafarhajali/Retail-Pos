@@ -16,6 +16,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\ExchangeRateController;
 use App\Controllers\ExpenseController;
 use App\Controllers\PosController;
+use App\Controllers\PriceController;
 use App\Controllers\ProductController;
 use App\Controllers\PurchaseController;
 use App\Controllers\RegisterController;
@@ -85,6 +86,9 @@ return [
     ['GET',  'products/print',          [ProductController::class, 'print'],         'product.view'],
     ['POST', 'products/image-store',    [ProductController::class, 'imageStore'],    'product.manage'],
     ['POST', 'products/image-delete',   [ProductController::class, 'imageDelete'],   'product.manage'],
+    // Today's prices (2026-10-09): floating (black-market) prices, changed several times a day
+    ['GET',  'prices',                  [PriceController::class, 'index'],           'price.manage'],
+    ['POST', 'prices/save',             [PriceController::class, 'save'],            'price.manage'],
     // Phase 3 — stock, purchases, suppliers
     ['GET',  'suppliers',        [SupplierController::class, 'index'], 'supplier.manage'],
     ['GET',  'suppliers/edit',   [SupplierController::class, 'edit'],  'supplier.manage'],
@@ -113,6 +117,7 @@ return [
     ['POST', 'sessions/cash',    [SessionController::class, 'cash'],      'cash.in_out'],
     ['GET',  'pos',              [PosController::class, 'index'],     'pos.use'],
     ['GET',  'pos/data',         [PosController::class, 'data'],      'pos.use'],
+    ['GET',  'pos/prices',       [PosController::class, 'prices'],    'pos.use'],
     ['GET',  'pos/customers',    [PosController::class, 'customers'], 'pos.use'],
     ['POST', 'pos/complete',     [PosController::class, 'complete'],  'sale.create'],
     ['POST', 'pos/pin',          [PosController::class, 'pin'],       'pos.use'],

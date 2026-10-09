@@ -77,9 +77,27 @@ final class PosController extends Controller
     public function customers(): void
     {
         $rows = (new Customer())->search($this->query('q'));
-        $this->json(['customers' => array_map(static fn (array $c): array => [
-            'id' => (int) $c['id'], 'name' => $c['name'], 'phone' => $c['phone'], 'level' => $c['default_price_level'], 'balance' => $c['balance_usd'], 'limit' => $c['credit_limit_usd'],
-        ], $rows)]);
+        $debts = new \App\Services\DebtService();
+        $this->json(['customers' => array_map(static function (array $c) use ($debts): array {
+            // What he owes includes the price of the day on floating products he has not paid for yet (2026-10-09).
+            $pending = $debts->pending((int) $c['id']);
+            return [
+                'id' => (int) $c['id'], 'name' => $c['name'], 'phone' => $c['phone'], 'level' => $c['default_price_level'],
+                'balance' => Money::fmt((float) $c['balance_usd'] + (float) $pending['amount']), 'limit' => $c['credit_limit_usd'],
+                'pending' => $pending['amount'], 'pending_note' => $debts->describe($pending),
+            ];
+        }, $rows)]);
+    }
+
+    /** Floating prices for the tills, polled every minute; the stamp changes with every price change. */
+    public function prices(): void
+    {
+        $pdo = \App\Core\Database::pdo();
+        $units = [];
+        foreach ($pdo->query('SELECT pu.id, pu.retail_price, pu.wholesale_price FROM product_units pu JOIN products p ON p.id = pu.product_id WHERE p.price_floats = 1') as $u) {
+            $units[] = ['id' => (int) $u['id'], 'retail' => $u['retail_price'], 'wholesale' => $u['wholesale_price']];
+        }
+        $this->json(['stamp' => (int) $pdo->query('SELECT COALESCE(MAX(id), 0) FROM price_changes')->fetchColumn(), 'units' => $units]);
     }
 
     public function complete(): void
@@ -225,13 +243,16 @@ final class PosController extends Controller
             $this->json(['error' => 'This invoice cannot be returned.'], 404);
         }
         $lines = [];
+        $svc = new \App\Services\ReturnService();
         foreach ($sales->items((int) $sale['id']) as $i) {
-            $left = (int) $i['base_qty'] - (int) $i['returned_base_qty'];
+            $left = max(0, (int) $i['base_qty'] - (int) $i['returned_base_qty']);
+            $refundLeft = $svc->refundFor($sale, $i, $left);   // what the whole rest is worth: paid, or today's price when lower (floating products)
             $lines[] = [
                 'id' => (int) $i['id'], 'name' => $i['product_name'], 'unit' => $i['unit_name'], 'factor' => (int) $i['factor'],
                 'fraction' => (int) $i['allows_fraction'] === 1, 'base_qty' => (int) $i['base_qty'], 'paid' => $i['line_total_usd'],
                 'sold' => \App\Services\Quantity::unitQty((int) $i['base_qty'], (int) $i['factor']),
-                'left' => \App\Services\Quantity::unitQty(max(0, $left), (int) $i['factor']), 'left_base' => max(0, $left),
+                'left' => \App\Services\Quantity::unitQty($left, (int) $i['factor']), 'left_base' => $left,
+                'refund_left' => $refundLeft, 'capped' => (int) $i['base_qty'] > 0 && (float) $refundLeft + 0.004 < (float) $i['line_total_usd'] * $left / (int) $i['base_qty'],
             ];
         }
         $this->json(['sale' => [

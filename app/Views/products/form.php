@@ -258,6 +258,10 @@ $natural = ['piece' => ['piece', 1], 'g' => ['kg', 1000], 'ml' => ['L', 1000]][$
           <input class="form-check-input" type="checkbox" role="switch" id="allow_price_override" name="allow_price_override" value="1" <?= (isset($stash['name']) ? isset($stash['allow_price_override']) : ($isEdit && (int) $product['allow_price_override'])) ? 'checked' : '' ?> <?= $dis ?>>
           <label class="form-check-label" for="allow_price_override">The price can be changed at the till<small>A cashier still needs the administrator's PIN.</small></label>
         </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="price_floats" name="price_floats" value="1" <?= (isset($stash['name']) ? isset($stash['price_floats']) : ($isEdit && (int) $product['price_floats'])) ? 'checked' : '' ?> <?= $dis ?>>
+          <label class="form-check-label" for="price_floats">Price floats (black market)<small>Listed on Today's prices. Returns refund the lower of paid and today's price; a debt is re-priced when paid.</small></label>
+        </div>
         <?php if ($isEdit): ?>
           <div class="form-check form-switch">
             <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" value="1" <?= (isset($stash['name']) ? isset($stash['is_active']) : (int) $product['is_active']) ? 'checked' : '' ?> <?= $dis ?>>

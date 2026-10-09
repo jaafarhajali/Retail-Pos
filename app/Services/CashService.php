@@ -185,7 +185,9 @@ final class CashService
         if ($received <= 0.004) {
             throw new \DomainException('Type what he gives: in USD, in LBP, or both.');
         }
-        $owed = (float) $customers->balance($customerId);
+        // Floating products he took on credit are re-priced at today's price the moment he pays (owner, 2026-10-09).
+        $debts = new DebtService();
+        $owed = (float) $customers->balance($customerId) + (float) $debts->pending($customerId)['amount'];
         if ($owed <= 0.004) {
             throw new \DomainException($customer['name'] . ' owes nothing.');
         }
@@ -215,7 +217,8 @@ final class CashService
         }
 
         $given = implode(' + ', array_filter([(float) $usdIn > 0 ? usd($usdIn) : '', $lbpIn > 0 ? lbp($lbpIn) : '']));
-        Database::transaction(function () use ($customers, $customer, $customerId, $usdIn, $lbpIn, $paid, $changeUsd, $changeLbp, $rate, $sessionId, $userId, $given, $short): void {
+        Database::transaction(function () use ($customers, $customer, $customerId, $usdIn, $lbpIn, $paid, $changeUsd, $changeLbp, $rate, $sessionId, $userId, $given, $short, $debts): void {
+            $debts->charge($customerId, $userId, $sessionId);
             $single = (float) $usdIn > 0 xor $lbpIn > 0;   // one currency: the ledger keeps the amount as typed
             $customers->addLedger(['customer_id' => $customerId, 'type' => 'payment', 'amount_usd' => '-' . $paid,
                                    'currency' => $single ? ((float) $usdIn > 0 ? 'USD' : 'LBP') : null,

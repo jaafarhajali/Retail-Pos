@@ -145,6 +145,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
     <?php if ($can['debt']): ?>
       <div id="debt-box" class="debt-box" hidden>
         <div class="debt-title">Collect debt from <span id="debt-name" dir="auto"></span>, who owes <b id="debt-owes"></b></div>
+        <div class="form-text" id="debt-note" hidden></div>
         <div class="row g-2">
           <div class="col-6"><label class="form-label" for="debt-usd">Received in USD</label><input class="form-control" id="debt-usd" inputmode="decimal" placeholder="0.00"></div>
           <div class="col-6"><label class="form-label" for="debt-lbp">Received in LBP</label><input class="form-control" id="debt-lbp" inputmode="numeric" placeholder="0"></div>
@@ -248,7 +249,7 @@ window.POS = {
   session: <?= json_encode($session['session_no']) ?>, signIn: <?= json_encode(url('auth/login')) ?>,
   token: <?= json_encode($token) ?>, rate: <?= (int) $rate ?>, step: <?= (int) $step ?>,
   can: <?= json_encode($can) ?>, maxDiscount: <?= (float) $maxDiscount ?>,
-  urls: { data: <?= json_encode(url('pos/data')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,
+  urls: { data: <?= json_encode(url('pos/data')) ?>, prices: <?= json_encode(url('pos/prices')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,
           resume: <?= json_encode(url('pos/resume')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?>, check: <?= json_encode(url('pos/check')) ?>,
           returnPin: <?= json_encode(url('pos/return-pin')) ?>, returnSearch: <?= json_encode(url('pos/return-search')) ?>, returnSale: <?= json_encode(url('pos/return-sale')) ?>, returnStore: <?= json_encode(url('pos/return')) ?> }
 };
