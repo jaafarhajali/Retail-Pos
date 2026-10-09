@@ -236,18 +236,19 @@
     else { if (qty <= 0) { msg('Enter a quantity', true); return; } if (!u.fraction && qty % 1 !== 0) { msg(u.name + ' is sold in whole numbers', true); return; } l.mode = 'qty'; l.qty = qty; }
     var pr = $('line-price').value.trim(); l.price = pr === '' || !p.override ? null : num(pr);
     var before = l.discount || 0; l.discount = 0;
-    var d = discountUsd('line', lineTotals(l).gross); l.discount = before;
+    var d = discountUsd('line', lineTotals(l).gross);
+    l.discount = d; var over = needsApproval(), cutNow = lineCut(l).cut; l.discount = before;   // the line as it would be
     var apply = function () { l.discount = d; l.dmode = discMode.line; renderCart(); };
-    // The administrator approves a discount over the allowed percentage, and any discount that sells the line below cost.
-    if (d > before + 0.004 && (!P.can.discount || !P.can.belowCost)) {
-      var over = needsApproval(d - before), idx = selected;
+    // The administrator approves a discount over the allowed percentage (a lowered price is one too), and any discount that sells the line below cost.
+    if ((d > before + 0.004 || over) && (!P.can.discount || !P.can.belowCost)) {
+      var idx = selected;
       renderCart();
       l.discount = d; var probe = probeCost(); l.discount = before;   // the cart as it would be
       swapModal('m-line', function () {
         probe.then(function (found) {
           var under = !P.can.belowCost && !approvedPin && found.some(function (x) { return x.i === idx && x.lowered; });
           if (!over && !under) { apply(); return; }
-          askPin('Discount of ' + money(d) + ' on ' + p.name + (under ? ' — BELOW COST' : ''), apply);
+          askPin('Discount of ' + money(cutNow) + ' on ' + p.name + (under ? ' — BELOW COST' : ''), apply);
         });
       });
       return;
@@ -298,19 +299,28 @@
     });
   });
   // A user without the discount permission needs the administrator's PIN above the allowed percentage (Settings).
-  // The whole sale's discount, line and invoice together, as a percentage of what it would cost without any.
-  function discountPct(extra) {
-    var gross = 0, disc = extra || 0;
-    cart.forEach(function (l) { var t = lineTotals(l); gross += t.gross; disc += (l.discount || 0); });
-    disc += discountUsd('pay', subtotal());
-    return disc > 0.004 && gross > 0 ? disc / gross * 100 : 0;
+  // What a line costs at the list price, and what was taken off it: its discount and a lowered price (both count).
+  function lineCut(l) {
+    var t = lineTotals(l), list = Math.round(t.qty * (unitPrice(t.u) || 0) * 100) / 100;
+    return { list: list, cut: Math.max(0, Math.round((list - t.total) * 100) / 100) };
+  }
+  // The ceiling applies to every single discount (2026-10-09): the worst line, the invoice discount, and the sale as a whole.
+  // Before, 20 % on a $10 pack hid behind a $120 hookah in the same cart.
+  function discountPct() {
+    var list = 0, cut = 0, worst = 0;
+    cart.forEach(function (l) { var c = lineCut(l); list += c.list; cut += c.cut; if (c.list > 0) worst = Math.max(worst, c.cut / c.list * 100); });
+    var sub = subtotal(), inv = discountUsd('pay', sub);
+    if (sub > 0) worst = Math.max(worst, inv / sub * 100);
+    cut += inv;
+    if (list > 0) worst = Math.max(worst, cut / list * 100);
+    return cut > 0.004 ? worst : 0;
   }
   // The administrator's approval covers the discount he approved (approvedPct). Raising it afterwards asks again:
   // 15 % approved, 30 % typed next is a new question (bug of 2026-10-09: one approval used to cover anything after it).
   var approvedPct = 0;
-  function needsApproval(extra) {
+  function needsApproval() {
     if (P.can.discount) return false;
-    var pct = discountPct(extra);
+    var pct = discountPct();
     if (pct <= parseFloat(P.maxDiscount) + 0.0001) return false;
     return !(approvedPin && pct <= approvedPct + 0.0001);
   }
@@ -338,11 +348,11 @@
   $('pin-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('pin-ok').click(); } });
   $('m-pin').addEventListener('hidden.bs.modal', function () {
     var then = pinThen, cancel = pinCancel, ok = pinOk; pinThen = null; pinCancel = null; pinOk = false;
-    if (ok) { if (then) then(); approvedPct = Math.max(approvedPct, discountPct(0)); } else if (cancel) cancel();
+    if (ok) { if (then) then(); approvedPct = Math.max(approvedPct, discountPct()); } else if (cancel) cancel();
   });
   // Invoice discount typed by a cashier: ask for the PIN when the field is left; without it the discount is removed.
   $('pay-discount').addEventListener('change', function () {
-    var input = this, kept = input.value, usd = discountUsd('pay', subtotal()), over = needsApproval(0);
+    var input = this, kept = input.value, usd = discountUsd('pay', subtotal()), over = needsApproval();
     if (usd <= 0 || approvedPin || (!over && P.can.belowCost)) return;
     probeCost().then(function (found) {
       var under = P.can.belowCost ? [] : found.filter(function (x) { return x.lowered; });
@@ -524,7 +534,7 @@
   $('btn-pay').addEventListener('click', openPay);
   $('pay-ok').addEventListener('click', function () {
     var btn = this, again = function () { modals['m-pay'].show(); btn.click(); }, reopen = function () { modals['m-pay'].show(); };
-    if (needsApproval(0)) {   // a discount typed with the keypad never left the field
+    if (needsApproval()) {   // a discount typed with the keypad never left the field
       var probe = probeCost();
       swapModal('m-pay', function () { probe.then(function (found) { askPin('Discount of ' + money(totals().disc + cart.reduce(function (s, l) { return s + (l.discount || 0); }, 0)) + lowNote(found), again, reopen); }); });
       return;

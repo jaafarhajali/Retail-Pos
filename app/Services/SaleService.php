@@ -47,7 +47,7 @@ final class SaleService
             $customer = (new Customer())->find((int) $in['customer_id']) ?? throw new \DomainException('Customer not found.');
         }
 
-        ['lines' => $lines, 'gross' => $gross, 'lineDiscounts' => $lineDiscounts, 'subtotal' => $subtotal, 'invoiceDiscount' => $invoiceDiscount, 'total' => $total]
+        ['lines' => $lines, 'subtotal' => $subtotal, 'invoiceDiscount' => $invoiceDiscount, 'total' => $total, 'listGross' => $listGross, 'cutTotal' => $cutTotal, 'worst' => $worst]
             = $this->priceLines($in, $level, $needsPin);
         $low = $this->belowCostLines($lines);
         $belowCost = array_values(array_unique(array_column($low, 'name')));
@@ -60,12 +60,28 @@ final class SaleService
         foreach ($belowCost as $name) {
             $warnings[] = $name . ' was sold below cost.';
         }
-        $totalDiscount = $lineDiscounts + (float) $invoiceDiscount;
-        if ($totalDiscount > 0.004) {
+        // The allowed percentage is a ceiling on every single discount (bug of 2026-10-09: measured on the whole cart, 20 % on a $10
+        // pack hid behind a $120 hookah). It is checked on each line (a lowered price counts as a discount), on the invoice
+        // discount, and on the sale as a whole; the first one over the ceiling needs the administrator.
+        if (!Gate::allows('sale.discount')) {
             $maxPct = (float) Settings::get('max_cashier_discount_pct', '0');
-            $pct = $gross > 0 ? $totalDiscount / $gross * 100 : 0;
-            if ($pct > $maxPct + 0.0001 && !Gate::allows('sale.discount')) {
-                $needsPin[] = sprintf('discount of %.1f%%', $pct);
+            $checks = [];
+            if ($worst['pct'] > 0) {
+                $checks[] = [$worst['pct'], sprintf('discount of %.1f%% on %s', $worst['pct'], $worst['name'])];
+            }
+            $invoicePct = (float) $subtotal > 0 ? (float) $invoiceDiscount / (float) $subtotal * 100 : 0;
+            if ($invoicePct > 0) {
+                $checks[] = [$invoicePct, sprintf('invoice discount of %.1f%%', $invoicePct)];
+            }
+            $overallPct = $listGross > 0 ? ($cutTotal + (float) $invoiceDiscount) / $listGross * 100 : 0;
+            if ($overallPct > 0) {
+                $checks[] = [$overallPct, sprintf('discount of %.1f%%', $overallPct)];
+            }
+            foreach ($checks as [$pct, $what]) {
+                if ($pct > $maxPct + 0.0001) {
+                    $needsPin[] = $what;
+                    break;
+                }
             }
         }
 
@@ -233,6 +249,9 @@ final class SaleService
         $lines = [];
         $gross = 0.0;
         $lineDiscounts = 0.0;
+        $listGross = 0.0;   // what the lines would cost at the list price
+        $cutTotal = 0.0;    // what the cashier took off them: line discounts and lowered prices
+        $worst = ['pct' => 0.0, 'name' => ''];
         foreach ($in['lines'] as $l) {
             $unit = $units->find((int) ($l['unit_id'] ?? 0));
             if ($unit === null || (int) $unit['product_id'] !== (int) ($l['product_id'] ?? 0)) {
@@ -289,6 +308,13 @@ final class SaleService
             $lineTotal = Money::sub($lineGross, $discount);
             $gross += (float) $lineGross;
             $lineDiscounts += (float) $discount;
+            $atList = (float) Money::mul($listPrice, (float) $qty);
+            $cut = max(0.0, $atList - (float) $lineTotal);
+            $listGross += $atList;
+            $cutTotal += $cut;
+            if ($atList > 0 && $cut / $atList * 100 > $worst['pct']) {
+                $worst = ['pct' => $cut / $atList * 100, 'name' => $product['name']];
+            }
             $lines[] = [
                 'product_id' => (int) $product['id'], 'product_unit_id' => (int) $unit['id'], 'product_name' => $product['name'], 'unit_name' => $unit['name'],
                 'qty' => $qty, 'base_qty' => $base, 'unit_price_usd' => $price, 'line_discount_usd' => $discount, 'line_total_usd' => $lineTotal,
@@ -319,7 +345,8 @@ final class SaleService
         unset($line);
         $total = Money::fmt($subtotal - (float) $invoiceDiscount);
 
-        return ['lines' => $lines, 'gross' => $gross, 'lineDiscounts' => $lineDiscounts, 'subtotal' => $subtotal, 'invoiceDiscount' => $invoiceDiscount, 'total' => $total];
+        return ['lines' => $lines, 'gross' => $gross, 'lineDiscounts' => $lineDiscounts, 'subtotal' => $subtotal, 'invoiceDiscount' => $invoiceDiscount, 'total' => $total,
+            'listGross' => $listGross, 'cutTotal' => $cutTotal, 'worst' => $worst];
     }
 
     /**
