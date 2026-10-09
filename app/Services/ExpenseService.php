@@ -52,6 +52,9 @@ final class ExpenseService
             throw new \DomainException('Choose the date.');
         }
         $paidFrom = ($in['paid_from'] ?? 'drawer') === 'outside' ? 'outside' : 'drawer';
+        if ($kind === 'supplier') {
+            $paidFrom = 'outside';   // a supplier is never paid from the drawer (owner, 2026-10-09)
+        }
         $supplierId = (int) ($in['supplier_id'] ?? 0);
         $supplier = null;
         if ($supplierId > 0) {
@@ -74,7 +77,7 @@ final class ExpenseService
                 foreach (['USD' => $usdPaid, 'LBP' => (string) $lbpPaid] as $cur => $out) {
                     if ((float) $out > 0) {
                         (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $cur, 'amount' => '-' . $out,
-                                                          'type' => $supplier === null ? 'expense' : 'supplier_payment', 'ref_type' => 'expense', 'ref_id' => $id, 'user_id' => $userId, 'note' => $category]);
+                                                          'type' => 'expense', 'ref_type' => 'expense', 'ref_id' => $id, 'user_id' => $userId, 'note' => $category]);
                     }
                 }
             }

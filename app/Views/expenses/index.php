@@ -32,7 +32,8 @@ $chosen = is_string($oldSupplier) ? (int) $oldSupplier : $paySupplier;
         </div>
         <div class="row g-2 mb-2">
           <div class="col-6"><label class="form-label">Date</label><input class="form-control" type="date" name="expense_date" value="<?= old('expense_date', date('Y-m-d')) ?>" required></div>
-          <div class="col-6"><label class="form-label">Paid from</label><select class="form-select" name="paid_from"><option value="drawer" <?= $session === null ? 'disabled' : '' ?>>the drawer<?= $session === null ? ' (no open session)' : '' ?></option><option value="outside" <?= $session === null || old('paid_from') === 'outside' ? 'selected' : '' ?>>outside (owner, bank)</option></select></div>
+          <div class="col-6" data-kind="supplier" <?= $kind === 'expense' ? 'hidden' : '' ?>><label class="form-label">Paid from</label><div class="form-control-plaintext">outside (owner, bank)<br><span class="form-text">never from the drawer</span></div></div>
+          <div class="col-6" data-kind="expense" <?= $kind === 'supplier' ? 'hidden' : '' ?>><label class="form-label">Paid from</label><select class="form-select" name="paid_from"><option value="drawer" <?= $session === null ? 'disabled' : '' ?>>the drawer<?= $session === null ? ' (no open session)' : '' ?></option><option value="outside" <?= $session === null || old('paid_from') === 'outside' ? 'selected' : '' ?>>outside (owner, bank)</option></select></div>
         </div>
         <button class="btn btn-primary w-100 mt-2" type="submit" id="expense-submit"><?= $kind === 'supplier' ? 'Pay supplier' : 'Record expense' ?></button>
       </form>

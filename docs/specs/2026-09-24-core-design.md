@@ -358,7 +358,7 @@ only the physical cash that actually moved.
 | Change given | − | − |
 | Cash refund | − | − |
 | Customer pays debt at the till | + | + |
-| Expense or supplier paid from drawer | − | − |
+| Expense paid from drawer (a supplier is never paid from the drawer, 2026-10-09) | − | − |
 | Cash in (float added) / cash out (withdrawal to safe) | ± | ± |
 | Void of a sale in this session | reverses its movements | |
 
@@ -438,8 +438,8 @@ A session's Z report always contains exactly the transactions linked to that
   updates the product's moving-average cost (§5), and adds the supplier
   `purchase` entry to `supplier_ledger`.
 - **Paying a supplier** is an expense with `supplier_id`. It creates a supplier
-  ledger payment (−). If paid from the drawer, it also creates a cash movement
-  in the open session.
+  ledger payment (−). It is always paid from outside (owner, bank), never from
+  the drawer, so it creates no cash movement (owner's decision, 2026-10-09).
 - **Expenses** paid from the drawer create a cash movement; expenses paid
   "outside" (owner's pocket, bank) do not.
 - Version 1 keeps suppliers simple: records, purchases, purchase history,

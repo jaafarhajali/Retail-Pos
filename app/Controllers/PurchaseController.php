@@ -44,7 +44,7 @@ final class PurchaseController extends Controller
         }
         try {
             $id = (new PurchaseService())->create($this->inputInt('supplier_id') ?: null, $this->input('supplier_invoice_ref'), $this->input('purchase_date'), $lines,
-                $this->input('paid_now'), $this->input('paid_from'), $this->input('notes'), Auth::id());
+                $this->input('paid_now'), 'outside', $this->input('notes'), Auth::id());
         } catch (\DomainException $e) {
             $this->failBack('purchases/create', [], ['form' => $e->getMessage()]);
         }

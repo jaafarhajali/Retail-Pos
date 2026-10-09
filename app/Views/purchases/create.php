@@ -27,9 +27,7 @@ foreach ($unitsById as $pid => $units) {
 
   <div class="card mb-3"><div class="card-body row g-3 align-items-start">
     <div class="col-md-3"><label class="form-label" for="paid_now">Paid now (USD)</label><input class="form-control" id="paid_now" name="paid_now" inputmode="decimal" placeholder="0.00" value="<?= old('paid_now') ?>"></div>
-    <div class="col-md-3"><label class="form-label" for="paid_from">Paid from</label>
-      <select class="form-select" id="paid_from" name="paid_from"><option value="drawer">the drawer (my open session)</option><option value="outside" <?= old('paid_from') === 'outside' ? 'selected' : '' ?>>outside (owner, bank)</option></select></div>
-    <div class="col-md-6 form-text mt-md-4 pt-md-2">The rest stays as debt to the supplier. Cost prices update by moving average (5 @ $10 + 5 @ $15 → $12.50).</div>
+    <div class="col-md-9 form-text mt-md-4 pt-md-2">Paid from outside the drawer (owner, bank); suppliers are never paid from the till. The rest stays as debt to the supplier. Cost prices update by moving average (5 @ $10 + 5 @ $15 → $12.50).</div>
   </div></div>
   <button class="btn btn-primary btn-lg" type="submit">Post purchase</button>
   <a class="btn btn-link" href="<?= url('purchases') ?>">Cancel</a>

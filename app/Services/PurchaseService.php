@@ -5,7 +5,6 @@ namespace App\Services;
 
 use App\Core\Audit;
 use App\Core\Database;
-use App\Models\CashSession;
 use App\Models\Counter;
 use App\Models\Product;
 use App\Models\ProductUnit;
@@ -62,11 +61,8 @@ final class PurchaseService
         if (Money::cmp($paid, $totalUsd) > 0) {
             throw new \DomainException('Paid now cannot exceed the purchase total.');
         }
+        // A supplier is never paid from the drawer (owner, 2026-10-09): "paid now" always comes from outside, so no cash session is touched.
         $sessionId = null;
-        if ((float) $paid > 0 && $paidFrom === 'drawer') {
-            $session = (new CashSession())->openForUser($userId) ?? throw new \DomainException('Paying from the drawer needs your open cash session.');
-            $sessionId = (int) $session['id'];
-        }
 
         return Database::transaction(function () use ($supplier, $ref, $date, $prepared, $totalUsd, $paid, $notes, $userId, $sessionId): int {
             $no = Counter::format('PUR-', Counter::next('purchase'));
@@ -85,10 +81,6 @@ final class PurchaseService
                 $suppliers->addLedger((int) $supplier['id'], 'purchase', $totalUsd, $id, null, $userId, $no);
                 if ((float) $paid > 0) {
                     $suppliers->addLedger((int) $supplier['id'], 'payment', '-' . $paid, $id, null, $userId, 'Paid with ' . $no);
-                    if ($sessionId !== null) {
-                        (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => 'USD', 'amount' => '-' . $paid, 'type' => 'supplier_payment',
-                                                        'ref_type' => 'purchase', 'ref_id' => $id, 'user_id' => $userId, 'note' => $no]);
-                    }
                 }
             }
             Audit::log('purchase.posted', 'purchase', $id, ['no' => $no, 'lines' => count($prepared)], (float) $totalUsd, 'USD');
