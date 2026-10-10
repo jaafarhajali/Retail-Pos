@@ -13,6 +13,18 @@
     </section>
   <?php endif; ?>
 
+  <?php if ($backup !== null): ?>
+    <section class="dash-panel dash-backup">
+      <h2 class="dash-label">Backups</h2>
+      <?php if ($backup['warnings'] === []): ?>
+        <div class="dash-status is-open"><span class="dot"></span>Last backup <?= e(date('d/m H:i', strtotime($backup['last_at']))) ?> · USB copy OK</div>
+      <?php else: ?>
+        <?php foreach ($backup['warnings'] as $w): ?><div class="dash-status is-warn"><span class="dot"></span><?= e($w) ?></div><?php endforeach; ?>
+      <?php endif; ?>
+      <div class="dash-actions"><a class="btn btn-outline-primary" href="<?= url('backup') ?>"><i class="bi bi-shield-check"></i> Backups</a></div>
+    </section>
+  <?php endif; ?>
+
   <section class="dash-panel dash-device">
     <h2 class="dash-label">This device</h2>
     <?php if ($register !== null): ?>

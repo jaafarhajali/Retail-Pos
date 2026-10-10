@@ -303,6 +303,11 @@ td.empty { background: var(--surface) !important; }
 .dash-status.is-open .dot { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
 .dash-status.is-warn { color: var(--amber); }
 .dash-status.is-warn .dot { background: var(--amber); }
+.backup-status.is-ok { border-color: var(--green); }
+.backup-status.is-warn { border-color: var(--amber); }
+.backup-status .backup-light { font-size: 2rem; line-height: 1; }
+.backup-status.is-ok .backup-light { color: var(--green); }
+.backup-status.is-warn .backup-light { color: var(--amber); }
 .dash-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: auto; }
 .dash-me { margin: 1rem 0 0; padding-top: .9rem; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: .92rem; }
 .dash-me strong { color: var(--ink); }

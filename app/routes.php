@@ -155,4 +155,5 @@ return [
     // Phase 10 — backups
     ['GET',  'backup',           [BackupController::class, 'index'], 'backup.manage'],
     ['POST', 'backup/run',       [BackupController::class, 'run'],   'backup.manage'],
+    ['POST', 'backup/settings',  [BackupController::class, 'settings'], 'backup.manage'],
 ];

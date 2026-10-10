@@ -24,6 +24,7 @@ final class DashboardController extends Controller
             'rate'     => (new ExchangeRate())->current(),
             'session'  => (new CashSession())->openForUser(Auth::id()),
             'today'    => Gate::allows('report.sales') ? (new ReportService())->today() : null,
+            'backup'   => Gate::allows('backup.manage') ? \App\Services\BackupService::status() : null,
         ], 'Dashboard');
     }
 }
