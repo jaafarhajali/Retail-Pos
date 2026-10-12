@@ -1,0 +1,11 @@
+// An expense from the drawer at the till: the cashier fills it, a wrong PIN is refused, the right PIN records it.
+await click('#btn-expense'); await waitFor(shown('m-expense'), 'expense dialog'); await sleep(500);
+log('fields:', await ev(`['exp-category','exp-desc','exp-usd','exp-lbp','exp-pin'].map(id => id + ':' + !!document.getElementById(id)).join(' ')`));
+await type('exp-category', 'Electricity'); await type('exp-desc', 'generator'); await type('exp-usd', '10'); await type('exp-lbp', '450000');
+log('LBP grouped while typing:', await ev(`document.getElementById('exp-lbp').value`));
+await type('exp-pin', '1111'); await click('#exp-ok'); await sleep(1200);
+log('wrong PIN:', await ev(`document.getElementById('exp-error').textContent`));
+await shot('x1-expense-dialog');
+await type('exp-pin', '2468'); await click('#exp-ok'); await waitFor(`!${shown('m-expense')}`, 'dialog to close', 10000); await sleep(400);
+log('message:', await ev(`document.getElementById('msg').textContent`));
+await shot('x2-expense-recorded');

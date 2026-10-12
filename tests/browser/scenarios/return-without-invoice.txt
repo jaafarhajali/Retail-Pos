@@ -1,0 +1,30 @@
+// Return without an invoice: PIN, then "Can't find the sale?", pick two items, lower one price, record.
+await click('#btn-returns'); await waitFor(shown('m-return'), 'return pop-up'); await sleep(500);
+if (!(await ev(`document.getElementById('ret-pin-step').hidden`))) { await type('ret-pin', '2468'); await click('#ret-pin-ok'); await sleep(800); }
+await waitFor(`!document.getElementById('ret-find-step').hidden`, 'find step'); await sleep(400);
+log('find step has the link:', await ev(`document.getElementById('ret-free').textContent.trim()`));
+await shot('v1-find-step');
+await click('#ret-free'); await waitFor(`!document.getElementById('ret-sale-step').hidden`, 'free step'); await sleep(500);
+log('head:', await ev(`document.getElementById('ret-inv').textContent + ' ' + document.getElementById('ret-meta').textContent + ' · back = ' + document.getElementById('ret-back').textContent`));
+log('headers:', await ev(`'sale head hidden ' + document.getElementById('ret-sale-head').hidden + ', free head hidden ' + document.getElementById('ret-free-head').hidden + ', search shown ' + !document.getElementById('ret-free-find').hidden`));
+await type('ret-free-q', 'adalya'); await sleep(300);
+log('search results:', await ev(`[...document.querySelectorAll('#ret-free-results button')].map(b => b.querySelector('b').textContent + ' (' + b.querySelector('.li-meta').textContent + ')').join(' | ')`));
+await ev(`document.querySelector('#ret-free-results button').click()`); await sleep(400);
+await type('ret-free-q', 'mint'); await sleep(300);
+await ev(`document.querySelector('#ret-free-results button').click()`); await sleep(400);
+const rows = `[...document.querySelectorAll('#ret-lines tr')].map(tr => tr.children[0].textContent + ' · ' + tr.children[1].firstChild.selectedOptions[0].textContent + ' · qty ' + tr.children[2].firstChild.value + ' · $' + tr.children[3].firstChild.value).join(' | ')`;
+log('lines:', await ev(rows));
+log('sum:', await ev(`document.getElementById('ret-sum').textContent + ' · USD box ' + document.getElementById('ret-usd').value`));
+// lower the second price to 8, qty 2
+await ev(`(() => { const tr = document.querySelectorAll('#ret-lines tr')[1]; const q = tr.children[2].firstChild, p = tr.children[3].firstChild; q.value = '2'; q.dispatchEvent(new Event('input', { bubbles: true })); p.value = '8'; p.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(300);
+log('after qty 2 at $8:', await ev(rows) + ' · ' + await ev(`document.getElementById('ret-sum').textContent + ' · USD box ' + document.getElementById('ret-usd').value`));
+await shot('v2-free-lines');
+// a price above retail is refused by the server
+await ev(`(() => { const p = document.querySelectorAll('#ret-lines tr')[0].children[3].firstChild; p.value = '20'; p.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(300);
+await click('#ret-ok'); await sleep(1500);
+log('price $20 on an $8.50 pack:', await ev(`document.getElementById('ret-error').textContent`));
+await ev(`(() => { const p = document.querySelectorAll('#ret-lines tr')[0].children[3].firstChild; p.value = '8.50'; p.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(300);
+await type('ret-reason', 'invoice not found'); await click('#ret-ok'); await waitFor(`!document.getElementById('ret-done-step').hidden`, 'done step', 10000); await sleep(500);
+log('done:', await ev(`document.getElementById('ret-done-no').textContent + ' · give back ' + document.getElementById('ret-done-money').textContent.replace(/\\n/g, ' ')`));
+await shot('v3-done');
+await click('#ret-close'); await sleep(500);

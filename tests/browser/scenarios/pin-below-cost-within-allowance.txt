@@ -1,0 +1,37 @@
+// Allowed cashier discount is 50 %. Adalya Love 66 sells at $8.50 and costs $5.60.
+const xText = `[...document.querySelectorAll('#cart .x')].map(e => e.textContent).join(',')`;
+
+// A. 10 % is inside the allowance and above cost: applied at once, no PIN
+await click('.tile'); await click('#btn-qty'); await waitFor(shown('m-line'), 'line dialog');
+await type('line-discount', '10'); await click('#line-ok');
+await waitFor(`!${shown('m-line')}`, 'line dialog to close'); await sleep(900);
+log('10 %: PIN dialog shown?', await ev(shown('m-pin')));
+log('10 %: discount in cart:', JSON.stringify(await ev(xText)));
+
+// B. 40 % is inside the allowance but below cost: the PIN dialog
+await click('#btn-qty'); await waitFor(shown('m-line'), 'line dialog');
+await type('line-discount', '40'); await click('#line-ok'); await waitFor(shown('m-pin'), 'PIN dialog for below cost');
+log('40 %: PIN dialog asks for:', await ev(`document.getElementById('pin-for').textContent`));
+await shot('w1-pin-below-cost-within-allowance');
+await click('#m-pin .btn-close'); await waitFor(`!${shown('m-pin')}`, 'PIN dialog to close'); await sleep(700);
+log('40 % cancelled: discount in cart:', JSON.stringify(await ev(xText)) + ' (the earlier 10 % stays)');
+
+// C. invoice discount 40 % on a fresh cart: below cost too
+await click('#btn-remove'); await sleep(300);
+await click('.tile'); await click('#btn-pay'); await waitFor(shown('m-pay'), 'payment dialog');
+await type('pay-discount', '40');
+await waitFor(shown('m-pin'), 'PIN dialog for the invoice discount');
+log('invoice 40 %: PIN dialog asks for:', await ev(`document.getElementById('pin-for').textContent`));
+await click('#m-pin .btn-close'); await waitFor(shown('m-pay'), 'payment dialog to come back'); await sleep(500);
+log('invoice 40 % cancelled: field / due:', JSON.stringify(await ev(`document.getElementById('pay-discount').value`)) + ' / ' + await ev(`document.getElementById('pay-due').textContent`)
+  + ' / payment ' + await ev(`document.querySelector('#pay-lines .pay-line input').value`));
+
+// D. the keypad never leaves the field: Complete sale is refused by the server and the PIN dialog opens
+await ev(`(() => { const f = document.getElementById('pay-discount'); f.focus(); f.value = '40'; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(300);
+await click('#pay-ok'); await waitFor(shown('m-pin'), 'PIN dialog after Complete sale', 12000);
+log('Complete sale: PIN dialog asks for:', await ev(`document.getElementById('pin-for').textContent`));
+await type('pin-input', '2468'); await click('#pin-ok');
+await waitFor(shown('m-done'), 'sale to complete after approval', 15000);
+log('after approval:', await ev(`document.getElementById('done-no').textContent + ' · ' + document.getElementById('done-warn').textContent`));
+

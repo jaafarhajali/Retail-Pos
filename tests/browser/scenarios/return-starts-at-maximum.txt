@@ -1,0 +1,30 @@
+// A sale of two lines, then the Return pop-up: every Return box starts at the maximum and the cash is pre-filled; lowering one recomputes.
+await click('.tile'); await sleep(300);
+await ev(`document.querySelectorAll('.tile')[4].click()`); await sleep(500);
+if (await ev(shown('m-unit'))) { await ev(`document.querySelector('#unit-list button').click()`); await sleep(500); }
+await click('#btn-qty'); await waitFor(shown('m-line'), 'line dialog'); await sleep(300);
+await type('line-qty', '3'); await click('#line-ok'); await sleep(800);
+if (await ev(shown('m-pin'))) { await click('#m-pin .btn-close'); await sleep(400); }
+log('cart:', await ev(`[...document.querySelectorAll('#cart .cart-line')].map(l => l.querySelector('.q b').textContent + ' x ' + l.querySelector('.n').textContent).join(' | ')`) + ' · ' + await ev(`document.getElementById('t-usd').textContent`));
+await click('#btn-pay'); await waitFor(shown('m-pay'), 'payment dialog'); await sleep(400);
+await click('#pay-ok'); await waitFor(shown('m-done'), 'the sale to complete', 12000); await sleep(400);
+const inv = await ev(`document.getElementById('done-no').textContent`); log('sale:', inv);
+await click('#done-next'); await waitFor(`!${shown('m-done')}`, 'done dialog to close'); await sleep(500);
+
+await click('#btn-returns'); await waitFor(shown('m-return'), 'return pop-up'); await sleep(500);
+if (!(await ev(`document.getElementById('ret-pin-step').hidden`))) { await type('ret-pin', '2468'); await click('#ret-pin-ok'); await sleep(800); }
+await waitFor(`!document.getElementById('ret-find-step').hidden`, 'find step'); await sleep(600);
+log('latest sales listed:', await ev(`document.querySelectorAll('#ret-results .list-group-item').length`));
+await ev(`document.querySelector('#ret-results .list-group-item').click()`);
+await waitFor(`!document.getElementById('ret-sale-step').hidden`, 'sale step'); await sleep(600);
+log('opened:', await ev(`document.getElementById('ret-inv').textContent + ' ' + document.getElementById('ret-meta').textContent`));
+const boxes = `[...document.querySelectorAll('#ret-lines input')].map(q => q.value + ' (' + q.placeholder + ')').join(' | ')`;
+log('Return boxes pre-filled:', await ev(boxes));
+log('cash pre-filled:', 'USD ' + await ev(`document.getElementById('ret-usd').value`) + ' · LBP "' + await ev(`document.getElementById('ret-lbp').value`) + '" · ' + await ev(`document.getElementById('ret-sum').textContent`));
+await shot('m1-return-max');
+await ev(`(() => { const q = document.querySelector('#ret-lines input'); q.value = '1'; q.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(300);
+log('after lowering line 1 to 1:', await ev(boxes) + ' · USD ' + await ev(`document.getElementById('ret-usd').value`) + ' · ' + await ev(`document.getElementById('ret-sum').textContent`));
+await ev(`(() => { const q = document.querySelectorAll('#ret-lines input')[1]; q.value = ''; q.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(300);
+log('line 2 emptied:', await ev(boxes) + ' · USD ' + await ev(`document.getElementById('ret-usd').value`) + ' · ' + await ev(`document.getElementById('ret-sum').textContent`));
+await shot('m2-return-partial');
+await click('#m-return .btn-close'); await sleep(400);

@@ -1,0 +1,23 @@
+// Note 9: limit 10 %. A $95 hookah plus an $8.50 pack; 20 % on the pack is 1.6 % of the cart and used to pass without the PIN.
+const xText = `[...document.querySelectorAll('#cart .x')].map(e => e.textContent).join(',')`;
+const tileNamed = async (re) => { const i = await ev(`[...document.querySelectorAll('.tile')].findIndex(t => ${re}.test(t.textContent))`); await ev(`document.querySelectorAll('.tile')[${i}].click()`); await sleep(500); if (await ev(shown('m-unit'))) { await ev(`document.querySelector('#unit-list button').click()`); await sleep(500); } };
+const lineDiscount = async (pct) => {
+  await click('#btn-qty'); await waitFor(shown('m-line'), 'line dialog'); await sleep(400);
+  await type('line-discount', String(pct)); await click('#line-ok'); await sleep(1200);
+};
+const closePin = async () => { if (await ev(shown('m-pin'))) { await sleep(500); await click('#m-pin .btn-close'); await waitFor(`!${shown('m-pin')}`, 'PIN dialog to close'); await sleep(500); } };
+await tileNamed('/Khalil Mamoon/'); await tileNamed('/Adalya/');
+log('cart:', await ev(`[...document.querySelectorAll('#cart .cart-line .n')].map(e => e.textContent).join(' | ')`) + ' · ' + await ev(`document.getElementById('t-usd').textContent`));
+await lineDiscount(20);
+log('20 % on the pack (1.6 % of the cart): PIN asked?', await ev(shown('m-pin')) + ' · cart discounts ' + JSON.stringify(await ev(xText)));
+await shot('n1-pin-for-20pct');
+await closePin();
+await lineDiscount(10);
+log('10 % on the pack: PIN asked?', await ev(shown('m-pin')) + ' · cart discounts ' + JSON.stringify(await ev(xText)));
+await closePin();
+// invoice discount of 12 % at payment
+await click('#btn-pay'); await waitFor(shown('m-pay'), 'payment dialog'); await sleep(400);
+await type('pay-discount', '12'); await ev(`document.getElementById('pay-discount').dispatchEvent(new Event('change', { bubbles: true }))`); await sleep(1500);
+log('12 % invoice discount: PIN asked?', await ev(shown('m-pin')));
+await closePin();
+if (await ev(shown('m-pay'))) { await click('#m-pay .btn-close'); await sleep(400); }

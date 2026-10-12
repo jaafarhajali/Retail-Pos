@@ -1,0 +1,29 @@
+// Floating prices: the admin changes a price on Today's prices; the till follows within a minute, grid and cart.
+const { execSync } = await import('node:child_process');
+const path = await import('node:path');
+const S = path.dirname(jarPath); const HERE = path.join(process.cwd(), 'tests', 'browser');
+const php = (args) => execSync(`"C:/xampp/php/php.exe" "${S}/float_price.php" ${args}`, { encoding: 'utf8', env: { ...process.env, RETAIL_POS_ENV: 'test' } }).trim();
+log('setup:', php('mark Adalya'));
+await send('Page.reload'); await waitFor(`document.querySelector('.tile')`, 'tiles after the reload'); await sleep(3500);   // the first price poll runs 3 s after load
+const tilePrice = `(() => { const t = [...document.querySelectorAll('.tile')].find(t => /Adalya/.test(t.textContent)); return t.querySelector('.tile-price, b, strong')?.textContent || t.textContent.replace(/\\s+/g, ' ').trim(); })()`;
+log('tile before:', await ev(tilePrice));
+await ev(`[...document.querySelectorAll('.tile')].find(t => /Adalya/.test(t.textContent)).click()`); await sleep(500);
+if (await ev(shown('m-unit'))) { await ev(`document.querySelector('#unit-list button').click()`); await sleep(500); }
+const cartLine = `document.querySelector('#cart .cart-line .d').textContent + ' = ' + document.querySelector('#cart .cart-line .t').textContent`;
+log('cart before:', await ev(cartLine));
+log('admin changes the price:', php('set Adalya 9.75'));
+await sleep(62000);   // the till polls every 60 s
+log('message:', await ev(`document.getElementById('msg').textContent`));
+log('tile after:', await ev(tilePrice));
+log('cart after:', await ev(cartLine) + ' · due ' + await ev(`document.getElementById('t-usd').textContent`));
+await shot('f1-till-followed');
+
+// the admin's Today's prices page, with the change in its history
+const admin = fs.readFileSync(`${S}/admin.jar`, 'utf8').split(/\r?\n/).map((l) => l.replace(/^#HttpOnly_/, '')).filter((l) => l && !l.startsWith('#')).map((l) => l.split('\t')).filter((f) => f.length >= 7).map((f) => ({ name: f[5], value: f[6] }));
+for (const c of admin) { await send('Network.setCookie', { name: c.name, value: c.value, url: base + '/' }); }
+await send('Page.navigate', { url: base + '/index.php?r=prices' }); await sleep(1200);
+log('prices page rows:', await ev(`[...document.querySelectorAll('#prices-form tbody tr')].map(tr => tr.children[0].textContent + ' · ' + tr.children[1].textContent + ' · retail ' + tr.children[3].textContent.trim()).join(' | ')`));
+log('history first row:', await ev(`(() => { const tr = document.querySelector('.card.mt-4 tbody tr'); return tr ? [...tr.children].map(c => c.textContent.trim()).join(' · ') : 'none'; })()`));
+await shot('f2-todays-prices');
+for (const c of cookies) { await send('Network.setCookie', { name: c.name, value: c.value, url: base + '/' }); }
+await send('Page.navigate', { url: base + '/index.php?r=pos' }); await waitFor(`document.querySelector('.tile')`, 'the till again'); await sleep(500);

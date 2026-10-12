@@ -1,0 +1,35 @@
+// The sale in progress survives a reload, and a till whose sign-in ended says so.
+const cartLines = `document.querySelectorAll('#cart .cart-line').length`;
+await click('.tile'); await click('.tile'); await sleep(300);
+const tiles = await ev(`document.querySelectorAll('.tile').length`);
+await ev(`document.querySelectorAll('.tile')[${Math.min(3, tiles - 1)}].click()`); await sleep(400);
+log('cart before the reload:', await ev(cartLines) + ' lines, ' + await ev(`document.getElementById('t-usd').textContent`));
+log('kept in the browser:', await ev(`Object.keys(localStorage).filter(k => k.indexOf('rpos-sale:') === 0).join(', ')`));
+
+await send('Page.reload'); await sleep(500);
+await waitFor(`document.querySelector('.tile')`, 'tiles after the reload'); await sleep(700);
+log('cart after the reload:', await ev(cartLines) + ' lines, ' + await ev(`document.getElementById('t-usd').textContent`));
+log('message:', await ev(`document.getElementById('msg').textContent`));
+await shot('r1-cart-back');
+
+// The sign-in ends (idle timeout): the cookie is gone, the page is still open.
+await send('Network.deleteCookies', { name: 'rpos_session', url: base + '/' });
+await click('#btn-pay'); await waitFor(shown('m-pay'), 'payment dialog'); await sleep(400);
+await click('#pay-ok');
+await waitFor(`!document.getElementById('signed-out').hidden`, 'the signed-out notice', 10000);
+log('notice:', await ev(`document.querySelector('#signed-out h2').textContent + ' · ' + document.querySelector('#signed-out p').textContent.trim().slice(0, 90)`));
+log('dialogs still open:', await ev(`document.querySelectorAll('.modal.show').length`));
+await shot('r2-signed-out');
+
+// Sign in again and open the till: same session, same cart.
+await click('#signed-out-go'); await waitFor(`document.getElementById('username')`, 'the sign-in page');
+await ev(`(() => { document.getElementById('username').value = 'sara'; document.getElementById('password').value = 'password123'; document.querySelector('form').submit(); })()`);
+await sleep(1500);
+await send('Page.navigate', { url: base + '/index.php?r=pos' });
+await waitFor(`document.querySelector('.tile')`, 'the till after signing in'); await sleep(800);
+log('after signing in again:', await ev(cartLines) + ' lines, ' + await ev(`document.getElementById('t-usd').textContent`) + ', session ' + await ev(`window.POS.session`));
+await click('#btn-pay'); await waitFor(shown('m-pay'), 'payment dialog'); await sleep(400);
+await click('#pay-ok'); await waitFor(shown('m-done'), 'the sale to complete', 12000);
+log('sale:', await ev(`document.getElementById('done-no').textContent + ' · ' + document.getElementById('done-label').textContent`));
+log('kept after the sale:', JSON.stringify(await ev(`Object.keys(localStorage).filter(k => k.indexOf('rpos-sale:') === 0)`)));
+

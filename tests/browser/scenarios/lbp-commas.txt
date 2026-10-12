@@ -1,0 +1,34 @@
+const go = async (route, wait) => { await send('Page.navigate', { url: base + '/index.php?r=' + route }); await sleep(300); await waitFor(wait, route); await sleep(300); };
+const keys = async (text) => { for (const ch of text) { await send('Input.insertText', { text: ch }); await sleep(25); } };
+const state = (sel) => ev(`(() => { const f = document.querySelector('${sel}'); return JSON.stringify(f.value) + ' caret ' + f.selectionStart; })()`);
+
+// Exchange rate: always LBP
+await go('rates', `document.getElementById('rate')`);
+await ev(`document.getElementById('rate').focus()`);
+await keys('89500');
+log('rate, typed 89500:', await state('#rate'));
+await ev(`document.getElementById('rate').setSelectionRange(2, 2)`);
+await keys('1');
+log('then 1 typed after "89":', await state('#rate') + '  (expected "891,500" caret 3)');
+await ev(`(() => { const f = document.getElementById('rate'); f.setSelectionRange(f.value.length, f.value.length); })()`);
+await keys('000');
+log('then 000 at the end:', await state('#rate'));
+await shot('lbp-rate');
+
+// Expenses: only while the currency says LBP
+await go('expenses', `document.getElementById('expense-amount')`);
+await ev(`document.getElementById('expense-amount').focus()`);
+await keys('1350000');
+log('expense in USD, typed 1350000:', await state('#expense-amount'));
+await ev(`(() => { const s = document.getElementById('expense-currency'); s.value = 'LBP'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+log('currency switched to LBP:', await state('#expense-amount'));
+await ev(`document.getElementById('expense-amount').focus()`);
+await keys('5');
+log('one more digit:', await state('#expense-amount'));
+await shot('lbp-expense');
+await ev(`(() => { const s = document.getElementById('expense-currency'); s.value = 'USD'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+log('back to USD:', await state('#expense-amount'));
+await ev(`(() => { const f = document.getElementById('expense-amount'); f.value = ''; f.focus(); })()`);
+await keys('12.50');
+log('USD with cents stays as typed:', await state('#expense-amount'));
+

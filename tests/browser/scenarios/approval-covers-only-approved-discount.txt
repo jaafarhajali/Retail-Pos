@@ -1,0 +1,43 @@
+// After the fix: the approval covers 15 %, 30 % asks again, 12 % does not; the bin on a line; sell-by-amount locked for a Box.
+const xText = `[...document.querySelectorAll('#cart .x')].map(e => e.textContent).join(',')`;
+const lineDiscount = async (pct) => {
+  await click('#btn-qty'); await waitFor(shown('m-line'), 'line dialog'); await sleep(400);
+  await type('line-discount', String(pct)); await click('#line-ok'); await sleep(1200);
+};
+const closePin = async () => { if (await ev(shown('m-pin'))) { await sleep(500); await click('#m-pin .btn-close'); await waitFor(`!${shown('m-pin')}`, 'PIN dialog to close'); await sleep(500); } };
+await click('.tile'); await sleep(400);
+await lineDiscount(10);
+log('10 %: PIN asked?', await ev(shown('m-pin')) + ' · cart ' + JSON.stringify(await ev(xText)));
+await lineDiscount(15);
+await waitFor(shown('m-pin'), 'PIN dialog for 15 %'); await sleep(500);
+await type('pin-input', '2468'); await click('#pin-ok'); await waitFor(`!${shown('m-pin')}`, 'approval'); await sleep(600);
+log('15 % approved: cart', JSON.stringify(await ev(xText)));
+await lineDiscount(30);
+log('then 30 %: PIN asked?', await ev(shown('m-pin')) + ' · cart ' + JSON.stringify(await ev(xText)));
+await closePin();
+await lineDiscount(12);
+log('then 12 % (within the approved 15 %): PIN asked?', await ev(shown('m-pin')) + ' · cart ' + JSON.stringify(await ev(xText)));
+await closePin();
+await lineDiscount(15);
+log('back to 15 %: PIN asked?', await ev(shown('m-pin')) + ' · cart ' + JSON.stringify(await ev(xText)));
+await closePin();
+
+// a second line, then the bin on the first one
+await ev(`document.querySelectorAll('.tile')[2].click()`); await sleep(600);
+if (await ev(shown('m-unit'))) { await ev(`document.querySelector('#unit-list button').click()`); await sleep(500); }
+log('two lines:', await ev(`document.querySelectorAll('#cart .cart-line').length + ' lines, bins ' + document.querySelectorAll('#cart .line-del').length`));
+await shot('o1-cart-bins');
+await ev(`document.querySelectorAll('#cart .line-del')[0].click()`); await sleep(400);
+log('after the bin on line 1:', await ev(`document.querySelectorAll('#cart .cart-line').length + ' line(s): ' + document.querySelector('#cart .cart-line .n').textContent`));
+
+// sell by amount: locked unless the unit is sold in parts
+await click('#btn-qty'); await waitFor(shown('m-line'), 'line dialog'); await sleep(400);
+log('unit now:', await ev(`document.getElementById('line-unit').selectedOptions[0].textContent + ' · amount boxes disabled: ' + document.getElementById('line-amount').disabled + '/' + document.getElementById('line-amount-lbp').disabled + ' · placeholder "' + document.getElementById('line-amount').placeholder + '"'`));
+const kgOption = await ev(`(() => { const o = [...document.getElementById('line-unit').options].find(o => /^kg/.test(o.textContent)); return o ? o.value : ''; })()`);
+if (kgOption) {
+  await ev(`(() => { const s = document.getElementById('line-unit'); s.value = ${JSON.stringify(kgOption)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  log('switched to kg:', await ev(`'amount boxes disabled: ' + document.getElementById('line-amount').disabled`));
+}
+await shot('o2-line-dialog');
+await click('#m-line .btn-close'); await sleep(400);
+
