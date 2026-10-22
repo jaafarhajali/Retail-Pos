@@ -10,6 +10,7 @@ use App\Models\Setting;
  * One zip per backup: the SQL dump + public/uploads (owner decision 2026-09-24). Used by the page and bin/backup.php.
  * Since 2026-10-10 a backup has a kind (hourly, daily, monthly, manual), each kind keeps its own number of zips, every
  * zip is copied to the USB folder set on the Backups page, and the last result is kept in the settings for the dashboard.
+ * Since 2026-10-22 the daily and monthly zips also go to the shop's Google Drive once it is connected (GoogleDriveService).
  */
 final class BackupService
 {
@@ -18,6 +19,9 @@ final class BackupService
 
     /** How the last backup went: 'ok', 'off' (no USB folder set) or the error text. */
     public string $lastCopy = 'off';
+
+    /** The Google Drive upload (2026-10-22): 'ok', 'off' (not connected), 'skipped' (an hourly backup) or the error text. */
+    public string $lastDrive = 'off';
 
     /** The test suite backs up its own database into its own folder, so its zips never crowd out the real ones. */
     public static function dir(): string
@@ -99,7 +103,8 @@ final class BackupService
         }
         $this->pruneAll($dir);
         $this->lastCopy = $this->copyToUsb($zipPath);
-        $this->remember(['backup_last_at' => date('Y-m-d H:i:s'), 'backup_last_file' => basename($zipPath), 'backup_last_kind' => $kind, 'backup_last_copy' => $this->lastCopy, 'backup_last_error' => '']);
+        $this->lastDrive = isset(GoogleDriveService::KEEP[$kind]) ? (new GoogleDriveService())->upload($zipPath, $kind) : $this->retryDrive();
+        $this->remember(['backup_last_at' => date('Y-m-d H:i:s'), 'backup_last_file' => basename($zipPath), 'backup_last_kind' => $kind, 'backup_last_copy' => $this->lastCopy, 'backup_last_drive' => $this->lastDrive, 'backup_last_error' => '']);
 
         return $zipPath;
     }
@@ -125,6 +130,24 @@ final class BackupService
         $this->pruneAll($dir);
 
         return 'ok';
+    }
+
+    /** An hourly run after a night with no internet: if the last Google Drive upload failed, the newest daily or monthly zip is sent now. */
+    private function retryDrive(): string
+    {
+        if (!GoogleDriveService::connected()) {
+            return 'off';
+        }
+        if (Settings::get('gdrive_last_error', '') === '') {
+            return 'skipped';
+        }
+        foreach ($this->list() as $b) {
+            if (in_array($b['kind'], ['daily', 'monthly'], true)) {
+                return (new GoogleDriveService())->upload(self::dir() . '/' . $b['name'], $b['kind']);
+            }
+        }
+
+        return 'skipped';
     }
 
     private function remember(array $values): void
@@ -172,8 +195,10 @@ final class BackupService
             $warnings[] = 'The USB folder ' . $copyDir . ' is not there now. Is the stick plugged in?';
         }
 
+        $drive = GoogleDriveService::status();
+
         return ['last_at' => $lastAt, 'last_file' => Settings::get('backup_last_file', ''), 'last_kind' => Settings::get('backup_last_kind', ''), 'copy' => $copy,
-                'copy_dir' => $copyDir, 'error' => $error, 'age_hours' => $age, 'warnings' => $warnings];
+                'copy_dir' => $copyDir, 'error' => $error, 'age_hours' => $age, 'warnings' => array_merge($warnings, $drive['warnings']), 'drive' => $drive];
     }
 
     /**

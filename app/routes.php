@@ -158,4 +158,10 @@ return [
     ['GET',  'backup',           [BackupController::class, 'index'], 'backup.manage'],
     ['POST', 'backup/run',       [BackupController::class, 'run'],   'backup.manage'],
     ['POST', 'backup/settings',  [BackupController::class, 'settings'], 'backup.manage'],
+    // Google Drive (2026-10-22)
+    ['POST', 'backup/google',    [BackupController::class, 'google'],         'backup.manage'],
+    ['GET',  'backup/google-connect',  [BackupController::class, 'googleConnect'],  'backup.manage'],
+    ['GET',  'backup/google-callback', [BackupController::class, 'googleCallback'], 'backup.manage'],
+    ['POST', 'backup/google-off',      [BackupController::class, 'googleOff'],      'backup.manage'],
+    ['POST', 'backup/google-upload',   [BackupController::class, 'googleUpload'],   'backup.manage'],
 ];
