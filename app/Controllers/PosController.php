@@ -152,7 +152,7 @@ final class PosController extends Controller
             'credit_usd' => $paid['credit'],
             'customer'   => $c === null ? null : [
                 'name'    => $c['name'],
-                'balance' => number_format((float) $c['balance_usd'], 2, '.', ''),
+                'balance' => Money::fmt((float) $c['balance_usd'] + (float) (new \App\Services\DebtService())->pending($customerId)['amount']),
                 'limit'   => $c['credit_limit_usd'] === null ? null : number_format((float) $c['credit_limit_usd'], 2, '.', ''),
             ],
         ]);

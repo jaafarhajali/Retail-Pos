@@ -88,6 +88,18 @@ return [
         assert_same('10.00', (new DebtService())->pending($s['customer'])['amount'], '5 boxes × $2');
     },
 
+    'the Customers list shows the same amount as the customer page: $30 sale + $2 price of the day = $32 (Aya, 2026-10-22)' => function () use ($setup, $sell, $credit, $price): void {
+        $s = $setup();
+        $sell($s, '3', [$credit('30')]);
+        $price($s, '10.67');   // 3 boxes × $0.67 = +$2.01
+        require_once __DIR__ . '/support/http.php';
+        $c = login_as('admin', TEST_ADMIN_PASSWORD);
+        assert_contains('$32.01', $c->get('customers/edit', ['id' => $s['customer']])->body, 'his page');
+        $list = $c->get('customers')->body;
+        assert_contains('$32.01', $list, 'the list says the same');
+        assert_not_contains('$30.00', $list);
+    },
+
     'once fully paid, an invoice is never re-priced' => function () use ($setup, $sell, $credit, $price, $pay): void {
         $s = $setup();
         $sell($s, '3', [$credit('30')]);

@@ -16,7 +16,13 @@ final class CustomerController extends Controller
     {
         $q = $this->query('q');
         $customers = new Customer();
-        $this->render('customers/index', ['customers' => $q !== '' ? $customers->search($q) : $customers->all(), 'q' => $q], 'Customers');
+        // What each one owes includes the price of the day on what he has not paid yet, as on his page and at the till.
+        $debts = new \App\Services\DebtService();
+        $list = array_map(static function (array $c) use ($debts): array {
+            $c['owes_usd'] = \App\Services\Money::fmt((float) $c['balance_usd'] + (float) $debts->pending((int) $c['id'])['amount']);
+            return $c;
+        }, $q !== '' ? $customers->search($q) : $customers->all());
+        $this->render('customers/index', ['customers' => $list, 'q' => $q], 'Customers');
     }
 
     public function edit(): void
