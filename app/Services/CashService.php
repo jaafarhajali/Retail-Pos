@@ -185,7 +185,7 @@ final class CashService
         if ($received <= 0.004) {
             throw new \DomainException('Type what he gives: in USD, in LBP, or both.');
         }
-        // Floating products he took on credit are re-priced at today's price the moment he pays (owner, 2026-10-09).
+        // What he took on credit is re-priced at today's price, when higher, the moment he pays: the unpaid part only (2026-10-22).
         $debts = new DebtService();
         $owed = (float) $customers->balance($customerId) + (float) $debts->pending($customerId)['amount'];
         if ($owed <= 0.004) {

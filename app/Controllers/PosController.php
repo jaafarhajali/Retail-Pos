@@ -80,7 +80,7 @@ final class PosController extends Controller
         $rows = (new Customer())->search($this->query('q'));
         $debts = new \App\Services\DebtService();
         $this->json(['customers' => array_map(static function (array $c) use ($debts): array {
-            // What he owes includes the price of the day on floating products he has not paid for yet (2026-10-09).
+            // What he owes includes the price of the day on what he has not paid for yet, when it rose (2026-10-22).
             $pending = $debts->pending((int) $c['id']);
             return [
                 'id' => (int) $c['id'], 'name' => $c['name'], 'phone' => $c['phone'], 'level' => $c['default_price_level'],

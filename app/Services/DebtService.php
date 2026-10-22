@@ -8,45 +8,63 @@ use App\Core\Database;
 use App\Models\Customer;
 
 /**
- * Debts on floating-price products (owner, 2026-10-09): a customer who took them on credit pays the price of the day
- * he pays, when it is higher than the price of the day he took them. The difference is charged to his ledger as a
- * "price adjustment" the moment he pays, once per sale line, and only on invoices he has not settled yet.
+ * Debts follow the price (owner, 2026-10-09 for floating products; 2026-10-22 for every product): a customer who took
+ * goods on credit pays the higher of the price of the day he took them and the price of the day he pays. The
+ * difference is charged to his ledger as a "price adjustment" the moment he pays, once per sale line, and only on
+ * the part of an invoice he has not paid yet (10 boxes at $10, $50 paid, the box now $12: 5 boxes × $2 = +$10).
  * A price that went down changes nothing: the shop never loses on credit.
  */
 final class DebtService
 {
     /**
-     * What would be charged today: floating lines of the customer's open invoices whose price rose since the sale.
+     * What would be charged today: lines of the customer's unpaid invoices whose price rose since the sale, each for
+     * the share of the invoice still unpaid.
      *
      * @return array{amount: string, lines: list<array{sale_id: int, invoice_no: string, sale_item_id: int, product_name: string,
      *               unit_name: string, qty: string, price_old: string, price_new: string, amount: string}>}
      */
     public function pending(int $customerId): array
     {
-        $open = $this->openInvoices($customerId);
-        if ($open === []) {
+        $unpaid = $this->unpaidInvoices($customerId);
+        if ($unpaid === []) {
             return ['amount' => '0.00', 'lines' => []];
         }
-        $in = implode(',', $open);
+        $in = implode(',', array_keys($unpaid));
         $rows = Database::pdo()->query(
-            "SELECT i.id, i.sale_id, s.invoice_no, i.product_name, i.unit_name, i.unit_price_usd, i.base_qty, pu.factor,
+            "SELECT i.id, i.sale_id, s.invoice_no, i.product_name, i.unit_name, i.unit_price_usd, i.line_total_usd, i.base_qty, pu.factor,
                     CASE WHEN s.price_level = 'wholesale' THEN pu.wholesale_price ELSE pu.retail_price END AS today,
-                    COALESCE((SELECT SUM(ri.base_qty) FROM return_items ri WHERE ri.sale_item_id = i.id), 0) AS returned
-             FROM sale_items i JOIN sales s ON s.id = i.sale_id JOIN products p ON p.id = i.product_id JOIN product_units pu ON pu.id = i.product_unit_id
-             WHERE i.sale_id IN ($in) AND p.price_floats = 1 AND NOT EXISTS (SELECT 1 FROM debt_adjustments d WHERE d.sale_item_id = i.id)
+                    COALESCE((SELECT SUM(ri.base_qty) FROM return_items ri WHERE ri.sale_item_id = i.id), 0) AS returned,
+                    EXISTS (SELECT 1 FROM debt_adjustments d WHERE d.sale_item_id = i.id) AS adjusted
+             FROM sale_items i JOIN sales s ON s.id = i.sale_id JOIN product_units pu ON pu.id = i.product_unit_id
+             WHERE i.sale_id IN ($in)
              ORDER BY i.id"
         )->fetchAll(\PDO::FETCH_ASSOC);
+        // What is left of each invoice after returns, at the prices paid: the unpaid share is measured against it,
+        // so goods returned are not counted twice (their return credit already paid part of the debt).
+        $worth = [];
+        foreach ($rows as $r) {
+            $base = (int) $r['base_qty'];
+            $left = $base - (int) $r['returned'];
+            if ($base > 0 && $left > 0) {
+                $worth[(int) $r['sale_id']] = ($worth[(int) $r['sale_id']] ?? 0.0) + (float) $r['line_total_usd'] * $left / $base;
+            }
+        }
         $lines = [];
         $total = 0.0;
         foreach ($rows as $r) {
+            $saleId = (int) $r['sale_id'];
             $left = (int) $r['base_qty'] - (int) $r['returned'];
             $old = (float) $r['unit_price_usd'];
             $today = $r['today'] === null ? 0.0 : (float) $r['today'];
-            if ($left <= 0 || $today <= $old + 0.004) {
+            if ((int) $r['adjusted'] === 1 || $left <= 0 || $today <= $old + 0.004 || ($worth[$saleId] ?? 0.0) <= 0.004) {
                 continue;
             }
-            $qty = Quantity::unitQty($left, (int) $r['factor']);
+            $share = min(1.0, $unpaid[$saleId] / $worth[$saleId]);   // the part of this invoice not paid yet
+            $qty = rtrim(rtrim(number_format($left / (int) $r['factor'] * $share, 3, '.', ''), '0'), '.');
             $amount = Money::fmt((float) $qty * ($today - $old));
+            if ((float) $amount <= 0.004) {
+                continue;
+            }
             $total += (float) $amount;
             $lines[] = ['sale_id' => (int) $r['sale_id'], 'invoice_no' => $r['invoice_no'], 'sale_item_id' => (int) $r['id'], 'product_name' => $r['product_name'],
                         'unit_name' => $r['unit_name'], 'qty' => $qty, 'price_old' => Money::fmt($old), 'price_new' => Money::fmt($today), 'amount' => $amount];
@@ -93,14 +111,15 @@ final class DebtService
     }
 
     /**
-     * The customer's invoices that are not fully paid yet. Payments, return credits and reductions are a pool that
-     * covers what he owes oldest first; an invoice the pool does not fully cover is open.
+     * What is still unpaid of each of the customer's credit invoices. Payments, return credits and reductions are a
+     * pool that covers what he owes oldest first; the part of an invoice's credit the pool does not reach is unpaid.
+     * Only the invoice's own credit counts (a price adjustment already charged belongs to lines already re-priced).
      *
-     * @return list<int> sale ids
+     * @return array<int, float> sale id => unpaid USD
      */
-    private function openInvoices(int $customerId): array
+    private function unpaidInvoices(int $customerId): array
     {
-        $st = Database::pdo()->prepare('SELECT amount_usd, sale_id FROM customer_ledger WHERE customer_id = :c ORDER BY id');
+        $st = Database::pdo()->prepare('SELECT amount_usd, sale_id, type FROM customer_ledger WHERE customer_id = :c ORDER BY id');
         $st->execute(['c' => $customerId]);
         $rows = $st->fetchAll(\PDO::FETCH_ASSOC);
         $pool = 0.0;
@@ -109,22 +128,20 @@ final class DebtService
                 $pool += -(float) $r['amount_usd'];
             }
         }
-        $open = [];
+        $unpaid = [];
         foreach ($rows as $r) {
             $a = (float) $r['amount_usd'];
             if ($a <= 0) {
                 continue;
             }
-            if ($pool >= $a - 0.004) {
-                $pool -= $a;
-                continue;
-            }
-            $pool = 0.0;
-            if ($r['sale_id'] !== null) {
-                $open[(int) $r['sale_id']] = true;
+            $covered = min($pool, $a);
+            $pool -= $covered;
+            $rest = $a - $covered;
+            if ($rest > 0.004 && $r['type'] === 'sale_credit' && $r['sale_id'] !== null) {
+                $unpaid[(int) $r['sale_id']] = ($unpaid[(int) $r['sale_id']] ?? 0.0) + $rest;
             }
         }
 
-        return array_keys($open);
+        return $unpaid;
     }
 }
