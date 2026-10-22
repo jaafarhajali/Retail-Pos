@@ -19,13 +19,14 @@ final class StockController extends Controller
         $type = $this->query('type');
         $filters = [
             'product_id' => $this->queryInt('product_id'),
-            'type' => in_array($type, ['opening', 'purchase', 'sale', 'sale_void', 'return_restock', 'waste', 'adjustment', 'stocktake'], true) ? $type : '',
+            'type' => isset(StockMovement::LABELS[$type]) ? $type : '',
             'from' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->query('from')) ? $this->query('from') : '',
             'to' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->query('to')) ? $this->query('to') : '',
         ];
         $this->render('stock/index', [
             'pg' => (new StockMovement())->search($filters, max(1, $this->queryInt('page', 1))), 'filters' => $filters,
-            'products' => (new Product())->forPrint(), 'showCost' => Gate::allows('product.view_cost'), 'canAdjust' => Gate::allows('stock.adjust'),
+            'products' => (new Product())->forPrint(), 'types' => (new StockMovement())->typesUsed(),   // only what really happened, in real words (2026-10-22)
+            'showCost' => Gate::allows('product.view_cost'), 'canAdjust' => Gate::allows('stock.adjust'),
         ], 'Stock movements');
     }
 

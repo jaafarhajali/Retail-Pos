@@ -8,6 +8,20 @@ use App\Core\Model;
 /** Append-only stock history. products.stock_base is updated only here, from StockService. */
 final class StockMovement extends Model
 {
+    /** Every kind of movement, in the owner's words (2026-10-22). The Stock page offers only those that happened. */
+    public const LABELS = [
+        'opening' => 'Opening stock', 'purchase' => 'Purchase', 'sale' => 'Sale', 'sale_void' => 'Cancelled sale',
+        'return_restock' => 'Returned to stock', 'waste' => 'Thrown away', 'adjustment' => 'Manual adjustment', 'stocktake' => 'Stocktaking',
+    ];
+
+    /** @return list<string> the movement types that really occurred, in LABELS order */
+    public function typesUsed(): array
+    {
+        $used = array_column($this->fetchAll('SELECT DISTINCT type FROM stock_movements'), 'type');
+
+        return array_values(array_filter(array_keys(self::LABELS), static fn (string $t): bool => in_array($t, $used, true)));
+    }
+
     public function add(array $f): int
     {
         $this->execute(
