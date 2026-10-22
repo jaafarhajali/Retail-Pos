@@ -98,6 +98,7 @@ return [
     ['GET',  'purchases/create', [PurchaseController::class, 'create'], 'purchase.manage'],
     ['POST', 'purchases/store',  [PurchaseController::class, 'store'],  'purchase.manage'],
     ['GET',  'purchases/view',   [PurchaseController::class, 'view'],   'purchase.manage'],
+    ['POST', 'purchases/attach', [PurchaseController::class, 'attach'], 'purchase.manage'],   // the supplier's invoice, photo or PDF (2026-10-22)
     ['GET',  'stock',            [StockController::class, 'index'],      'stock.view'],
     ['GET',  'stock/adjust',     [StockController::class, 'adjustForm'], 'stock.adjust'],
     ['POST', 'stock/adjust',     [StockController::class, 'adjust'],     'stock.adjust'],
@@ -143,6 +144,7 @@ return [
     // Phase 7 — expenses
     ['GET',  'expenses',         [ExpenseController::class, 'index'], 'expense.manage'],
     ['POST', 'expenses/store',   [ExpenseController::class, 'store'], 'expense.manage'],
+    ['POST', 'expenses/attach',  [ExpenseController::class, 'attach'], 'expense.manage'],   // the receipt, photo or PDF (2026-10-22)
     // Phase 8 — reports (each type checks its own key in the controller)
     ['GET',  'reports',          [ReportController::class, 'index'], Router::AUTH],
     // Phase 9 — stocktaking

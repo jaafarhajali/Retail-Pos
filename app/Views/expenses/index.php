@@ -9,7 +9,7 @@ $oldSupplier = $_SESSION['_old']['supplier_id'] ?? null;
 $chosen = is_string($oldSupplier) ? (int) $oldSupplier : $paySupplier;
 ?>
       <h2 class="h6" id="expense-title"><?= $kind === 'supplier' ? 'Pay a supplier' : 'New expense' ?></h2>
-      <form method="post" action="<?= url('expenses/store') ?>" id="expense-form">
+      <form method="post" action="<?= url('expenses/store') ?>" id="expense-form" enctype="multipart/form-data">
         <?= csrf_field() ?>
         <div class="mb-3"><label class="form-label">What is it?</label>
           <div class="btn-group w-100" role="group">
@@ -35,6 +35,7 @@ $chosen = is_string($oldSupplier) ? (int) $oldSupplier : $paySupplier;
           <div class="col-6" data-kind="supplier" <?= $kind === 'expense' ? 'hidden' : '' ?>><label class="form-label">Paid from</label><div class="form-control-plaintext">outside (owner, bank)<br><span class="form-text">never from the drawer</span></div></div>
           <div class="col-6" data-kind="expense" <?= $kind === 'supplier' ? 'hidden' : '' ?>><label class="form-label">Paid from</label><select class="form-select" name="paid_from"><option value="drawer" <?= $session === null ? 'disabled' : '' ?>>the drawer<?= $session === null ? ' (no open session)' : '' ?></option><option value="outside" <?= $session === null || old('paid_from') === 'outside' ? 'selected' : '' ?>>outside (owner, bank)</option></select></div>
         </div>
+        <div class="mb-2"><label class="form-label" for="attachments">Receipt (photo or PDF)</label><input class="form-control" type="file" id="attachments" name="attachments[]" accept="image/jpeg,image/png,image/webp,application/pdf" multiple><div class="form-text">Optional. Photograph the receipt or pick the PDF; it stays with the expense.</div></div>
         <button class="btn btn-primary w-100 mt-2" type="submit" id="expense-submit"><?= $kind === 'supplier' ? 'Pay supplier' : 'Record expense' ?></button>
       </form>
     </div></div>
@@ -48,12 +49,12 @@ $chosen = is_string($oldSupplier) ? (int) $oldSupplier : $paySupplier;
       <button class="btn btn-outline-primary" type="submit">Filter</button>
     </form>
     <div class="card"><div class="table-responsive"><table class="table table-hover table-sm align-middle">
-      <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Paid from</th><th class="text-end">Amount</th><th class="text-end">USD</th></tr></thead>
+      <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Paid from</th><th class="text-end">Amount</th><th class="text-end">USD</th><th>Receipt</th></tr></thead>
       <tbody><?php foreach ($pg['rows'] as $x): ?>
         <tr><td class="text-nowrap"><?= e(date('d/m/Y', strtotime($x['expense_date']))) ?></td><td dir="auto"><?= $x['supplier_id'] !== null ? e(\App\Services\ExpenseService::SUPPLIER_PAYMENT) : e($x['category']) ?><?= $x['supplier_name'] ? '<span class="cell-sub"><i class="bi bi-building"></i> ' . e($x['supplier_name']) . '</span>' : '' ?></td>
-          <td dir="auto"><?= e($x['description'] ?? '') ?></td><td><?= $x['paid_from'] === 'drawer' ? 'Drawer' : 'Outside' ?></td><td class="text-end text-nowrap"><?= implode(' + ', array_filter([(float) $x['usd_paid'] > 0 ? usd($x['usd_paid']) : '', (int) $x['lbp_paid'] > 0 ? lbp($x['lbp_paid']) : ''])) ?></td><td class="text-end"><?= usd($x['amount_usd']) ?></td></tr>
+          <td dir="auto"><?= e($x['description'] ?? '') ?></td><td><?= $x['paid_from'] === 'drawer' ? 'Drawer' : 'Outside' ?></td><td class="text-end text-nowrap"><?= implode(' + ', array_filter([(float) $x['usd_paid'] > 0 ? usd($x['usd_paid']) : '', (int) $x['lbp_paid'] > 0 ? lbp($x['lbp_paid']) : ''])) ?></td><td class="text-end"><?= usd($x['amount_usd']) ?></td><td class="text-nowrap"><?php $attOwner = 'expense'; $attId = (int) $x['id']; $attFiles = $attachments[(int) $x['id']] ?? []; $attRoute = 'expenses/attach'; $attCompact = true; require APP_PATH . '/Views/partials/attachments.php'; ?></td></tr>
       <?php endforeach; ?>
-      <?php if ($pg['rows'] === []): ?><tr><td colspan="6" class="empty">No expenses match these filters.</td></tr><?php endif; ?></tbody>
+      <?php if ($pg['rows'] === []): ?><tr><td colspan="7" class="empty">No expenses match these filters.</td></tr><?php endif; ?></tbody>
     </table></div></div>
     <?php require APP_PATH . '/Views/partials/pagination.php'; ?>
   </div>

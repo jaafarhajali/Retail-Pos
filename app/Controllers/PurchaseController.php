@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Models\Purchase;
 use App\Models\Supplier;
+use App\Services\AttachmentService;
 use App\Services\PurchaseService;
 
 final class PurchaseController extends Controller
@@ -48,14 +49,40 @@ final class PurchaseController extends Controller
         } catch (\DomainException $e) {
             $this->failBack('purchases/create', [], ['form' => $e->getMessage()]);
         }
-        Flash::set('success', 'Purchase posted; stock and cost updated.');
+        // the supplier's invoice (2026-10-22): the purchase is posted first, the files are hung on it; a bad file never loses the purchase
+        [$attached, $problem] = (new AttachmentService())->storeAll('purchase', $id, Auth::id());
+        Flash::set('success', 'Purchase posted; stock and cost updated.' . ($attached > 0 ? " {$attached} file" . ($attached === 1 ? '' : 's') . ' attached.' : ''));
+        if ($problem !== null) {
+            Flash::set('error', $problem);
+        }
         redirect('purchases/view', ['id' => $id]);
     }
 
     public function view(): void
     {
         $purchase = (new Purchase())->find($this->queryInt('id')) ?? throw new HttpException(404);
-        $this->render('purchases/view', ['purchase' => $purchase, 'items' => (new Purchase())->items((int) $purchase['id'])], $purchase['purchase_no']);
+        $this->render('purchases/view', [
+            'purchase' => $purchase, 'items' => (new Purchase())->items((int) $purchase['id']),
+            'attachments' => (new AttachmentService())->forOwner('purchase', (int) $purchase['id']),
+        ], $purchase['purchase_no']);
+    }
+
+    /** Hang the supplier's invoice on a purchase that was posted without it, or add a second page. */
+    public function attach(): void
+    {
+        $id = $this->inputInt('purchase_id');
+        if ((new Purchase())->find($id) === null) {
+            throw new HttpException(404);
+        }
+        [$attached, $problem] = (new AttachmentService())->storeAll('purchase', $id, Auth::id());
+        if ($problem !== null) {
+            Flash::set('error', $problem);
+        } elseif ($attached === 0) {
+            Flash::set('error', 'Choose a photo or a PDF first.');
+        } else {
+            Flash::set('success', $attached === 1 ? 'The file is attached.' : "{$attached} files attached.");
+        }
+        redirect('purchases/view', ['id' => $id]);
     }
 
     private function dateQuery(string $key): string

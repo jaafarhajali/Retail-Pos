@@ -98,7 +98,7 @@ final class ProductImageService
     }
 
     /** Apply an EXIF orientation (1–8) so the stored pixels are upright. imagerotate() turns counter-clockwise. */
-    private static function upright(\GdImage $img, int $orientation): \GdImage
+    public static function upright(\GdImage $img, int $orientation): \GdImage
     {
         switch ($orientation) {
             case 2:

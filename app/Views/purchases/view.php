@@ -12,6 +12,10 @@
         <?php if ($purchase['notes']): ?><dt>Notes</dt><dd dir="auto"><?= e($purchase['notes']) ?></dd><?php endif; ?>
       </dl>
     </div></div>
+    <div class="card mt-3"><div class="card-body">
+      <h2 class="h6">Supplier's invoice</h2>
+      <?php $attOwner = 'purchase'; $attId = (int) $purchase['id']; $attFiles = $attachments; $attRoute = 'purchases/attach'; $attLabel = "the supplier's invoice"; require APP_PATH . '/Views/partials/attachments.php'; ?>
+    </div></div>
     <a class="btn btn-link mt-2" href="<?= url('purchases') ?>">Back to purchases</a>
   </div>
   <div class="col-xl-8">

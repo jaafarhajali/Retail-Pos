@@ -11,3 +11,6 @@
 !/public/uploads/products/
 /public/uploads/products/*
 !/public/uploads/products/.gitkeep
+!/public/uploads/attachments/
+/public/uploads/attachments/*
+!/public/uploads/attachments/.gitkeep

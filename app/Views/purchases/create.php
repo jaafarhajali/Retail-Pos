@@ -4,7 +4,7 @@ foreach ($unitsById as $pid => $units) {
     $unitOptions[$pid] = array_map(static fn (array $u): array => ['id' => (int) $u['id'], 'name' => $u['name'], 'purchase' => (int) $u['is_default_purchase'] === 1], $units);
 }
 ?>
-<form method="post" action="<?= url('purchases/store') ?>" id="purchase-form">
+<form method="post" action="<?= url('purchases/store') ?>" id="purchase-form" enctype="multipart/form-data">
   <?= csrf_field() ?>
   <div class="card mb-3"><div class="card-body">
     <div class="row g-3">
@@ -28,6 +28,11 @@ foreach ($unitsById as $pid => $units) {
   <div class="card mb-3"><div class="card-body row g-3 align-items-start">
     <div class="col-md-3"><label class="form-label" for="paid_now">Paid now (USD)</label><input class="form-control" id="paid_now" name="paid_now" inputmode="decimal" placeholder="0.00" value="<?= old('paid_now') ?>"></div>
     <div class="col-md-9 form-text mt-md-4 pt-md-2">Paid from outside the drawer (owner, bank); suppliers are never paid from the till. The rest stays as debt to the supplier. Cost prices update by moving average (5 @ $10 + 5 @ $15 → $12.50).</div>
+  </div></div>
+  <div class="card mb-3"><div class="card-body">
+    <label class="form-label" for="attachments">Supplier's invoice (photo or PDF)</label>
+    <input class="form-control" type="file" id="attachments" name="attachments[]" accept="image/jpeg,image/png,image/webp,application/pdf" multiple>
+    <div class="form-text">Optional. Photograph the paper (on a phone this opens the camera) or pick the PDF; several files are fine. It stays with the purchase for ever, so a price or a quantity can be checked against the supplier's own paper. Up to 8 MB each.</div>
   </div></div>
   <button class="btn btn-primary btn-lg" type="submit">Post purchase</button>
   <a class="btn btn-link" href="<?= url('purchases') ?>">Cancel</a>

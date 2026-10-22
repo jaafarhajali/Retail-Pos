@@ -913,3 +913,16 @@ body > .error-wrap .blocked { width: 100%; }
 .cart-line .line-del:hover, .cart-line .line-del:focus-visible { color: var(--red); background: rgba(179, 38, 30, .1); }
 .cart-line.active .line-del { color: var(--paper-pick-ink-2); }
 .cart-line.active .line-del:hover { color: var(--red); background: rgba(255, 255, 255, .5); }
+
+/* The paper behind a record (2026-10-22, as in Retail Production): thumbnails of the supplier's invoice or the receipt, and an Attach button. */
+.attachments { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.attachments .att-list { display: flex; flex-wrap: wrap; gap: .4rem; }
+.attachments .att-file { display: inline-grid; place-items: center; width: 64px; height: 64px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface-2); }
+.attachments .att-file img { width: 100%; height: 100%; object-fit: cover; }
+.attachments .att-pdf { color: var(--red); font-weight: 600; font-size: .8rem; display: inline-flex; align-items: center; gap: .25rem; }
+.attachments .att-pdf i { font-size: 1.4rem; }
+.attachments .att-add { margin: 0; }
+.attachments.is-compact { gap: .3rem; }
+.attachments.is-compact .att-file { width: 30px; height: 30px; border-radius: 6px; }
+.attachments.is-compact .att-pdf i { font-size: 1.1rem; }
+.attachments.is-compact .att-add .btn { padding: .1rem .45rem; min-height: 28px; font-size: .78rem; }
