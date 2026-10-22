@@ -51,7 +51,10 @@ return [
         $form = $c->get('products/create')->body;
         assert_contains('<th>Retail / مفرق</th>', $form, 'the price columns of the product page');
         assert_contains('<th>Wholesale / جملة</th>', $form);
-        assert_contains('Wholesale / جملة', $c->get('reports', ['type' => 'sales', 'by' => 'level'])->body, 'the sales report by level');
+        $report = $c->get('reports', ['type' => 'sales', 'by' => 'level'])->body;
+        assert_contains('Wholesale / جملة', $report, 'the sales report by level');
+        assert_contains('>Price level (مفرق / جملة)</option>', $report, 'the Group by choice names the grouping, not both levels');
+        assert_contains('<th>Price level</th>', $report);
     },
 
     'the till gets both names for its Retail / Wholesale button and the customer list' => function (): void {
