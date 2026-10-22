@@ -366,7 +366,7 @@
 
   // ---- price level and customer
   $('btn-level').addEventListener('click', function () {
-    level = level === 'retail' ? 'wholesale' : 'retail'; this.textContent = level.charAt(0).toUpperCase() + level.slice(1); this.classList.toggle('is-wholesale', level === 'wholesale');
+    level = level === 'retail' ? 'wholesale' : 'retail'; this.textContent = P.levels[level]; this.classList.toggle('is-wholesale', level === 'wholesale');
     if (level === 'wholesale' && !P.can.wholesale) msg('Wholesale needs the Admin PIN at payment');
     renderGrid(); renderCart();
   });
@@ -380,7 +380,7 @@
         a.innerHTML = '<span class="li-main"><b dir="auto"></b><small dir="ltr"></small></span><span class="li-meta"></span>';
         a.querySelector('b').textContent = c.name; a.querySelector('small').textContent = c.phone || 'no phone';
         var owes = parseFloat(c.balance) > 0, meta = a.querySelector('.li-meta');
-        meta.textContent = owes ? 'owes ' + money(c.balance) : (c.level === 'wholesale' ? 'Wholesale' : ''); meta.classList.toggle('is-owed', owes);
+        meta.textContent = owes ? 'owes ' + money(c.balance) : (c.level === 'wholesale' ? P.levels.wholesale : ''); meta.classList.toggle('is-owed', owes);
         a.addEventListener('click', function () { setCustomer(c); }); list.appendChild(a);
       });
       if (!j.customers.length) list.innerHTML = '<div class="empty">' + (q ? 'No customer matches this name or phone.' : 'No customers yet. Add them on the Customers page.') + '</div>';
@@ -389,7 +389,7 @@
   $('cust-q').addEventListener('input', function () { searchCustomers(this.value); });
   function setCustomer(c) {
     customer = c; $('customer-name').textContent = c ? c.name : 'Walk-in';
-    if (c && c.level !== level) { level = c.level; $('btn-level').textContent = level.charAt(0).toUpperCase() + level.slice(1); $('btn-level').classList.toggle('is-wholesale', level === 'wholesale'); renderGrid(); renderCart(); }
+    if (c && c.level !== level) { level = c.level; $('btn-level').textContent = P.levels[level]; $('btn-level').classList.toggle('is-wholesale', level === 'wholesale'); renderGrid(); renderCart(); }
     var box = $('debt-box'); if (box) { box.hidden = !(c && parseFloat(c.balance) > 0); if (c) { $('debt-name').textContent = c.name; $('debt-owes').textContent = money(c.balance); $('debt-note').hidden = !(parseFloat(c.pending) > 0); $('debt-note').textContent = parseFloat(c.pending) > 0 ? 'Includes +' + money(c.pending) + ' price of the day: ' + c.pending_note : ''; } $('debt-usd').value = ''; $('debt-lbp').value = ''; debtText(); }
     if (!c || !(parseFloat(c.balance) > 0)) modals['m-customer'].hide();
   }

@@ -12,7 +12,7 @@
         <div class="row g-2 mb-3">
           <div class="col-6"><label class="form-label" for="default_price_level">Price level</label>
             <select class="form-select" id="default_price_level" name="default_price_level">
-              <?php foreach (['retail', 'wholesale'] as $lv): ?><option value="<?= $lv ?>" <?= ($customer['default_price_level'] ?? 'retail') === $lv ? 'selected' : '' ?>><?= $lv ?></option><?php endforeach; ?>
+              <?php foreach (['retail', 'wholesale'] as $lv): ?><option value="<?= $lv ?>" <?= ($customer['default_price_level'] ?? 'retail') === $lv ? 'selected' : '' ?>><?= e(level_name($lv)) ?></option><?php endforeach; ?>
             </select></div>
           <div class="col-6"><label class="form-label" for="credit_limit_usd">Credit limit (USD)</label><input class="form-control" id="credit_limit_usd" name="credit_limit_usd" inputmode="decimal" placeholder="no limit" value="<?= old('credit_limit_usd', $customer['credit_limit_usd'] ?? '') ?>"></div>
         </div>

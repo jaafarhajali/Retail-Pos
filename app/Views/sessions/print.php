@@ -17,8 +17,8 @@ $minus = static fn ($amount, string $shown): string => (float) $amount != 0 ? '-
   <table>
     <tr><td>Invoices</td><td class="r"><?= (int) ($sales['invoices'] ?? 0) ?> (<?= (int) ($sales['voided'] ?? 0) ?> voided)</td></tr>
     <tr><td>Sales total</td><td class="r"><?= usd($sales['total'] ?? 0) ?></td></tr>
-    <tr><td>&nbsp;&nbsp;retail</td><td class="r"><?= usd($sales['retail'] ?? 0) ?></td></tr>
-    <tr><td>&nbsp;&nbsp;wholesale</td><td class="r"><?= usd($sales['wholesale'] ?? 0) ?></td></tr>
+    <tr><td>&nbsp;&nbsp;<?= e(level_name('retail')) ?></td><td class="r"><?= usd($sales['retail'] ?? 0) ?></td></tr>
+    <tr><td>&nbsp;&nbsp;<?= e(level_name('wholesale')) ?></td><td class="r"><?= usd($sales['wholesale'] ?? 0) ?></td></tr>
     <tr><td>Rounding</td><td class="r"><?= usd($sales['rounding'] ?? 0) ?></td></tr>
     <tr><td>Returns (<?= (int) $returns['n'] ?>)</td><td class="r"><?= $minus($returns['refund_usd'], usd($returns['refund_usd'])) ?></td></tr>
   </table>

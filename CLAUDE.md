@@ -56,6 +56,7 @@ scanner and a receipt printer with a cash drawer.
 ## Rules that must never be broken
 
 - UI text in **English only**. User data may be **Arabic**: utf8mb4 everywhere, `dir="auto"` on name fields.
+  One exception (2026-10-22): a price level is always shown as `level_name()` gives it, "Retail / مفرق" and "Wholesale / جملة".
 - Money is `DECIMAL` (USD `DECIMAL(12,2)`, LBP whole numbers), never float in the database.
   Stock is an **integer of base units** (piece / gram / ml).
 - PHP and the MariaDB session use the same timezone (`SET time_zone` on connect).

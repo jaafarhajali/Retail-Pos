@@ -43,6 +43,15 @@ function usd(float|int|string|null $amount): string
     return ($value < 0 ? '-$' : '$') . number_format(abs($value), 2);
 }
 
+/**
+ * A price level as the shop says it: the Arabic word beside the English one (2026-10-22, Aya). The only Arabic in
+ * the interface; everything that shows a level on screen or on paper goes through this.
+ */
+function level_name(string $level): string
+{
+    return $level === 'wholesale' ? 'Wholesale / جملة' : 'Retail / مفرق';
+}
+
 /** 1,234,000 LBP — whole lira only. */
 function lbp(float|int|string|null $amount): string
 {

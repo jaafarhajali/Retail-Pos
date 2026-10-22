@@ -13,7 +13,7 @@
     <tr><td>Date</td><td class="r"><?= e(date('d/m/Y H:i', strtotime($s['created_at']))) ?></td></tr>
     <tr><td>Cashier</td><td class="r"><?= e($s['username']) ?> · <?= e($s['register_name']) ?></td></tr>
     <?php if ($s['customer_name']): ?><tr><td>Customer</td><td class="r" dir="auto"><?= e($s['customer_name']) ?></td></tr><?php endif; ?>
-    <?php if ($s['price_level'] === 'wholesale'): ?><tr><td colspan="2" class="c">Wholesale prices</td></tr><?php endif; ?>
+    <?php if ($s['price_level'] === 'wholesale'): ?><tr><td colspan="2" class="c"><?= e(level_name('wholesale')) ?></td></tr><?php endif; ?>
   </table>
   <div class="rule"></div>
   <table>

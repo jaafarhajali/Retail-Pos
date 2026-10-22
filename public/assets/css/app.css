@@ -557,7 +557,7 @@ body > .error-wrap .blocked { width: 100%; }
 .pos-head .pos-customer { justify-content: flex-start; min-width: 0; }
 .pos-customer span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pos-customer i { font-size: 1.2rem; color: var(--t-ink-2); }
-.pos-level { min-width: 7.5rem; justify-content: center; }
+.pos-level { min-width: 7.5rem; justify-content: center; white-space: nowrap; }
 .pos-head .pos-level.is-wholesale { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-on-accent); }
 /* The ticket: the sale as it will print, dark ink on paper, readable from arm's length. */
 .cart { flex: 1; min-height: 0; overflow-y: auto; margin: 0 .8rem; background: var(--paper); color: var(--paper-ink); border-radius: 12px 12px 0 0; box-shadow: var(--paper-edge); scrollbar-width: thin; }

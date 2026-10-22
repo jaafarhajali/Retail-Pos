@@ -7,7 +7,7 @@
         <dt>When</dt><dd><?= e(date('d/m/Y H:i', strtotime($s['created_at']))) ?></dd>
         <dt>Cashier</dt><dd><?= e($s['username']) ?><span class="cell-sub"><span dir="auto"><?= e($s['register_name']) ?></span> · <?= e($s['session_no']) ?></span></dd>
         <dt>Customer</dt><dd dir="auto"><?= e($s['customer_name'] ?? 'Walk-in') ?></dd>
-        <dt>Prices</dt><dd><?= e(ucfirst($s['price_level'])) ?><span class="cell-sub">1 USD = <?= number_format((int) $s['exchange_rate']) ?> LBP</span></dd>
+        <dt>Prices</dt><dd><?= e(level_name($s['price_level'])) ?><span class="cell-sub">1 USD = <?= number_format((int) $s['exchange_rate']) ?> LBP</span></dd>
         <?php if ($voided): ?><dt>Voided</dt><dd><span dir="auto"><?= e($s['void_reason']) ?></span><span class="cell-sub"><?= e(date('d/m/Y H:i', strtotime($s['voided_at']))) ?></span></dd><?php endif; ?>
       </dl>
       <div class="d-flex flex-wrap gap-2">

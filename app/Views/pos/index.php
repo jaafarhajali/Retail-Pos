@@ -54,7 +54,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
   <section class="pos-right" aria-label="Sale">
     <div class="pos-head">
       <button class="pos-btn pos-customer" id="btn-customer"><i class="bi bi-person-circle"></i> <span id="customer-name">Walk-in</span></button>
-      <button class="pos-btn pos-level" id="btn-level" title="Price level">Retail</button>
+      <button class="pos-btn pos-level" id="btn-level" title="Price level"><?= e(level_name('retail')) ?></button>
     </div>
     <div class="cart" id="cart"><div class="empty"><i class="bi bi-upc-scan"></i>Scan or tap a product to start.</div></div>
     <div class="pos-totals">
@@ -275,6 +275,7 @@ window.POS = {
   session: <?= json_encode($session['session_no']) ?>, signIn: <?= json_encode(url('auth/login')) ?>,
   token: <?= json_encode($token) ?>, rate: <?= (int) $rate ?>, step: <?= (int) $step ?>,
   can: <?= json_encode($can) ?>, maxDiscount: <?= (float) $maxDiscount ?>,
+  levels: <?= json_encode(['retail' => level_name('retail'), 'wholesale' => level_name('wholesale')], JSON_UNESCAPED_UNICODE) ?>,
   urls: { data: <?= json_encode(url('pos/data')) ?>, prices: <?= json_encode(url('pos/prices')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,
           resume: <?= json_encode(url('pos/resume')) ?>, expense: <?= json_encode(url('pos/expense')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?>, check: <?= json_encode(url('pos/check')) ?>,
           returnPin: <?= json_encode(url('pos/return-pin')) ?>, returnSearch: <?= json_encode(url('pos/return-search')) ?>, returnSale: <?= json_encode(url('pos/return-sale')) ?>, returnStore: <?= json_encode(url('pos/return')) ?> }

@@ -6,7 +6,7 @@
   <?= csrf_field() ?>
   <div class="card mb-3"><div class="table-responsive">
     <table class="table align-middle m-0">
-      <thead><tr><th>Product</th><th>Unit</th><th class="text-end">Cost</th><th class="text-end">Retail now</th><th style="width:9rem">New retail</th><th class="text-end">Wholesale now</th><th style="width:9rem">New wholesale</th><th>Last change</th></tr></thead>
+      <thead><tr><th>Product</th><th>Unit</th><th class="text-end">Cost</th><th class="text-end"><?= e(level_name('retail')) ?> now</th><th style="width:9rem">New <?= e(level_name('retail')) ?></th><th class="text-end"><?= e(level_name('wholesale')) ?> now</th><th style="width:9rem">New <?= e(level_name('wholesale')) ?></th><th>Last change</th></tr></thead>
       <tbody>
       <?php foreach ($units as $u): $id = (int) $u['id']; ?>
         <tr>
@@ -32,7 +32,7 @@
 <?php if ($history !== []): ?>
   <div class="card mt-4"><div class="card-header">Last changes</div><div class="table-responsive">
     <table class="table table-sm m-0">
-      <thead><tr><th>When</th><th>Product</th><th>Unit</th><th class="text-end">Retail</th><th class="text-end">Wholesale</th><th>By</th></tr></thead>
+      <thead><tr><th>When</th><th>Product</th><th>Unit</th><th class="text-end"><?= e(level_name('retail')) ?></th><th class="text-end"><?= e(level_name('wholesale')) ?></th><th>By</th></tr></thead>
       <tbody>
       <?php foreach ($history as $h): ?>
         <tr><td class="text-nowrap"><?= e(date('d/m/Y H:i', strtotime($h['created_at']))) ?></td><td dir="auto"><?= e($h['product_name']) ?></td><td><?= e($h['unit_name']) ?></td>

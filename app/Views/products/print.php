@@ -10,7 +10,7 @@ $totalValue = 0.0;
   <h2 class="h6 mt-3 mb-1" dir="auto"><?= e($groupName) ?></h2>
   <table class="table table-sm table-bordered m-0">
     <thead><tr>
-      <th style="width: 7rem">Code</th><th>Product</th><th style="width: 12rem">Stock</th><th>Retail prices</th>
+      <th style="width: 7rem">Code</th><th>Product</th><th style="width: 12rem">Stock</th><th>Prices: <?= e(level_name('retail')) ?></th>
       <?php if ($showCost): ?><th class="text-end" style="width: 8rem">Cost / unit</th><th class="text-end" style="width: 8rem">Stock value</th><?php endif; ?>
     </tr></thead>
     <tbody>
