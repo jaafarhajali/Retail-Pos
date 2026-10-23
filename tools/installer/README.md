@@ -40,4 +40,4 @@ The version is the `VERSION` file at the root of the repository. Bump it before 
 
 On a PC that never had XAMPP: run the setup, sign in as `admin`, make a sale, press Back up now, pull the USB stick
 out and in, check Settings → Check this installation is all green. Then run the setup again to prove an update keeps
-the data. On the development PC the setup lands on ports 8080 and 3307 (or the next free), next to XAMPP.
+the data. On the development PC **start XAMPP first**: the setup takes the first free ports, so with XAMPP stopped it takes 80 and 3306 and XAMPP cannot start afterwards. With XAMPP running it lands on 8080 and the next free database port.
