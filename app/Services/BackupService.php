@@ -15,7 +15,7 @@ use App\Models\Setting;
 final class BackupService
 {
     /** How many zips of each kind stay, here and on the USB stick: 2 days of hours, a month of days, 2 years of months. */
-    public const KEEP = ['hourly' => 48, 'daily' => 30, 'monthly' => 24, 'manual' => 20];
+    public const KEEP = ['hourly' => 48, 'daily' => 30, 'monthly' => 24, 'manual' => 20, 'pre-restore' => 10];
 
     /** How the last backup went: 'ok', 'off' (no USB folder set) or the error text. */
     public string $lastCopy = 'off';
@@ -27,6 +27,18 @@ final class BackupService
     public static function dir(): string
     {
         return STORAGE_PATH . '/backups' . (APP_ENV === 'test' ? '/test' : '');
+    }
+
+    /** The mysql client, next to mysqldump. */
+    public static function mysqlPath(): string
+    {
+        return dirname(self::mysqldumpPath()) . '/mysql' . (PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
+    }
+
+    /** Where uploaded files live; the test suite restores into its own corner so the real product images are never touched. */
+    public static function uploadsDir(): string
+    {
+        return BASE_PATH . '/public/uploads' . (APP_ENV === 'test' ? '/test' : '');
     }
 
     public static function mysqldumpPath(): string
@@ -218,10 +230,101 @@ final class BackupService
         ];
     }
 
+    /**
+     * Restores a backup zip over the live installation (2026-10-23): the whole database and the uploaded files are
+     * replaced by what the zip holds. Guards: no open cash session, a safety backup of the current state first
+     * (kind pre-restore), the migrations re-applied afterwards so an older zip fits today's code, and an audit line.
+     *
+     * @return array{file: string, safety: string, migrated: list<string>}
+     */
+    public function restore(string $zipPath, int $userId, ?string $label = null): array
+    {
+        $label ??= basename($zipPath);   // an uploaded zip is restored from a temporary copy; the owner sees the name he gave it
+        if (($problems = self::problems()) !== []) {
+            throw new \RuntimeException($problems[0]);
+        }
+        if (!is_file(self::mysqlPath())) {
+            throw new \RuntimeException('The mysql client was not found next to mysqldump (' . self::mysqlPath() . ').');
+        }
+        if (!is_file($zipPath)) {
+            throw new \RuntimeException('That backup file does not exist.');
+        }
+        $pdo = \App\Core\Database::pdo();
+        $open = (int) $pdo->query("SELECT COUNT(*) FROM cash_sessions WHERE status = 'open'")->fetchColumn();
+        if ($open > 0) {
+            throw new \RuntimeException('Close every cash session first: ' . $open . ' still open. A restore replaces all of today\'s work.');
+        }
+        // unpack and check before anything is touched
+        $work = self::dir() . '/restore-' . bin2hex(random_bytes(4));
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath) !== true || !mkdir($work, 0777, true) || !$zip->extractTo($work)) {
+            throw new \RuntimeException('The zip could not be unpacked. Is it a Retail POS backup?');
+        }
+        $zip->close();
+        $dumps = glob($work . '/*.sql') ?: [];
+        if (count($dumps) !== 1 || !str_contains((string) file_get_contents($dumps[0], false, null, max(0, filesize($dumps[0]) - 200)), 'Dump completed')) {
+            self::removeDir($work);
+            throw new \RuntimeException('The zip does not hold one complete database dump. Is it a Retail POS backup?');
+        }
+        try {
+            $safety = $this->create('pre-restore');
+            // the database: every table goes, the dump brings them back, then today's migrations fill the gap for an older zip
+            $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+            foreach ($pdo->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN) as $table) {
+                $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
+            }
+            $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+            $cmd = sprintf('"%s" --host=%s --port=%d --user=%s %s --default-character-set=utf8mb4 %s < "%s" 2>&1',
+                self::mysqlPath(), DB_HOST, DB_PORT, DB_USER, DB_PASS === '' ? '' : '--password=' . escapeshellarg(DB_PASS), DB_NAME, $dumps[0]);
+            exec($cmd, $out, $rc);
+            if ($rc !== 0) {
+                throw new \RuntimeException('The import stopped: ' . implode(' ', $out) . ' The safety backup ' . basename($safety) . ' holds the state from before.');
+            }
+            $migrated = \App\Core\Installer::migrate();
+            // the uploaded files: what the zip holds, nothing else
+            $uploads = self::uploadsDir();
+            if (is_dir($uploads)) {
+                foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($uploads, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST) as $item) {
+                    $rel = str_replace('\\', '/', substr((string) $item, strlen($uploads) + 1));
+                    if ($rel === '.htaccess' || str_starts_with($rel, 'test/') || $rel === 'test') {
+                        continue;
+                    }
+                    $item->isDir() ? @rmdir((string) $item) : @unlink((string) $item);
+                }
+            }
+            if (is_dir($work . '/uploads')) {
+                foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($work . '/uploads', \FilesystemIterator::SKIP_DOTS)) as $file) {
+                    $rel = str_replace('\\', '/', substr((string) $file, strlen($work . '/uploads') + 1));
+                    $target = $uploads . '/' . $rel;
+                    @mkdir(dirname($target), 0777, true);
+                    copy((string) $file, $target);
+                }
+            }
+            \App\Core\Settings::flush();
+            \App\Core\Audit::log('backup.restored', 'backup', null, ['file' => $label, 'safety' => basename($safety), 'migrated' => $migrated, 'by' => $userId]);
+            $this->remember(['backup_last_restore' => date('Y-m-d H:i:s') . ' ' . $label]);
+
+            return ['file' => $label, 'safety' => basename($safety), 'migrated' => $migrated];
+        } finally {
+            self::removeDir($work);
+        }
+    }
+
+    private static function removeDir(string $dir): void
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST) as $f) {
+            $f->isDir() ? @rmdir((string) $f) : @unlink((string) $f);
+        }
+        @rmdir($dir);
+    }
+
     /** The kind a zip's name says: hourly, daily, monthly, or manual when it has no suffix. */
     public static function kindOf(string $file): string
     {
-        return preg_match('/-(hourly|daily|monthly)\.zip$/', $file, $m) ? $m[1] : 'manual';
+        return preg_match('/-(hourly|daily|monthly|pre-restore)\.zip$/', $file, $m) ? $m[1] : 'manual';
     }
 
     private function zip(string $zipPath, string $sql, string $stamp): void

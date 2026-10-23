@@ -71,7 +71,7 @@
       <form method="post" action="<?= url('backup/run') ?>"><?= csrf_field() ?><button class="btn btn-primary" type="submit" <?= $problems === [] ? '' : 'disabled' ?>>Back up now</button></form>
       <hr>
       <p class="small text-muted mb-1 wrap-code">Check that a backup really restores (the live data is only read): <code><?= e(PHP_BINARY) ?> "<?= e(BASE_PATH) ?>\bin\restore-drill.php"</code>. Do it after installing and once a month.</p>
-      <p class="small text-muted mb-0 wrap-code">Restore on a new PC: install, then unzip the newest zip, import the .sql into MySQL (phpMyAdmin or <code>mysql retail_pos &lt; file.sql</code>) and copy the <code>uploads</code> folder to <code>public/uploads</code>. Uses <code><?= e($mysqldump) ?></code>.</p>
+      <p class="small text-muted mb-0 wrap-code">Restore: the red card on the right. Uses <code><?= e($mysqldump) ?></code> and the mysql client next to it.</p>
     </div></div>
   </div>
   <div class="col-lg-7">
@@ -80,6 +80,22 @@
       <tbody><?php foreach ($backups as $b): ?><tr><td><code><?= e($b['name']) ?></code></td><td><?= e($b['kind']) ?></td><td><?= e($b['at']) ?></td><td class="text-end"><?= number_format($b['size'] / 1024) ?> KB</td></tr><?php endforeach; ?>
       <?php if ($backups === []): ?><tr><td colspan="4" class="empty">No backups yet. Press Back up now, or install the automatic tasks.</td></tr><?php endif; ?></tbody>
     </table></div></div>
+    <div class="card mt-3 border-danger"><div class="card-body">
+      <h2 class="h5 text-danger"><i class="bi bi-arrow-counterclockwise"></i> Restore a backup</h2>
+      <p class="small text-muted">Puts the shop back exactly as it was in that backup: database and product images. Everything done after it is lost. A safety backup of the current state is taken first (kind <code>pre-restore</code>), and every cash session must be closed. On a new PC: install, then upload the newest zip from the USB stick here.</p>
+      <?php if (form_error('restore') !== ''): ?><div class="alert alert-danger py-2"><?= form_error('restore') ?></div><?php endif; ?>
+      <form method="post" action="<?= url('backup/restore') ?>" enctype="multipart/form-data" data-confirm="Restore this backup? Everything since it will be lost. A safety backup is taken first.">
+        <?= csrf_field() ?>
+        <div class="row g-2">
+          <div class="col-md-6"><label class="form-label" for="restore-file">A backup from this PC</label>
+            <select class="form-select" id="restore-file" name="file"><option value="">— choose —</option><?php foreach ($backups as $b): ?><option value="<?= e($b['name']) ?>"><?= e($b['name']) ?> (<?= e($b['kind']) ?>, <?= e($b['at']) ?>)</option><?php endforeach; ?></select></div>
+          <div class="col-md-6"><label class="form-label" for="restore-zip">… or a zip from the USB stick</label><input class="form-control" type="file" id="restore-zip" name="zip" accept=".zip"></div>
+          <div class="col-md-6"><label class="form-label" for="restore-password">Your sign-in password</label><input class="form-control" type="password" id="restore-password" name="password" autocomplete="current-password" required></div>
+          <div class="col-md-6"><label class="form-label" for="restore-confirm">Type RESTORE</label><input class="form-control" id="restore-confirm" name="confirm" autocomplete="off" required></div>
+        </div>
+        <button class="btn btn-danger mt-3" type="submit" <?= $problems === [] ? '' : 'disabled' ?>>Restore</button>
+      </form>
+    </div></div>
     <p class="small text-muted mt-2">Files are in <code>storage/backups</code>. Kept: the newest <?= (int) $keep['hourly'] ?> hourly, <?= (int) $keep['daily'] ?> daily, <?= (int) $keep['monthly'] ?> monthly and <?= (int) $keep['manual'] ?> manual backups.</p>
   </div>
 </div>

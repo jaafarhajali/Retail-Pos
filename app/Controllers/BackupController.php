@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Audit;
+use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Flash;
 use App\Services\BackupService;
@@ -15,6 +16,55 @@ final class BackupController extends Controller
     {
         $this->render('backup/index', ['backups' => (new BackupService())->list(), 'mysqldump' => BackupService::mysqldumpPath(), 'problems' => BackupService::problems(),
                                        'status' => BackupService::status(), 'keep' => BackupService::KEEP, 'driveKeep' => GoogleDriveService::KEEP, 'callbackUrl' => self::callbackUrl()], 'Backups');
+    }
+
+    /**
+     * Restore (2026-10-23): a backup from the list or a zip brought on a stick replaces the whole database and the
+     * uploaded files. The administrator types his password and the word RESTORE; the service takes a safety backup first.
+     */
+    public function restore(): void
+    {
+        $user = Auth::user();
+        $password = (string) ($_POST['password'] ?? '');
+        if ($user === null || $password === '' || !password_verify($password, (string) $user['password_hash'])) {
+            Audit::log('backup.restore_refused', 'backup', null, ['why' => 'wrong password']);
+            $this->failBack('backup', [], ['restore' => 'Wrong password. Restoring needs your own sign-in password.']);
+        }
+        if (trim((string) ($_POST['confirm'] ?? '')) !== 'RESTORE') {
+            $this->failBack('backup', [], ['restore' => 'Type RESTORE in capitals to confirm. Everything since that backup will be lost.']);
+        }
+        $upload = $_FILES['zip'] ?? null;
+        $name = basename(trim($this->input('file')));
+        $temp = null;
+        try {
+            if (is_array($upload) && ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                if ($upload['error'] !== UPLOAD_ERR_OK || !is_uploaded_file((string) $upload['tmp_name'])) {
+                    throw new \RuntimeException('The zip did not upload. Is it bigger than PHP allows (upload_max_filesize)?');
+                }
+                $temp = BackupService::dir() . '/uploaded-' . date('Y-m-d_His') . '.zip';
+                if (!move_uploaded_file((string) $upload['tmp_name'], $temp)) {
+                    throw new \RuntimeException('The uploaded zip could not be saved.');
+                }
+                $zip = $temp;
+                $name = (string) $upload['name'];
+            } elseif ($name !== '' && preg_match('/^[\w.-]+\.zip$/', $name) && is_file(BackupService::dir() . '/' . $name)) {
+                $zip = BackupService::dir() . '/' . $name;
+            } else {
+                throw new \RuntimeException('Choose a backup from the list or upload a zip.');
+            }
+            $r = (new BackupService())->restore($zip, (int) $user['id'], $name);
+        } catch (\RuntimeException $e) {
+            if ($temp !== null) {
+                @unlink($temp);
+            }
+            Audit::log('backup.restore_failed', 'backup', null, ['file' => $name, 'error' => $e->getMessage()]);
+            $this->failBack('backup', [], ['restore' => $e->getMessage()]);
+        }
+        if ($temp !== null) {
+            @unlink($temp);
+        }
+        Flash::set('success', 'Restored ' . $r['file'] . '. The state from just before is in ' . $r['safety'] . '.' . ($r['migrated'] === [] ? '' : ' Updated: ' . implode(', ', $r['migrated']) . '.'));
+        redirect('backup');
     }
 
     /** The USB folder every zip is copied to (2026-10-10). */
