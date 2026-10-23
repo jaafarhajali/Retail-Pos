@@ -19,18 +19,32 @@ if (!is_file($svg) || !is_file($chrome) || !function_exists('imagecreatefrompng'
 $work = sys_get_temp_dir() . '/codexy-icon-' . bin2hex(random_bytes(3));
 mkdir($work);
 $entries = [];
-foreach ([256, 48, 32, 16] as $size) {
-    $html = "$work/$size.html";
-    file_put_contents($html, "<!doctype html><html><head><meta charset=utf-8><style>html,body{margin:0;background:transparent}img{display:block;width:{$size}px;height:{$size}px}</style></head><body><img src=\"file:///" . str_replace('\\', '/', $svg) . "\"></body></html>");
-    $png = "$work/$size.png";
-    $cmd = sprintf('"%s" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --default-background-color=00000000 --user-data-dir="%s/profile" --window-size=%d,%d --screenshot="%s" "file:///%s" >nul 2>&1',
-        $chrome, $work, $size, $size, $png, str_replace('\\', '/', $html));
-    exec($cmd);
-    if (!is_file($png)) {
-        fwrite(STDERR, "Chrome did not render $size px\n");
-        exit(1);
-    }
-    $entries[] = [$size, $size === 256 ? (string) file_get_contents($png) : bitmapEntry($png, $size)];
+// Chrome renders the mark once at 256 px (smaller windows come out empty); the small sizes are scaled down from it with gd.
+$png = "$work/256.png";
+$cmd = sprintf('"%s" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --default-background-color=00000000 --user-data-dir="%s/profile" --window-size=256,256 --screenshot="%s" "file:///%s" >nul 2>&1',
+    $chrome, $work, $png, str_replace('\\', '/', $svg));
+exec($cmd);
+if (!is_file($png)) {
+    fwrite(STDERR, "Chrome did not render the mark\n");
+    exit(1);
+}
+$big = imagecreatefrompng($png);
+imagesavealpha($big, true);
+$centre = imagecolorsforindex($big, imagecolorat($big, 128, 128));
+if ($centre['alpha'] > 10) {
+    fwrite(STDERR, "the picture is empty (transparent centre)\n");
+    exit(1);
+}
+$entries[] = [256, (string) file_get_contents($png)];
+foreach ([48, 32, 16] as $size) {
+    $small = imagecreatetruecolor($size, $size);
+    imagealphablending($small, false);
+    imagesavealpha($small, true);
+    imagefill($small, 0, 0, imagecolorallocatealpha($small, 0, 0, 0, 127));
+    imagecopyresampled($small, $big, 0, 0, 0, 0, $size, $size, 256, 256);
+    $smallPng = "$work/$size.png";
+    imagepng($small, $smallPng);
+    $entries[] = [$size, bitmapEntry($smallPng, $size)];
 }
 
 /** A 32-bit BGRA bitmap with alpha and an empty AND mask, as an .ico entry (BITMAPINFOHEADER + rows bottom-up). */
