@@ -71,7 +71,8 @@ function logo_url(): ?string
 {
     $file = \App\Core\Settings::get('shop_logo');
     if ($file === '' || !preg_match('/^logo-[a-f0-9]{8}\.(png|svg)$/', $file) || !is_file(UPLOADS_PATH . '/' . $file)) {
-        return null;
+        // No logo uploaded yet: the product's own mark (2026-10-23), so the menu, the sign-in page and the printouts are never bare.
+        return is_file(BASE_PATH . '/public/assets/brand/mark.svg') ? 'assets/brand/mark.svg' : null;
     }
 
     return UPLOADS_URL . '/' . $file;

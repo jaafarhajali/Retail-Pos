@@ -66,7 +66,7 @@ $step = is_string($stashedStep) ? $stashedStep : (string) ($values['lbp_rounding
   </div>
 </form>
 
-<?php $logo = logo_url(); ?>
+<?php $logo = (string) setting('shop_logo') !== '' ? logo_url() : null;   // the uploaded one; the product mark is only a fallback ?>
 <div class="card mt-3" style="max-width: 820px"><div class="card-body">
   <h2 class="h5">Logo</h2>
   <p class="text-muted small mb-3">Shown on the menu, the sign-in page and at the top of every printout: receipts, X/Z reports and printed reports. Best is an <strong>SVG</strong> (vector: sharp at any size on the receipt printer) with a dark drawing on a transparent background; PNG or JPG also work.</p>
