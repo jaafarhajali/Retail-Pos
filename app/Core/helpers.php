@@ -67,12 +67,12 @@ function asset(string $path): string
 }
 
 /** The shop logo's URL (relative to public/), or null when none is set. */
-function logo_url(): ?string
+function logo_url(string $on = 'light'): ?string
 {
     $file = \App\Core\Settings::get('shop_logo');
     if ($file === '' || !preg_match('/^logo-[a-f0-9]{8}\.(png|svg)$/', $file) || !is_file(UPLOADS_PATH . '/' . $file)) {
-        // No logo uploaded yet: the product's own mark (2026-10-23), so the menu, the sign-in page and the printouts are never bare.
-        return is_file(BASE_PATH . '/public/assets/brand/mark.svg') ? 'assets/brand/mark.svg' : null;
+        // No logo uploaded yet: the Codexy ERP wordmark (2026-10-23), so the menu, the sign-in page and the printouts are never bare.
+        return 'assets/brand/' . ($on === 'dark' ? 'codexy-nav-dark.svg' : 'codexy-nav.svg');   // the Codexy ERP wordmark
     }
 
     return UPLOADS_URL . '/' . $file;

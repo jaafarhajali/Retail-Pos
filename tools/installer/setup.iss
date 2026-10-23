@@ -1,15 +1,15 @@
 ; Inno Setup script for Retail POS / Retail Production (built by build.ps1, which passes the defines below).
 #ifndef Product
-  #define Product "RetailPOS"
+  #define Product "CodexyERP"
 #endif
 #ifndef DisplayName
-  #define DisplayName "Retail POS"
+  #define DisplayName "Codexy ERP"
 #endif
 #ifndef Version
   #define Version "0.0.0"
 #endif
 #ifndef DefaultDir
-  #define DefaultDir "C:\RetailPOS"
+  #define DefaultDir "C:\CodexyERP"
 #endif
 #ifndef DbName
   #define DbName "retail_pos"
@@ -25,7 +25,7 @@
 AppId={#Product}
 AppName={#DisplayName}
 AppVersion={#Version}
-AppPublisher=Jaafar Haj Ali
+AppPublisher=Codexy
 DefaultDirName={#DefaultDir}
 DisableDirPage=no
 DirExistsWarning=no

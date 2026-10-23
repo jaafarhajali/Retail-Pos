@@ -17,7 +17,7 @@ if (is_file(__DIR__ . '/app.ini')) {
 }
 
 define('APP_ENV', getenv('RETAIL_POS_ENV') === 'test' ? 'test' : (string) ($ini['app']['env'] ?? 'dev'));
-define('APP_NAME', 'Retail POS');
+define('APP_NAME', 'Codexy ERP');
 define('APP_DEBUG', APP_ENV !== 'production' && (bool) ($ini['app']['debug'] ?? true));
 define('APP_TIMEZONE', (string) ($ini['app']['timezone'] ?? 'Asia/Beirut'));
 date_default_timezone_set(APP_TIMEZONE);

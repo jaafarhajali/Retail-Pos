@@ -1,6 +1,6 @@
-<p align="center"><img src="public/assets/brand/mark.svg" width="96" height="96" alt="Retail POS"></p>
+<p align="center"><img src="public/assets/brand/codexy.svg" width="360" alt="Codexy ERP"></p>
 
-# Retail POS
+# Codexy ERP, retail edition
 
 A point-of-sale and stock system for a retail shop. Prices in US dollars, customers pay in dollars, Lebanese pounds or both, cash drawers counted at the end of every shift, stock that moves with every sale and purchase, and backups that run by themselves. It runs on one PC in the shop and is used from any PC, tablet or touch screen on the shop's network, in a browser.
 
@@ -12,10 +12,10 @@ This file is the user's guide. It says how to install the program, what to do on
 
 ### On a shop's PC (the normal way)
 
-1. Copy `RetailPOS-Setup-<version>.exe` to the PC and run it. Windows asks to allow changes: Yes.
-2. Keep the folder it proposes, `C:\RetailPOS`.
+1. Copy `CodexyERP-Setup-<version>.exe` to the PC and run it. Windows asks to allow changes: Yes.
+2. Keep the folder it proposes, `C:\CodexyERP`.
 3. Type the shop name and the administrator's password (8 characters or more, write it down).
-4. When it finishes it opens the browser on the sign-in page and puts **Retail POS** on the desktop.
+4. When it finishes it opens the browser on the sign-in page and puts **Codexy ERP** on the desktop.
 
 The setup installs everything the program needs and starts it with the PC: the web server, the database, PHP and a **backup service**. Nothing else has to be installed, there is no XAMPP, and no internet is needed.
 
@@ -31,7 +31,7 @@ Run the newer setup file on the same PC, keep the same folder. The data, the set
 
 ### Uninstalling
 
-Windows → Settings → Apps → Retail POS → Uninstall. It asks whether to delete the data and the backups too. Say No to keep them for a later installation.
+Windows → Settings → Apps → Codexy ERP → Uninstall. It asks whether to delete the data and the backups too. Say No to keep them for a later installation.
 
 ---
 
@@ -39,7 +39,7 @@ Windows → Settings → Apps → Retail POS → Uninstall. It asks whether to d
 
 Sign in as **admin** with the password typed during the setup, then go through **Administration** in the menu:
 
-1. **Settings** — the shop name, address and phone (they print on receipts), the receipt header and footer, the **LBP rounding step** (5,000 LBP by default), the **maximum discount a cashier may give without your PIN**, the notes used to count the drawer, and the **logo**: upload the shop's logo and it appears on the menu, the sign-in page and every printout. Until then the program shows its own mark.
+1. **Settings** — the shop name, address and phone (they print on receipts), the receipt header and footer, the **LBP rounding step** (5,000 LBP by default), the **maximum discount a cashier may give without your PIN**, the notes used to count the drawer, and the **logo**: upload the shop's logo and it appears on the menu, the sign-in page and every printout. Until then the program shows the Codexy ERP mark.
 2. **Exchange rate** — today's rate of the dollar in pounds. Every payment is kept in the currency it was paid, with its dollar value at the rate of that moment. Change it whenever the rate moves.
 3. **Users** — one user per person. Give each the **Cashier** role or make a role of your own. On the administrator's own user, set the **approval PIN**: 4 to 6 digits that a cashier types at the till when something needs your approval (a discount over the limit, a return, selling below cost, selling on credit over a limit). Without a PIN nothing can be approved.
 4. **Roles & permissions** — what each role may do. Cashiers see no cost prices and cannot give discounts above the limit; change it if your shop works differently.
@@ -159,9 +159,9 @@ The **backup service** makes one backup a day at the time set on **Backups** (02
 
 | What you see | What to do |
 |---|---|
-| The browser cannot reach the program | On the server, Windows → Services: `RetailPOSWeb` and `RetailPOSDB` must be running. Start them, or run the setup again. |
-| "Something went wrong, error 500" | Settings → Check this installation, and send its screenshot and the file `C:\RetailPOS\app\storage\logs\php-error.log`. |
-| The dashboard says the backup is old | The backup service stopped: Windows → Services → `RetailPOSBackup` → Start. Check the USB stick is plugged in. |
+| The browser cannot reach the program | On the server, Windows → Services: `CodexyERPWeb` and `CodexyERPDB` must be running. Start them, or run the setup again. |
+| "Something went wrong, error 500" | Settings → Check this installation, and send its screenshot and the file `C:\CodexyERP\app\storage\logs\php-error.log`. |
+| The dashboard says the backup is old | The backup service stopped: Windows → Services → `CodexyERPBackup` → Start. Check the USB stick is plugged in. |
 | A cashier cannot approve a discount | No PIN is set on the administrator's user, or it was typed wrong five times. |
 | Receipts open as a page instead of printing | Chrome is not started with `--kiosk-printing`, or the receipt printer is not the default printer. |
 | Prices on a till are old | The till follows Today's prices within a minute; press F5 on the till. |

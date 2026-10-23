@@ -3,9 +3,9 @@
 #   ... -Product RetailProduction -DisplayName "Retail Production" -DefaultDir C:\RetailProduction -DbName retail_production
 # Needs: Inno Setup (ISCC.exe), WinSW-x64.exe, XAMPP (Apache 2.4, PHP 8.2, MariaDB 10.4), git, tar. Output: dist\<Product>-Setup-<version>.exe
 param(
-    [string]$Product = 'RetailPOS',
-    [string]$DisplayName = 'Retail POS',
-    [string]$DefaultDir = 'C:\RetailPOS',
+    [string]$Product = 'CodexyERP',
+    [string]$DisplayName = 'Codexy ERP',
+    [string]$DefaultDir = 'C:\CodexyERP',
     [string]$DbName = 'retail_pos',
     [string]$Xampp = 'C:\xampp',
     [string]$Iscc = 'C:\Tools\InnoSetup\ISCC.exe',

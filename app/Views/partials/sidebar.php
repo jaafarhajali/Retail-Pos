@@ -43,7 +43,7 @@ $shopName = (string) setting('shop_name', APP_NAME);
 ?>
 <nav class="app-side" aria-label="Main menu">
   <div class="app-brand">
-    <?php if (($brandLogo = logo_url()) !== null): ?><span class="app-brand-logo"><img src="<?= e($brandLogo) ?>" alt=""></span>
+    <?php if (($brandLogo = logo_url('dark')) !== null): ?><span class="app-brand-logo<?= (string) setting('shop_logo') === '' ? ' is-brand' : '' ?>"><img src="<?= e($brandLogo) ?>" alt=""></span>
     <?php else: ?><span class="app-brand-mark" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($shopName, 0, 1))) ?></span><?php endif; ?>
     <span class="app-brand-name" dir="auto"><?= e($shopName) ?></span>
     <?php if (empty($navLocked)): ?><button class="app-menu-btn" type="button" data-nav-toggle aria-expanded="false"><i class="bi bi-list"></i> Menu</button><?php endif; ?>

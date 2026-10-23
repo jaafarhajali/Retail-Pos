@@ -5,8 +5,8 @@
 # Everything it does is logged to <Root>\install.log; the setup shows that path when this script exits with 1.
 param(
     [Parameter(Mandatory = $true)][string]$Root,
-    [string]$Product = 'RetailPOS',
-    [string]$DisplayName = 'Retail POS',
+    [string]$Product = 'CodexyERP',
+    [string]$DisplayName = 'Codexy ERP',
     [string]$DbName = 'retail_pos',
     [string]$ShopName = '',
     [string]$AdminPassword = '',

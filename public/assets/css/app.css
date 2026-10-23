@@ -763,6 +763,10 @@ body > .error-wrap .blocked { width: 100%; }
 .login-brand.has-logo { flex-direction: column; gap: .6rem; text-align: center; }
 .login-brand .app-brand-logo { border-radius: 16px; }
 .login-brand .app-brand-logo img { height: 120px; max-width: 300px; }
+/* the Codexy ERP wordmark shown while no shop logo is uploaded: no white box, it is drawn for a dark ground */
+.app-brand-logo.is-brand { background: transparent; border-radius: 0; }
+.app-brand-logo.is-brand img { height: 30px; max-width: 150px; }
+.login-brand .app-brand-logo.is-brand img { height: 56px; max-width: 280px; }
 .receipt .receipt-logo { display: block; max-width: 48mm; max-height: 26mm; margin: 0 auto 2mm; filter: grayscale(1); }
 
 /* Till: discount typed as % or $, and the administrator's approval dialog */

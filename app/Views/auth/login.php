@@ -1,8 +1,8 @@
-<?php $shopName = (string) setting('shop_name', APP_NAME); $brandLogo = logo_url(); ?>
+<?php $shopName = (string) setting('shop_name', APP_NAME); $brandLogo = logo_url('dark'); ?>
 <div class="login-wrap">
   <div class="login-panel">
     <div class="login-brand<?= $brandLogo !== null ? ' has-logo' : '' ?>">
-      <?php if ($brandLogo !== null): ?><span class="app-brand-logo"><img src="<?= e($brandLogo) ?>" alt=""></span>
+      <?php if ($brandLogo !== null): ?><span class="app-brand-logo<?= (string) setting('shop_logo') === '' ? ' is-brand' : '' ?>"><img src="<?= e($brandLogo) ?>" alt=""></span>
       <?php else: ?><span class="app-brand-mark" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($shopName, 0, 1))) ?></span><?php endif; ?>
       <span class="app-brand-name" dir="auto"><?= e($shopName) ?></span>
     </div>
