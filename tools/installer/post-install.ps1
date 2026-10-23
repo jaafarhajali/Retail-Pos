@@ -88,7 +88,13 @@ Log "configs written"
 
 # the database
 if (-not $update) {
-    if (Test-Path "$Root\data\mysql") { Fail "$Root\data already holds a database but there is no config\app.ini. Remove the folder or restore the config." }
+    if (Test-Path "$Root\data\mysql") {
+        # a previous attempt (or an uninstall that kept the data) left database files without a config: keep them aside, never delete
+        $aside = "$Root\data-old-" + (Get-Date -Format 'yyyyMMdd-HHmmss')
+        Move-Item "$Root\data" $aside
+        New-Item -ItemType Directory -Force -Path "$Root\data" | Out-Null
+        Log "found database files without config\app.ini: moved to $aside"
+    }
     Log "creating the database files"
     $out = & "$Root\mariadb\bin\mysql_install_db.exe" --datadir="$Root\data" --password="$dbPass" --port=$dbPort 2>&1
     if ($LASTEXITCODE -ne 0) { Fail "mysql_install_db failed: $out" }
