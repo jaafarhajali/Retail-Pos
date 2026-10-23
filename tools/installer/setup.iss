@@ -22,7 +22,7 @@
 #endif
 
 [Setup]
-AppId={{#Product}}
+AppId={#Product}
 AppName={#DisplayName}
 AppVersion={#Version}
 AppPublisher=Jaafar Haj Ali
@@ -92,14 +92,17 @@ begin
   end;
 end;
 
+{ A silent install (/VERYSILENT) never shows the page: /ShopName="…" /AdminPassword=… on the command line fill in. }
 function GetShop(Param: String): String;
 begin
   Result := ShopPage.Values[0];
+  if Result = '' then Result := ExpandConstant('{param:ShopName|}');
 end;
 
 function GetPass(Param: String): String;
 begin
   Result := ShopPage.Values[1];
+  if Result = '' then Result := ExpandConstant('{param:AdminPassword|}');
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

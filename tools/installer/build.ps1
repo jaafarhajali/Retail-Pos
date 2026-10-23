@@ -44,6 +44,7 @@ $ini = $ini -replace '(?m)^display_errors\s*=.*$', 'display_errors=Off' -replace
 $ini = $ini -replace '(?m)^;?error_log\s*=.*$', 'error_log="{{ROOT}}\php\php-errors.log"'
 $ini = $ini -replace '(?m)^upload_max_filesize\s*=.*$', 'upload_max_filesize=64M' -replace '(?m)^post_max_size\s*=.*$', 'post_max_size=64M'
 $ini = $ini -replace '(?m)^;?date\.timezone\s*=.*$', 'date.timezone=Asia/Beirut'
+$ini = $ini -replace '(?m)^browscap\s*=.*$', ';browscap='   # the extras folder is not shipped
 foreach ($ext in @('gd', 'zip', 'pdo_mysql', 'mbstring', 'curl', 'fileinfo', 'openssl')) {
     if ($ini -notmatch "(?m)^extension=$ext\s*$" -and $ini -notmatch "(?m)^extension=php_$ext\.dll\s*$") { $ini += "`r`nextension=$ext" }
 }
