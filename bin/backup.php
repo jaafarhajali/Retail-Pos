@@ -1,29 +1,40 @@
 <?php
 /**
- * php bin/backup.php [--kind=hourly|daily|monthly|manual]
- * Writes storage/backups/<date>-<kind>.zip = SQL dump + public/uploads, copies it to the USB folder set on the
- * Backups page, uploads the daily and monthly ones to Google Drive once it is connected there, and keeps the newest
- * of each kind (48 hourly, 30 daily, 24 monthly, 20 manual).
- * The scheduled tasks (bin/install-backup-tasks.php) run it hourly in opening hours and daily at 02:00;
- * the daily run on the 1st of the month is kept as that month's backup.
+ * php bin/backup.php --auto            what the Windows task runs every 30 minutes: makes the daily backup once the time
+ *                                      set on the Backups page has passed and none was made today (the 1st: the monthly one)
+ * php bin/backup.php [--kind=daily|monthly|manual]   a backup right now, of that kind (default manual)
+ *
+ * A backup = storage/backups/<date>-<kind>.zip (SQL dump + public/uploads), copied to the USB folder, uploaded to Google
+ * Drive once connected; the newest of each kind are kept (30 daily, 24 monthly, 20 manual, 10 pre-restore).
+ * Hourly backups ended 2026-10-23; their old zips are deleted on the next run.
  */
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
-$opts = getopt('', ['kind:']);
-$kind = (string) ($opts['kind'] ?? 'manual');
-// The night's backup was missed (PC off, MySQL not up at 02:00): the first hourly run of the day makes it instead (2026-10-23).
-if ($kind === 'hourly' && glob(App\Services\BackupService::dir() . '/' . date('Y-m-d') . '_*-{daily,monthly}.zip', GLOB_BRACE) === []) {
-    $kind = 'daily';
-    echo "No daily backup yet today: making it now.\n";
-}
-if ($kind === 'daily' && date('j') === '1') {
-    $kind = 'monthly';
+use App\Services\BackupService;
+
+$opts = getopt('', ['kind:', 'auto']);
+if (isset($opts['auto'])) {
+    $kind = BackupService::autoKind();
+    if ($kind === null) {
+        echo 'Nothing to do: the daily backup (', BackupService::dailyTime(), ') is done for today or not due yet.', "\n";
+        $retry = (new BackupService())->retryDrive();   // a night upload that failed (no internet) goes again now
+        if ($retry !== 'skipped' && $retry !== 'off') {
+            echo 'Google Drive retry: ', $retry, "\n";
+        }
+        exit(0);
+    }
+    echo "Daily backup due (", BackupService::dailyTime(), "): making the {$kind} one.\n";
+} else {
+    $kind = (string) ($opts['kind'] ?? 'manual');
+    if ($kind === 'daily' && date('j') === '1') {
+        $kind = 'monthly';
+    }
 }
 
 try {
-    $svc = new App\Services\BackupService();
+    $svc = new BackupService();
     $file = $svc->create($kind);
     echo 'Backup written: ', $file, "\n";
     echo 'USB copy: ', $svc->lastCopy, "\n";
@@ -38,7 +49,7 @@ try {
         exit(3);
     }
 } catch (Throwable $e) {
-    // The nightly task has no screen: leave a trace the Backups page and the owner can find.
+    // The task has no screen: leave a trace the Backups page and the owner can find.
     @file_put_contents(STORAGE_PATH . '/logs/backup-failed.log', date('Y-m-d H:i:s') . ' ' . $e->getMessage() . "\n", FILE_APPEND);
     fwrite(STDERR, 'Backup failed: ' . $e->getMessage() . "\n");
     exit(1);

@@ -15,7 +15,10 @@ use App\Models\Setting;
 final class BackupService
 {
     /** How many zips of each kind stay, here and on the USB stick: 2 days of hours, a month of days, 2 years of months. */
-    public const KEEP = ['hourly' => 48, 'daily' => 30, 'monthly' => 24, 'manual' => 20, 'pre-restore' => 10];
+    public const KEEP = ['daily' => 30, 'monthly' => 24, 'manual' => 20, 'pre-restore' => 10, 'hourly' => 0];   // hourly ended 2026-10-23: 0 kept, the old ones go
+
+    /** When the daily backup is made unless the Backups page says otherwise. */
+    public const DEFAULT_TIME = '02:00';
 
     /** How the last backup went: 'ok', 'off' (no USB folder set) or the error text. */
     public string $lastCopy = 'off';
@@ -75,7 +78,7 @@ final class BackupService
     /** @return string the zip path */
     public function create(string $kind = 'manual'): string
     {
-        if (!isset(self::KEEP[$kind])) {
+        if ((self::KEEP[$kind] ?? 0) <= 0) {
             throw new \RuntimeException('Unknown backup kind: ' . $kind);
         }
         if (($problems = self::problems()) !== []) {
@@ -145,7 +148,8 @@ final class BackupService
     }
 
     /** An hourly run after a night with no internet: if the last Google Drive upload failed, the newest daily or monthly zip is sent now. */
-    private function retryDrive(): string
+    /** Sends the newest daily or monthly zip to Google Drive again when its last upload failed; the --auto run calls it every 30 minutes. */
+    public function retryDrive(): string
     {
         if (!GoogleDriveService::connected()) {
             return 'off';
@@ -194,7 +198,7 @@ final class BackupService
         if ($age === null) {
             $warnings[] = 'No automatic backup has run yet. Run bin/install-backup-tasks.php once on the server.';
         } elseif ($age > 26) {
-            $warnings[] = 'The last backup is ' . round($age / 24, 1) . ' days old. The scheduled task is not running.';
+            $warnings[] = 'The last backup is ' . round($age / 24, 1) . ' days old. The scheduled task is not running: run bin/install-backup-tasks.php again on the server.';
         }
         if ($error !== '') {
             $warnings[] = 'The last backup failed: ' . $error;
@@ -210,24 +214,60 @@ final class BackupService
         $drive = GoogleDriveService::status();
 
         return ['last_at' => $lastAt, 'last_file' => Settings::get('backup_last_file', ''), 'last_kind' => Settings::get('backup_last_kind', ''), 'copy' => $copy,
-                'copy_dir' => $copyDir, 'error' => $error, 'age_hours' => $age, 'warnings' => array_merge($warnings, $drive['warnings']), 'drive' => $drive];
+                'copy_dir' => $copyDir, 'error' => $error, 'age_hours' => $age, 'daily_time' => self::dailyTime(), 'warnings' => array_merge($warnings, $drive['warnings']), 'drive' => $drive];
+    }
+
+    /** The time of the daily backup, HH:MM, as set on the Backups page. */
+    public static function dailyTime(): string
+    {
+        $t = Settings::get('backup_daily_time', self::DEFAULT_TIME);
+
+        return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t) ? $t : self::DEFAULT_TIME;
+    }
+
+    public function setDailyTime(string $time): void
+    {
+        $time = trim($time);
+        if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time)) {
+            throw new \RuntimeException('Give the time as HH:MM, for example 02:00 or 21:30.');
+        }
+        $this->remember(['backup_daily_time' => $time]);
     }
 
     /**
-     * The two Windows scheduled tasks, as schtasks commands (bin/install-backup-tasks.php runs them).
+     * What the automatic run should make now (2026-10-23): the daily backup once today's set time has passed and none was
+     * made today (the 1st of the month gives the monthly one); null when there is nothing to do. The Windows task asks
+     * every 30 minutes, so a changed time needs nothing in Windows and a night the PC was off is caught up in the morning.
+     */
+    public static function autoKind(?int $now = null): ?string
+    {
+        $now ??= time();
+        $due = (int) strtotime(date('Y-m-d ', $now) . self::dailyTime());
+        if ($now < $due) {
+            return null;
+        }
+        if ((glob(self::dir() . '/' . date('Y-m-d', $now) . '_*-{daily,monthly}.zip', GLOB_BRACE) ?: []) !== []) {
+            return null;
+        }
+
+        return date('j', $now) === '1' ? 'monthly' : 'daily';
+    }
+
+    /**
+     * The one Windows scheduled task, as a schtasks command (bin/install-backup-tasks.php runs it): every 30 minutes
+     * bin/backup.php --auto decides whether the daily backup is due.
      *
      * @return array<string, string> task name => command
      */
     public static function taskCommands(string $php, string $script): array
     {
-        $run = static fn (string $kind): string => '"\\"' . $php . '\\" \\"' . $script . '\\" --kind=' . $kind . '"';
+        return ['Retail POS backup' => 'schtasks /Create /F /SC MINUTE /MO 30 /TN "Retail POS backup" /TR "\\"' . $php . '\\" \\"' . $script . '\\" --auto"'];
+    }
 
-        return [
-            // every day at 08:00, then again every 60 minutes for 16 hours (until midnight). /SC HOURLY with /ET made a trigger that
-            // ended on its first day (found 2026-10-23: no hourly backup since the day the task was installed).
-            'Retail POS backup hourly' => 'schtasks /Create /F /SC DAILY /ST 08:00 /RI 60 /DU 16:00 /TN "Retail POS backup hourly" /TR ' . $run('hourly'),
-            'Retail POS backup daily'  => 'schtasks /Create /F /SC DAILY /ST 02:00 /TN "Retail POS backup daily" /TR ' . $run('daily'),
-        ];
+    /** Tasks of the old schedule (hourly + daily at a fixed hour), deleted by the installer. @return list<string> */
+    public static function oldTaskNames(): array
+    {
+        return ['Retail POS backup hourly', 'Retail POS backup daily'];
     }
 
     /**
@@ -319,6 +359,19 @@ final class BackupService
             $f->isDir() ? @rmdir((string) $f) : @unlink((string) $f);
         }
         @rmdir($dir);
+    }
+
+    /** Deletes one local backup zip by name (the Backups page's bin, 2026-10-23). The copy on the stick stays. */
+    public function delete(string $name): void
+    {
+        $name = basename($name);
+        $path = self::dir() . '/' . $name;
+        if (!preg_match('/^[\w.-]+\.zip$/', $name) || !is_file($path)) {
+            throw new \RuntimeException('That backup is not in the folder any more.');
+        }
+        if (!@unlink($path)) {
+            throw new \RuntimeException('The file could not be deleted: ' . $name);
+        }
     }
 
     /** The kind a zip's name says: hourly, daily, monthly, or manual when it has no suffix. */

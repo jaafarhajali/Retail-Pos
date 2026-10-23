@@ -67,6 +67,34 @@ final class BackupController extends Controller
         redirect('backup');
     }
 
+    /** The time of the daily backup (2026-10-23); the task that runs every 30 minutes reads it. */
+    public function schedule(): void
+    {
+        $time = $this->input('backup_daily_time');
+        try {
+            (new BackupService())->setDailyTime($time);
+        } catch (\RuntimeException $e) {
+            $this->failBack('backup', [], ['backup_daily_time' => $e->getMessage()]);
+        }
+        Audit::log('backup.daily_time', 'backup', null, ['time' => trim($time)]);
+        Flash::set('success', 'The daily backup is made at ' . trim($time) . '.');
+        redirect('backup');
+    }
+
+    /** The bin on a backup file (2026-10-23): one local zip goes; the copies on the stick and on Google Drive stay. */
+    public function delete(): void
+    {
+        $name = basename(trim($this->input('file')));
+        try {
+            (new BackupService())->delete($name);
+        } catch (\RuntimeException $e) {
+            $this->failBack('backup', [], ['form' => $e->getMessage()]);
+        }
+        Audit::log('backup.deleted', 'backup', null, ['file' => $name]);
+        Flash::set('success', $name . ' was deleted from this PC.');
+        redirect('backup');
+    }
+
     /** The USB folder every zip is copied to (2026-10-10). */
     public function settings(): void
     {

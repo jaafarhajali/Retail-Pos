@@ -10,7 +10,7 @@
         <?php if ($status['last_at'] === ''): ?>No backup has run yet.
         <?php else: ?>Last backup <?= e(date('d/m/Y H:i', strtotime($status['last_at']))) ?> (<?= e($status['last_kind']) ?>)<?= $status['copy'] === 'ok' ? ' · copied to the USB folder' : '' ?><?= $status['drive']['connected'] && $status['drive']['last_at'] !== '' && $status['drive']['error'] === '' ? ' · on Google Drive ' . e(date('d/m/Y H:i', strtotime($status['drive']['last_at']))) : '' ?><?php endif; ?>
       </div>
-      <?php if ($status['warnings'] === []): ?><div class="text-muted">Hourly in opening hours, daily at 02:00, a copy on the stick<?= $status['drive']['connected'] ? ', the daily one on Google Drive' : '' ?>. All good.</div><?php endif; ?>
+      <?php if ($status['warnings'] === []): ?><div class="text-muted">Daily at <?= e($status['daily_time']) ?>, a copy on the stick<?= $status['drive']['connected'] ? ', the daily one on Google Drive' : '' ?>. All good.</div><?php endif; ?>
       <?php foreach ($status['warnings'] as $w): ?><div class="text-warning-emphasis"><i class="bi bi-exclamation-triangle"></i> <?= e($w) ?></div><?php endforeach; ?>
     </div>
   </div>
@@ -19,7 +19,7 @@
   <div class="col-lg-5">
     <div class="card mb-3"><div class="card-body">
       <h2 class="h5">USB stick</h2>
-      <p class="small text-muted">Leave a USB stick in the server. Every backup is copied there, and the newest of each kind are kept (<?= (int) $keep['hourly'] ?> hourly, <?= (int) $keep['daily'] ?> daily, <?= (int) $keep['monthly'] ?> monthly). If this PC dies, the stick has everything up to the last hour.</p>
+      <p class="small text-muted">Leave a USB stick in the server. Every backup is copied there, and the newest of each kind are kept (<?= (int) $keep['daily'] ?> daily, <?= (int) $keep['monthly'] ?> monthly). If this PC dies, the stick has everything up to the last backup.</p>
       <form method="post" action="<?= url('backup/settings') ?>">
         <?= csrf_field() ?>
         <label class="form-label" for="backup_copy_dir">Copy every backup to this folder</label>
@@ -65,9 +65,19 @@
     </div></div>
     <div class="card"><div class="card-body">
       <h2 class="h5">Automatic backups</h2>
+      <form method="post" action="<?= url('backup/schedule') ?>" class="mb-3">
+        <?= csrf_field() ?>
+        <label class="form-label" for="backup_daily_time">Daily backup at</label>
+        <div class="input-group" style="max-width: 16rem">
+          <input class="form-control <?= form_error('backup_daily_time') !== '' ? 'is-invalid' : '' ?>" type="time" id="backup_daily_time" name="backup_daily_time" value="<?= old('backup_daily_time', $status['daily_time']) ?>" required>
+          <button class="btn btn-outline-primary" type="submit">Save</button>
+        </div>
+        <?php if (form_error('backup_daily_time') !== ''): ?><div class="invalid-feedback d-block"><?= form_error('backup_daily_time') ?></div><?php endif; ?>
+        <div class="form-text">One backup a day at this time. If the PC was off then, it is made as soon as the PC is on. The backup of the 1st is kept as that month's backup for two years.</div>
+      </form>
       <p class="small text-muted mb-2">Once, on the server, as the Windows user who is normally signed in, run:</p>
       <p class="small wrap-code mb-2"><code><?= e(PHP_BINARY) ?> "<?= e(BASE_PATH) ?>\bin\install-backup-tasks.php"</code></p>
-      <p class="small text-muted mb-3">It creates two Windows tasks: every hour from 08:00 to 23:59 and every night at 02:00. The daily backup of the 1st is kept as that month's backup for two years.</p>
+      <p class="small text-muted mb-3">It creates one Windows task that checks every 30 minutes whether the daily backup is due. Changing the time above needs nothing else.</p>
       <form method="post" action="<?= url('backup/run') ?>"><?= csrf_field() ?><button class="btn btn-primary" type="submit" <?= $problems === [] ? '' : 'disabled' ?>>Back up now</button></form>
       <hr>
       <p class="small text-muted mb-1 wrap-code">Check that a backup really restores (the live data is only read): <code><?= e(PHP_BINARY) ?> "<?= e(BASE_PATH) ?>\bin\restore-drill.php"</code>. Do it after installing and once a month.</p>
@@ -76,9 +86,10 @@
   </div>
   <div class="col-lg-7">
     <div class="card"><div class="table-responsive"><table class="table table-sm">
-      <thead><tr><th>File</th><th>Kind</th><th>Created</th><th class="text-end">Size</th></tr></thead>
-      <tbody><?php foreach ($backups as $b): ?><tr><td><code><?= e($b['name']) ?></code></td><td><?= e($b['kind']) ?></td><td><?= e($b['at']) ?></td><td class="text-end"><?= number_format($b['size'] / 1024) ?> KB</td></tr><?php endforeach; ?>
-      <?php if ($backups === []): ?><tr><td colspan="4" class="empty">No backups yet. Press Back up now, or install the automatic tasks.</td></tr><?php endif; ?></tbody>
+      <thead><tr><th>File</th><th>Kind</th><th>Created</th><th class="text-end">Size</th><th></th></tr></thead>
+      <tbody><?php foreach ($backups as $b): ?><tr><td><code><?= e($b['name']) ?></code></td><td><?= e($b['kind']) ?></td><td><?= e($b['at']) ?></td><td class="text-end"><?= number_format($b['size'] / 1024) ?> KB</td>
+        <td class="text-end"><?= bin_button('backup/delete', ['file' => $b['name']], 'Delete ' . $b['name'] . ' from this PC? The copy on the USB stick stays.') ?></td></tr><?php endforeach; ?>
+      <?php if ($backups === []): ?><tr><td colspan="5" class="empty">No backups yet. Press Back up now, or install the automatic tasks.</td></tr><?php endif; ?></tbody>
     </table></div></div>
     <div class="card mt-3 border-danger"><div class="card-body">
       <h2 class="h5 text-danger"><i class="bi bi-arrow-counterclockwise"></i> Restore a backup</h2>
@@ -96,6 +107,6 @@
         <button class="btn btn-danger mt-3" type="submit" <?= $problems === [] ? '' : 'disabled' ?>>Restore</button>
       </form>
     </div></div>
-    <p class="small text-muted mt-2">Files are in <code>storage/backups</code>. Kept: the newest <?= (int) $keep['hourly'] ?> hourly, <?= (int) $keep['daily'] ?> daily, <?= (int) $keep['monthly'] ?> monthly and <?= (int) $keep['manual'] ?> manual backups.</p>
+    <p class="small text-muted mt-2">Files are in <code>storage/backups</code>. Kept: the newest <?= (int) $keep['daily'] ?> daily, <?= (int) $keep['monthly'] ?> monthly and <?= (int) $keep['manual'] ?> manual backups.</p>
   </div>
 </div>

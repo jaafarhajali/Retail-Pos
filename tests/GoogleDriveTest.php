@@ -163,7 +163,7 @@ return [
         assert_same('off', $svc->upload($file, 'daily'));
     },
 
-    'a daily or monthly backup goes to Drive by itself, an hourly one does not, unless the last upload failed' => function () use ($fake, $drive, $connected, &$log): void {
+    'a daily or monthly backup goes to Drive by itself, a pre-restore one does not; a failed upload is retried by the next run' => function () use ($fake, $drive, $connected, &$log): void {
         $connected();
         $fake($drive());
         $svc = new BackupService();
@@ -172,15 +172,14 @@ return [
         assert_same(1, count(array_filter($log, static fn (array $r): bool => $r['method'] === 'PUT')));
         assert_same('ok', Settings::get('backup_last_drive'));
         $fake($drive());
-        $svc->create('hourly');
-        assert_same(['skipped', 0], [$svc->lastDrive, count($log)], 'nothing asked of Google for an hourly backup');
-        // the night upload failed (no internet at 02:00): the next hourly run sends the daily zip
+        $svc->create('pre-restore');
+        assert_same(['skipped', 0], [$svc->lastDrive, count($log)], 'nothing asked of Google for a pre-restore backup');
+        // the night upload failed (no internet at 02:00): the next 30-minute run retries the daily zip
         $fake($drive(['PUT' => [500, '']]));
         $svc->create('daily');
         assert_contains('did not finish', $svc->lastDrive);
         $fake($drive());
-        $svc->create('hourly');
-        assert_same('ok', $svc->lastDrive);
+        assert_same('ok', $svc->retryDrive());
         $put = array_values(array_filter($log, static fn (array $r): bool => $r['method'] === 'PUT'))[0];
         assert_contains('-daily.zip', $put['file']);
         assert_same('', Settings::get('gdrive_last_error'));

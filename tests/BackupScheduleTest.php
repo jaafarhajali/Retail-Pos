@@ -20,7 +20,7 @@ $clean = static function (): void {
         @unlink($f);
     }
     @rmdir($usb);
-    (new Setting())->setMany(['backup_copy_dir' => '', 'backup_last_at' => '', 'backup_last_file' => '', 'backup_last_kind' => '', 'backup_last_copy' => 'off', 'backup_last_error' => '']);
+    (new Setting())->setMany(['backup_copy_dir' => '', 'backup_last_at' => '', 'backup_last_file' => '', 'backup_last_kind' => '', 'backup_last_copy' => 'off', 'backup_last_error' => '', 'backup_daily_time' => '']);
     Settings::flush();
 };
 $usb = static fn (): string => BackupService::dir() . '/usb';
@@ -31,10 +31,10 @@ return [
         $clean();
     },
 
-    'a kind names the zip; each kind keeps its own newest files' => function (): void {
+    'a kind names the zip; each kind keeps its own newest files; old hourly zips are cleaned away' => function (): void {
         $dir = BackupService::dir();
         @mkdir($dir, 0777, true);
-        // 50 old hourly zips, 3 manual: only the newest 48 hourly stay, the manual ones are untouched
+        // 50 hourly zips from the old schedule, 3 manual: the next backup deletes every hourly one, the manual ones are untouched
         for ($i = 1; $i <= 50; $i++) {
             file_put_contents(sprintf('%s/2026-01-%02d_%02d0000-hourly.zip', $dir, 1 + intdiv($i, 24), $i % 24), 'x');
         }
@@ -42,14 +42,16 @@ return [
             file_put_contents("{$dir}/{$m}", 'x');
         }
         $svc = new BackupService();
-        $file = $svc->create('hourly');
-        assert_true(str_ends_with($file, '-hourly.zip'), $file);
-        assert_same('hourly', BackupService::kindOf($file));
-        assert_same(48, count(glob("{$dir}/*-hourly.zip")), 'the newest 48 hourly zips stay');
+        $file = $svc->create('daily');
+        assert_true(str_ends_with($file, '-daily.zip'), $file);
+        assert_same('daily', BackupService::kindOf($file));
+        assert_same(0, count(glob("{$dir}/*-hourly.zip") ?: []), 'hourly backups ended: the old zips are gone');
+        $e = assert_throws(RuntimeException::class, fn () => $svc->create('hourly'));
+        assert_contains('Unknown backup kind', $e->getMessage());
         assert_same(3, count(array_filter(glob("{$dir}/*.zip"), static fn (string $f): bool => BackupService::kindOf($f) === 'manual')));
         assert_same('off', $svc->lastCopy, 'no USB folder set');
         $status = BackupService::status();
-        assert_same(['hourly', basename($file)], [$status['last_kind'], $status['last_file']]);
+        assert_same(['daily', basename($file)], [$status['last_kind'], $status['last_file']]);
         assert_contains('No USB folder is set', implode(' ', $status['warnings']));
         $e = assert_throws(RuntimeException::class, fn () => $svc->create('weekly'));
         assert_contains('Unknown backup kind', $e->getMessage());
@@ -67,7 +69,7 @@ return [
         $gone = 'Q:/no-such-stick/RetailPOS';
         (new Setting())->setMany(['backup_copy_dir' => $gone]);
         Settings::flush();
-        $file = $svc->create('hourly');
+        $file = $svc->create('manual');
         assert_true(is_file($file));
         assert_contains('Is the stick plugged in?', $svc->lastCopy);
         assert_contains('USB copy failed', implode(' ', BackupService::status()['warnings']));
@@ -83,23 +85,50 @@ return [
         assert_contains('3 days old', implode(' ', $s['warnings']));
     },
 
-    'the scheduled tasks are two schtasks commands with the right times and kinds' => function (): void {
-        $cmds = BackupService::taskCommands('C:\\xampp\\php\\php.exe', 'C:\\xampp\\htdocs\\Retail POS\\bin\\backup.php');
-        assert_same(['Retail POS backup hourly', 'Retail POS backup daily'], array_keys($cmds));
-        assert_contains('/SC DAILY /ST 08:00 /RI 60 /DU 16:00', $cmds['Retail POS backup hourly'], 'every day at 08:00, repeated hourly for 16 hours: /SC HOURLY with /ET expired after one day');
-        assert_contains('--kind=hourly', $cmds['Retail POS backup hourly']);
-        assert_contains('/SC DAILY /ST 02:00', $cmds['Retail POS backup daily']);
-        assert_contains('--kind=daily', $cmds['Retail POS backup daily']);
-        assert_contains('\\"C:\\xampp\\htdocs\\Retail POS\\bin\\backup.php\\" --kind=daily"', $cmds['Retail POS backup daily'], 'the path with its space is quoted inside /TR');
+    'one scheduled task every 30 minutes runs --auto; the old tasks are named for deletion' => function (): void {
+        $cmds = BackupService::taskCommands('C:\xampp\php\php.exe', 'C:\xampp\htdocs\Retail POS\bin\backup.php');
+        assert_same(['Retail POS backup'], array_keys($cmds));
+        assert_contains('/SC MINUTE /MO 30 /TN "Retail POS backup"', $cmds['Retail POS backup']);
+        assert_contains('\"C:\xampp\htdocs\Retail POS\bin\backup.php\" --auto"', $cmds['Retail POS backup'], 'the path with its space is quoted inside /TR');
+        assert_same(['Retail POS backup hourly', 'Retail POS backup daily'], BackupService::oldTaskNames());
     },
 
+    'the automatic run makes the daily backup once the set time has passed, once a day, monthly on the 1st' => function (): void {
+        (new Setting())->setMany(['backup_daily_time' => '21:30']);
+        Settings::flush();
+        assert_same('21:30', BackupService::dailyTime());
+        $day = (int) strtotime('2026-10-15 00:00:00');
+        assert_same(null, BackupService::autoKind($day + 21 * 3600), 'not due at 21:00');
+        assert_same('daily', BackupService::autoKind($day + 21 * 3600 + 31 * 60), 'due at 21:31');
+        assert_same('daily', BackupService::autoKind($day + 23 * 3600 + 59 * 60), 'still due late at night when none was made');
+        @mkdir(BackupService::dir(), 0777, true);
+        file_put_contents(BackupService::dir() . '/2026-10-15_213001-daily.zip', 'x');
+        assert_same(null, BackupService::autoKind($day + 22 * 3600), 'done for today');
+        $first = (int) strtotime('2026-11-01 22:00:00');
+        assert_same('monthly', BackupService::autoKind($first), 'the 1st gives the monthly one');
+        (new Setting())->setMany(['backup_daily_time' => '']);
+        Settings::flush();
+        assert_same('02:00', BackupService::dailyTime(), 'empty falls back to the default');
+        $e = assert_throws(RuntimeException::class, fn () => (new BackupService())->setDailyTime('25:00'));
+        assert_contains('HH:MM', $e->getMessage());
+    },
     'the Backups page shows the status and saves the USB folder; the dashboard shows the warning' => function () use ($usb): void {
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         $page = $client->get('backup')->body;
         assert_contains('No backup has run yet', $page);
         assert_contains('name="backup_copy_dir"', $page);
         assert_contains('install-backup-tasks.php', $page);
+        assert_contains('name="backup_daily_time"', $page);
+        assert_same(302, $client->post('backup/schedule', ['backup_daily_time' => '21:30'])->status);
+        Settings::flush();   // the page wrote it in the server process; this process has a cache
+        assert_same('21:30', Settings::get('backup_daily_time'));
+        assert_contains('The daily backup is made at 21:30', $client->get('backup')->body);
+        $client->post('backup/schedule', ['backup_daily_time' => '9pm']);
+        assert_contains('Give the time as HH:MM', $client->get('backup')->body);
+        Settings::flush();
+        assert_same('21:30', Settings::get('backup_daily_time'), 'a bad time changes nothing');
         assert_same(302, $client->post('backup/settings', ['backup_copy_dir' => $usb()])->status);
+        Settings::flush();
         assert_same(str_replace('\\', '/', $usb()), Settings::get('backup_copy_dir'));
         assert_contains('is now copied to', $client->get('backup')->body);
         $client->post('backup/settings', ['backup_copy_dir' => 'Q:/no-such-stick']);
@@ -110,6 +139,17 @@ return [
         $page = $client->get('backup')->body;
         assert_contains('copied to the USB folder', $page);
         assert_contains('<td>manual</td>', $page);
+        // the bin on a file: it goes from this PC, nothing else
+        $name = basename((string) (glob(BackupService::dir() . '/*.zip') ?: [''])[0]);
+        assert_contains('name="file" value="' . $name . '"', $page, 'a bin on the row');
+        assert_same(302, $client->post('backup/delete', ['file' => $name])->status);
+        assert_true(!is_file(BackupService::dir() . '/' . $name), 'the local zip is gone');
+        assert_true(is_file($usb() . '/' . $name), 'the copy on the stick stays');
+        assert_contains($name . ' was deleted from this PC.', $client->get('backup')->body);
+        $client->post('backup/delete', ['file' => '../../config/config.php']);
+        assert_contains('not in the folder any more', $client->get('backup')->body);
+        assert_true(is_file(BASE_PATH . '/config/config.php'));
+        assert_contains('Daily at 21:30, a copy on the stick', $page);
         assert_contains('USB copy OK', $client->get('dashboard')->body);
     },
 ];
