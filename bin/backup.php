@@ -15,21 +15,20 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 use App\Services\BackupService;
 
 $opts = getopt('', ['kind:', 'auto']);
-if (isset($opts['auto'])) {
-    $kind = BackupService::autoKind();
-    if ($kind === null) {
-        echo (new BackupService())->serviceTick(), "\n";   // nothing due: at most a Google Drive retry
-        exit(0);
-    }
-    echo "Daily backup due (", BackupService::dailyTime(), "): making the {$kind} one.\n";
-} else {
-    $kind = (string) ($opts['kind'] ?? 'manual');
-    if ($kind === 'daily' && date('j') === '1') {
-        $kind = 'monthly';
-    }
-}
-
 try {
+    if (isset($opts['auto'])) {   // inside the try: a database that is down must reach the log too, not only the screen nobody sees
+        $kind = BackupService::autoKind();
+        if ($kind === null) {
+            echo (new BackupService())->serviceTick(), "\n";   // nothing due: at most a Google Drive retry
+            exit(0);
+        }
+        echo "Daily backup due (", BackupService::dailyTime(), "): making the {$kind} one.\n";
+    } else {
+        $kind = (string) ($opts['kind'] ?? 'manual');
+        if ($kind === 'daily' && date('j') === '1') {
+            $kind = 'monthly';
+        }
+    }
     $svc = new BackupService();
     $file = $svc->create($kind);
     echo 'Backup written: ', $file, "\n";
