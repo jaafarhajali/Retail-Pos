@@ -68,6 +68,22 @@ try {
     $ini = "$Root\app\config\app.ini"
     $update = Test-Path $ini
     Log ("=== " + $(if ($update) { 'update' } else { 'fresh install' }) + " of $DisplayName in $Root")
+
+    # Apache, PHP and MariaDB are built with Visual Studio: a PC that never had XAMPP lacks the Visual C++ runtime, and
+    # httpd.exe then cannot even start (no output, no service). The setup ships Microsoft's redistributable.
+    $sys = "$env:SystemRoot\System32"
+    $missing = @('vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll') | Where-Object { -not (Test-Path "$sys\$_") }
+    if ($missing.Count -gt 0) {
+        $redist = "$Root\redist\vc_redist.x64.exe"
+        if (-not (Test-Path $redist)) { Fail "the Visual C++ runtime is missing ($($missing -join ', ')) and the setup has no $redist." }
+        Log "installing the Visual C++ runtime (missing: $($missing -join ', '))"
+        $res = Native $redist @('/install', '/quiet', '/norestart')
+        if ($res.Code -ne 0 -and $res.Code -ne 3010 -and $res.Code -ne 1638) { Fail "vc_redist.x64.exe failed with code $($res.Code): $($res.Out)" }
+        Log "Visual C++ runtime installed (code $($res.Code))"
+    }
+    $res = Native "$Root\apache\bin\httpd.exe" @('-v')
+    if ($res.Code -ne 0) { Fail "Apache cannot start on this PC (code $($res.Code)): $($res.Out)" }
+    Log ("apache: " + ($res.Out -split "`n")[0])
     foreach ($d in @("$Root\tmp", "$Root\data", "$Root\apache\logs", "$Root\app\storage\logs", "$Root\app\storage\sessions", "$Root\app\storage\backups", "$Root\app\public\uploads\products")) {
         New-Item -ItemType Directory -Force -Path $d | Out-Null
     }
@@ -122,8 +138,8 @@ try {
     # the web server
     if (-not (Svc $svcWeb)) {
         $res = Native "$Root\apache\bin\httpd.exe" @('-k', 'install', '-n', $svcWeb, '-f', "$Root\apache\conf\httpd.conf")
-        Log "httpd: $($res.Out)"
-        if (-not (Svc $svcWeb)) { Fail "could not install the web service." }
+        Log "httpd (code $($res.Code)): $($res.Out)"
+        if (-not (Svc $svcWeb)) { Fail "could not install the web service (httpd exit code $($res.Code))." }
     }
     $res = Native "$Root\apache\bin\httpd.exe" @('-t', '-f', "$Root\apache\conf\httpd.conf")
     if ($res.Code -ne 0) { Fail "the web server refuses its configuration: $($res.Out)" }

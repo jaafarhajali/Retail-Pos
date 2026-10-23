@@ -18,6 +18,11 @@ final class InstallCheckService
         $rows = [];
         $rows[] = ['what' => 'Program version', 'state' => 'ok', 'detail' => APP_VERSION . ' · ' . (APP_ENV === 'production' ? 'production mode' : APP_ENV . ' mode')];
         $rows[] = ['what' => 'PHP', 'state' => version_compare(PHP_VERSION, '8.2.0', '>=') ? 'ok' : 'fail', 'detail' => PHP_VERSION . ' · ' . (php_ini_loaded_file() ?: 'no php.ini')];
+        if (PHP_OS_FAMILY === 'Windows') {
+            $sys = getenv('SystemRoot') . '/System32';
+            $lost = array_filter(['vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll'], static fn (string $d): bool => !is_file($sys . '/' . $d));
+            $rows[] = ['what' => 'Visual C++ runtime', 'state' => $lost === [] ? 'ok' : 'fail', 'detail' => $lost === [] ? 'installed' : 'missing ' . implode(', ', $lost) . ': run the setup again, it installs it'];
+        }
         foreach (['pdo_mysql' => 'database driver', 'gd' => 'product images and the logo', 'zip' => 'backups', 'mbstring' => 'Arabic text', 'curl' => 'Google Drive'] as $ext => $why) {
             $rows[] = ['what' => "PHP extension {$ext}", 'state' => extension_loaded($ext) ? 'ok' : ($ext === 'curl' ? 'warn' : 'fail'), 'detail' => extension_loaded($ext) ? 'on' : "off: needed for {$why}"];
         }

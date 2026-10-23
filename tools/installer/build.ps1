@@ -65,7 +65,13 @@ Write-Host "  apache: $((Get-ChildItem "$Stage\apache" -Recurse -File | Measure-
 Copy-Item "$PSScriptRoot\templates\my.ini.tpl" "$Stage\mariadb\my.ini.tpl"
 Write-Host "  mariadb: $((Get-ChildItem "$Stage\mariadb" -Recurse -File | Measure-Object).Count) files"
 
-# 5. the backup service wrapper and the install script
+# 5. the Visual C++ runtime Apache, PHP and MariaDB need on a PC that never had XAMPP (Microsoft's redistributable)
+$redist = "$(Split-Path $WinSW)\vc_redist.x64.exe"
+if (-not (Test-Path $redist)) { throw "Missing: $redist (download https://aka.ms/vs/17/release/vc_redist.x64.exe next to WinSW)" }
+New-Item -ItemType Directory -Force -Path "$Stage\redist" | Out-Null
+Copy-Item $redist "$Stage\redist\vc_redist.x64.exe"
+
+# 6. the backup service wrapper and the install script
 Copy-Item $WinSW "$Stage\backup\$($Product)Backup.exe"
 Copy-Item "$PSScriptRoot\templates\backup-service.xml.tpl" "$Stage\backup\backup-service.xml.tpl"
 Copy-Item "$PSScriptRoot\post-install.ps1" "$Stage\post-install.ps1"
