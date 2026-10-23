@@ -3,7 +3,7 @@
  * php bin/install-backup-tasks.php [--print]
  * Creates the two Windows scheduled tasks that back the shop up by themselves (run it once on the server, as the
  * Windows user who is normally signed in):
- *   "Retail POS backup hourly"  every hour from 08:00 to 23:59  →  bin/backup.php --kind=hourly
+ *   "Retail POS backup hourly"  every day at 08:00, then every hour until midnight  →  bin/backup.php --kind=hourly
  *   "Retail POS backup daily"   every day at 02:00              →  bin/backup.php --kind=daily
  * --print only shows the commands. Running it again replaces the tasks (/F).
  */

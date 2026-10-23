@@ -86,7 +86,7 @@ return [
     'the scheduled tasks are two schtasks commands with the right times and kinds' => function (): void {
         $cmds = BackupService::taskCommands('C:\\xampp\\php\\php.exe', 'C:\\xampp\\htdocs\\Retail POS\\bin\\backup.php');
         assert_same(['Retail POS backup hourly', 'Retail POS backup daily'], array_keys($cmds));
-        assert_contains('/SC HOURLY /MO 1 /ST 08:00 /ET 23:59', $cmds['Retail POS backup hourly']);
+        assert_contains('/SC DAILY /ST 08:00 /RI 60 /DU 16:00', $cmds['Retail POS backup hourly'], 'every day at 08:00, repeated hourly for 16 hours: /SC HOURLY with /ET expired after one day');
         assert_contains('--kind=hourly', $cmds['Retail POS backup hourly']);
         assert_contains('/SC DAILY /ST 02:00', $cmds['Retail POS backup daily']);
         assert_contains('--kind=daily', $cmds['Retail POS backup daily']);

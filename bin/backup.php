@@ -13,6 +13,11 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 
 $opts = getopt('', ['kind:']);
 $kind = (string) ($opts['kind'] ?? 'manual');
+// The night's backup was missed (PC off, MySQL not up at 02:00): the first hourly run of the day makes it instead (2026-10-23).
+if ($kind === 'hourly' && glob(App\Services\BackupService::dir() . '/' . date('Y-m-d') . '_*-{daily,monthly}.zip', GLOB_BRACE) === []) {
+    $kind = 'daily';
+    echo "No daily backup yet today: making it now.\n";
+}
 if ($kind === 'daily' && date('j') === '1') {
     $kind = 'monthly';
 }

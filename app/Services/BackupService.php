@@ -211,7 +211,9 @@ final class BackupService
         $run = static fn (string $kind): string => '"\\"' . $php . '\\" \\"' . $script . '\\" --kind=' . $kind . '"';
 
         return [
-            'Retail POS backup hourly' => 'schtasks /Create /F /SC HOURLY /MO 1 /ST 08:00 /ET 23:59 /TN "Retail POS backup hourly" /TR ' . $run('hourly'),
+            // every day at 08:00, then again every 60 minutes for 16 hours (until midnight). /SC HOURLY with /ET made a trigger that
+            // ended on its first day (found 2026-10-23: no hourly backup since the day the task was installed).
+            'Retail POS backup hourly' => 'schtasks /Create /F /SC DAILY /ST 08:00 /RI 60 /DU 16:00 /TN "Retail POS backup hourly" /TR ' . $run('hourly'),
             'Retail POS backup daily'  => 'schtasks /Create /F /SC DAILY /ST 02:00 /TN "Retail POS backup daily" /TR ' . $run('daily'),
         ];
     }
