@@ -24,6 +24,6 @@
         </form>
       </div>
     </div>
-    <p class="login-foot">Retail POS</p>
+    <p class="login-foot"><?= e(APP_NAME) ?></p>
   </div>
 </div>

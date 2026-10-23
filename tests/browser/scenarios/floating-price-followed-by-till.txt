@@ -2,7 +2,7 @@
 const { execSync } = await import('node:child_process');
 const path = await import('node:path');
 const S = path.dirname(jarPath); const HERE = path.join(process.cwd(), 'tests', 'browser');
-const php = (args) => execSync(`"C:/xampp/php/php.exe" "${S}/float_price.php" ${args}`, { encoding: 'utf8', env: { ...process.env, RETAIL_POS_ENV: 'test' } }).trim();
+const php = (args) => execSync(`"C:/xampp/php/php.exe" "${HERE}/float_price.php" ${args}`, { encoding: 'utf8', env: { ...process.env, RETAIL_POS_ENV: 'test' } }).trim();
 log('setup:', php('mark Adalya'));
 await send('Page.reload'); await waitFor(`document.querySelector('.tile')`, 'tiles after the reload'); await sleep(3500);   // the first price poll runs 3 s after load
 const tilePrice = `(() => { const t = [...document.querySelectorAll('.tile')].find(t => /Adalya/.test(t.textContent)); return t.querySelector('.tile-price, b, strong')?.textContent || t.textContent.replace(/\\s+/g, ' ').trim(); })()`;
