@@ -44,7 +44,7 @@ return [
         @unlink($log);
         exec('"' . PHP_BINARY . '" "' . BASE_PATH . '/bin/backup-service.php" --once 2>&1', $out, $rc);
         assert_same(0, $rc, implode("\n", $out));
-        assert_contains('service started (every 1800 s, daily backup at 21:30)', implode("\n", $out));
+        assert_contains('service started (daily backup at 21:30', implode("\n", $out));
         assert_true(is_file($log), 'the log exists');
         assert_contains('daily backup at 21:30', (string) file_get_contents($log));
 

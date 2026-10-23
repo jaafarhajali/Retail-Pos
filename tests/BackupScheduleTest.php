@@ -85,14 +85,20 @@ return [
         assert_contains('3 days old', implode(' ', $s['warnings']));
     },
 
-    'one scheduled task every 30 minutes runs --auto; the old tasks are named for deletion' => function (): void {
+    'one daily task at the set time, hidden, run after a missed start; the old tasks are named for deletion' => function (): void {
+        (new Setting())->setMany(['backup_daily_time' => '21:30']);
+        Settings::flush();
         $cmds = BackupService::taskCommands('C:\xampp\php\php.exe', 'C:\xampp\htdocs\Retail POS\bin\backup.php');
-        assert_same(['Retail POS backup'], array_keys($cmds));
-        assert_contains('/SC MINUTE /MO 30 /TN "Retail POS backup"', $cmds['Retail POS backup']);
-        assert_contains('\"C:\xampp\htdocs\Retail POS\bin\backup.php\" --auto"', $cmds['Retail POS backup'], 'the path with its space is quoted inside /TR');
-        assert_same(['Retail POS backup hourly', 'Retail POS backup daily'], BackupService::oldTaskNames());
+        assert_same(2, count($cmds));
+        assert_contains('/SC DAILY /ST 21:30 /TN "Codexy ERP backup"', $cmds[0]);
+        assert_contains('wscript.exe //B', $cmds[0], 'no console window');
+        assert_contains('backup-hidden.vbs', $cmds[0]);
+        assert_contains('Retail POS\bin\backup.php', $cmds[0]);
+        assert_contains('-StartWhenAvailable', $cmds[1], 'a missed night is caught up');
+        assert_contains('/ST 03:15', BackupService::taskCommands('php.exe', 'backup.php', '03:15')[0]);
+        assert_same(['Retail POS backup hourly', 'Retail POS backup daily', 'Retail POS backup'], BackupService::oldTaskNames());
+        assert_true(is_file(BASE_PATH . '/bin/backup-hidden.vbs'));
     },
-
     'the automatic run makes the daily backup once the set time has passed, once a day, monthly on the 1st' => function (): void {
         (new Setting())->setMany(['backup_daily_time' => '21:30']);
         Settings::flush();

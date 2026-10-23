@@ -2,9 +2,9 @@
 /**
  * php bin/install-backup-tasks.php [--print]
  * Creates the one Windows scheduled task that backs the shop up by itself (run it once on the server, as the Windows
- * user who is normally signed in): "Retail POS backup" runs bin/backup.php --auto every 30 minutes, which makes the
- * daily backup once the time set on the Backups page has passed. The tasks of the old schedule (hourly, daily at a
- * fixed hour) are deleted. --print only shows the commands. Running it again replaces the task (/F).
+ * user who is normally signed in): "Codexy ERP backup" runs bin/backup.php --auto once a day at the time set on the
+ * Backups page, hidden, and as soon as possible after a start the PC missed. The tasks of the old schedules (hourly,
+ * daily at a fixed hour, every 30 minutes) are deleted. --print only shows the commands. Running it again replaces the task.
  */
 declare(strict_types=1);
 
@@ -27,13 +27,13 @@ foreach (BackupService::oldTaskNames() as $old) {
         echo '  ', $rc === 0 ? "deleted: {$old}" : 'was not there', "\n";
     }
 }
-foreach (BackupService::taskCommands($php, $script) as $name => $cmd) {
+foreach (BackupService::taskCommands($php, $script) as $cmd) {
     echo $cmd, "\n";
     if ($print) {
         continue;
     }
     exec($cmd . ' 2>&1', $out, $rc);
-    echo '  ', $rc === 0 ? "created: {$name}" : 'FAILED: ' . implode(' ', $out), "\n";
+    echo '  ', $rc === 0 ? 'done' : 'FAILED: ' . implode(' ', $out), "\n";
     if ($rc !== 0) {
         exit(1);
     }

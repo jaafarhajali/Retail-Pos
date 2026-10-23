@@ -7,7 +7,7 @@ database, PHP and the program, as three Windows services that start with the PC:
 |---|---|
 | `CodexyERPWeb` | Apache 2.4, serving `app\public` on port 80 (or the next free of 8080, 8081, 8090, 8800) |
 | `CodexyERPDB` | MariaDB 10.4 on port 3306 (or the next free of 3307, 3308, 3309, 3316), data in `data\` |
-| `CodexyERPBackup` | `php bin\backup-service.php`: the daily backup at the time set on the Backups page, checked every 30 minutes |
+| `CodexyERPBackup` | `php bin\backup-service.php`: the daily backup at the time set on the Backups page; a night the PC was off is made as soon as it is on |
 
 The setup asks for the folder (`C:\CodexyERP`, no spaces), the shop name and the administrator password, then opens
 the browser. Everything it did is in `<folder>\install.log`; the program's own check is Settings → Check this installation.

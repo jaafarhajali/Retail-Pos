@@ -254,15 +254,45 @@ final class BackupService
         return date('j', $now) === '1' ? 'monthly' : 'daily';
     }
 
+    public const TASK_NAME = 'Codexy ERP backup';
+
     /**
-     * The one Windows scheduled task, as a schtasks command (bin/install-backup-tasks.php runs it): every 30 minutes
-     * bin/backup.php --auto decides whether the daily backup is due.
+     * The one Windows scheduled task (bin/install-backup-tasks.php and the Backups page run these): once a day at the
+     * set time, hidden (wscript, no console window), and "run as soon as possible after a missed start" so a night the
+     * PC was off is caught up when it is on. bin/backup.php --auto still refuses a second backup the same day.
      *
-     * @return array<string, string> task name => command
+     * @return list<string> the commands, in order
      */
-    public static function taskCommands(string $php, string $script): array
+    public static function taskCommands(string $php, string $script, ?string $time = null): array
     {
-        return ['Retail POS backup' => 'schtasks /Create /F /SC MINUTE /MO 30 /TN "Retail POS backup" /TR "\\"' . $php . '\\" \\"' . $script . '\\" --auto"'];
+        $time ??= self::dailyTime();
+        $vbs = dirname($script) . DIRECTORY_SEPARATOR . 'backup-hidden.vbs';
+        $run = 'wscript.exe //B \\"' . $vbs . '\\" \\"' . $php . '\\" \\"' . $script . '\\"';
+
+        return [
+            'schtasks /Create /F /SC DAILY /ST ' . $time . ' /TN "' . self::TASK_NAME . '" /TR "' . $run . '"',
+            'powershell -NoProfile -Command "Set-ScheduledTask -TaskName \\"' . self::TASK_NAME . '\\" -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2))"',
+        ];
+    }
+
+    /** Creates or replaces the daily task on this PC (Windows only). Returns null when done, else what went wrong. */
+    public static function installTask(): ?string
+    {
+        if (PHP_OS_FAMILY !== 'Windows') {
+            return 'not a Windows PC';
+        }
+        $php = str_replace('/', '\\', PHP_BINARY);
+        if (str_ends_with(strtolower($php), 'php-cgi.exe') || str_contains(strtolower($php), 'httpd')) {
+            $php = dirname($php) . '\\php.exe';   // called from the web server: the task must run the command-line php
+        }
+        foreach (self::taskCommands($php, str_replace('/', '\\', BASE_PATH . '/bin/backup.php')) as $cmd) {
+            exec($cmd . ' 2>&1', $out, $rc);
+            if ($rc !== 0) {
+                return trim(implode(' ', $out)) ?: ('command failed: ' . $cmd);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -290,7 +320,7 @@ final class BackupService
     /** Tasks of the old schedule (hourly + daily at a fixed hour), deleted by the installer. @return list<string> */
     public static function oldTaskNames(): array
     {
-        return ['Retail POS backup hourly', 'Retail POS backup daily'];
+        return ['Retail POS backup hourly', 'Retail POS backup daily', 'Retail POS backup'];
     }
 
     /**

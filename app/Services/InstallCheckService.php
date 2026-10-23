@@ -52,8 +52,9 @@ final class InstallCheckService
             $rows[] = ['what' => 'Windows service ' . $name, 'state' => $state, 'detail' => $detail];
         }
         if (BackupService::runner() === 'task') {
-            $rows[] = ['what' => 'Backup task', 'state' => $this->taskExists('Retail POS backup') ? 'ok' : 'warn',
-                       'detail' => $this->taskExists('Retail POS backup') ? 'the Windows task "Retail POS backup" exists' : 'no Windows task: run bin/install-backup-tasks.php once on the server'];
+            $name = BackupService::TASK_NAME;
+            $rows[] = ['what' => 'Backup task', 'state' => $this->taskExists($name) ? 'ok' : 'warn',
+                       'detail' => $this->taskExists($name) ? 'the Windows task "' . $name . '" exists, daily at ' . BackupService::dailyTime() : 'no Windows task: run bin/install-backup-tasks.php once on the server'];
         }
 
         return $rows;

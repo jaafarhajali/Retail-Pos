@@ -77,7 +77,12 @@ final class BackupController extends Controller
             $this->failBack('backup', [], ['backup_daily_time' => $e->getMessage()]);
         }
         Audit::log('backup.daily_time', 'backup', null, ['time' => trim($time)]);
-        Flash::set('success', 'The daily backup is made at ' . trim($time) . '.');
+        $note = '';
+        if (BackupService::runner() === 'task' && APP_ENV !== 'test') {   // a XAMPP install: the Windows task carries the time itself
+            $problem = BackupService::installTask();
+            $note = $problem === null ? ' The Windows task was moved to that time.' : ' The Windows task could not be changed (' . $problem . '): run bin/install-backup-tasks.php once on the server.';
+        }
+        Flash::set('success', 'The daily backup is made at ' . trim($time) . '.' . $note);
         redirect('backup');
     }
 
