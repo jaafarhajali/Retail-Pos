@@ -49,7 +49,7 @@ SelectDirDesc=Where should {#DisplayName} be installed? A folder without spaces 
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "app\config\app.ini"
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\post-install.ps1"" -Root ""{app}"" -Product ""{#Product}"" -DisplayName ""{#DisplayName}"" -DbName ""{#DbName}"" -ShopName ""{code:GetShop}"" -AdminPassword ""{code:GetPass}"""; StatusMsg: "Installing the database, the web server and the backup service…"; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\post-install.ps1"" -Root ""{app}"" -Product ""{#Product}"" -DisplayName ""{#DisplayName}"" -DbName ""{#DbName}"" -ShopName ""{code:GetShop}"" -AdminPassword ""{code:GetPass}"""; StatusMsg: "Installing the database, the web server and the backup service..."; Flags: runhidden waituntilterminated
 Filename: "{app}\open.cmd"; Description: "Open {#DisplayName} in the browser"; Flags: postinstall shellexec nowait skipifsilent
 
 [UninstallRun]
@@ -92,7 +92,7 @@ begin
   end;
 end;
 
-{ A silent install (/VERYSILENT) never shows the page: /ShopName="…" /AdminPassword=… on the command line fill in. }
+{ A silent install (/VERYSILENT) never shows the page: /ShopName="..." /AdminPassword=... on the command line fill in. }
 function GetShop(Param: String): String;
 begin
   Result := ShopPage.Values[0];

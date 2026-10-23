@@ -1,4 +1,4 @@
-# post-install.ps1 — run by the setup after the files are copied (and by the uninstaller with -Uninstall).
+# post-install.ps1 - run by the setup after the files are copied (and by the uninstaller with -Uninstall).
 # Writes the configs from the templates, creates the database, installs and starts the three Windows services
 # (<Product>Web, <Product>DB, <Product>Backup), makes the first administrator, and puts a shortcut on the desktop.
 # Run again by the setup on an update: the services are stopped, the migrations applied, the services started.
@@ -110,7 +110,7 @@ if (-not (Svc $svcWeb)) {
 # the program's own config, then its installer (database, migrations, first administrator, settings)
 if (-not $update) {
     @(
-        "; $DisplayName — written by the setup. Never share this file: it holds the database password.",
+        "; $DisplayName - written by the setup. Never share this file: it holds the database password.",
         "[app]", "env = production", "debug = 0", "timezone = Asia/Beirut", "",
         "[database]", "host = 127.0.0.1", "port = $dbPort", "name = $DbName", "user = root", "pass = `"$dbPass`"", "",
         "[install]", "product = $Product", "web_port = $webPort", "root = `"$Root`""

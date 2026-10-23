@@ -1,6 +1,6 @@
-# build.ps1 — builds the Windows setup of this product from the committed code (git HEAD) and this PC's XAMPP binaries.
+# build.ps1 - builds the Windows setup of this product from the committed code (git HEAD) and this PC's XAMPP binaries.
 #   powershell -ExecutionPolicy Bypass -File tools\installer\build.ps1
-#   … -Product RetailProduction -DisplayName "Retail Production" -DefaultDir C:\RetailProduction -DbName retail_production
+#   ... -Product RetailProduction -DisplayName "Retail Production" -DefaultDir C:\RetailProduction -DbName retail_production
 # Needs: Inno Setup (ISCC.exe), WinSW-x64.exe, XAMPP (Apache 2.4, PHP 8.2, MariaDB 10.4), git, tar. Output: dist\<Product>-Setup-<version>.exe
 param(
     [string]$Product = 'RetailPOS',
@@ -72,7 +72,7 @@ Copy-Item "$PSScriptRoot\post-install.ps1" "$Stage\post-install.ps1"
 
 # 6. the setup
 $size = [math]::Round(((Get-ChildItem $Stage -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB))
-Write-Host "  staged: $size MB; compiling…"
+Write-Host "  staged: $size MB; compiling..."
 & $Iscc "/DProduct=$Product" "/DDisplayName=$DisplayName" "/DVersion=$Version" "/DDefaultDir=$DefaultDir" "/DDbName=$DbName" "/DStage=$Stage" "/DOut=$Dist" /Q "$PSScriptRoot\setup.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
 $exe = Get-Item "$Dist\$Product-Setup-$Version.exe"
