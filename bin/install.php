@@ -36,7 +36,7 @@ try {
     $given = isset($opts['admin-password']) ? (string) $opts['admin-password'] : null;
     $password = Installer::ensureAdmin($given);
     if ($password !== null) {
-        echo "Admin account created.\n  username: admin\n  password: {$password}\n";
+        echo "Admin account created.\n  username: admin\n  password: " . ($given === null ? $password : '(the one you typed)') . "\n";   // a typed password never lands in a log
         if ($given === null) {
             echo "  (generated — it must be changed at first sign-in)\n";
         }
