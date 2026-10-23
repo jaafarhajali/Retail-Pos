@@ -174,7 +174,7 @@ try {
     # a way in
     $url = "http://localhost" + $(if ($webPort -eq 80) { '' } else { ":$webPort" }) + "/"
     "@echo off`r`nstart `"`" $url" | Set-Content -Path "$Root\open.cmd" -Encoding ASCII
-    "[InternetShortcut]`r`nURL=$url" | Set-Content -Path "$env:PUBLIC\Desktop\$DisplayName.url" -Encoding ASCII
+    "[InternetShortcut]`r`nURL=$url`r`nIconFile=$Root\app\public\assets\brand\codexy.ico`r`nIconIndex=0" | Set-Content -Path "$env:PUBLIC\Desktop\$DisplayName.url" -Encoding ASCII
     Log "done: $url"
     exit 0
 } catch {

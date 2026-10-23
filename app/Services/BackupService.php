@@ -46,7 +46,8 @@ final class BackupService
 
     public static function mysqldumpPath(): string
     {
-        foreach (['C:/xampp/mysql/bin/mysqldump.exe', '/usr/bin/mysqldump'] as $p) {
+        // the Windows setup puts MariaDB next to the app (<root>\mariadb\bin); a development PC has XAMPP
+        foreach ([dirname(BASE_PATH) . '/mariadb/bin/mysqldump.exe', 'C:/xampp/mysql/bin/mysqldump.exe', '/usr/bin/mysqldump'] as $p) {
             if (is_file($p)) {
                 return $p;
             }

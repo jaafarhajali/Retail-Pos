@@ -39,6 +39,8 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 UninstallDisplayName={#DisplayName}
+SetupIconFile={#Stage}\app\public\assets\brand\codexy.ico
+UninstallDisplayIcon={app}\app\public\assets\brand\codexy.ico
 CloseApplications=no
 SetupLogging=yes
 

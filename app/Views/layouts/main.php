@@ -27,6 +27,7 @@ if (!$navLocked && $backRoute !== '' && $backRoute !== 'dashboard') {
   <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css">
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?= e(asset('assets/css/app.css')) ?>">
+  <link rel="icon" type="image/x-icon" href="<?= e(asset('assets/brand/codexy.ico')) ?>">
 </head>
 <body>
 <div class="app">
