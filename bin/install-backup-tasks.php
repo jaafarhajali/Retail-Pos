@@ -16,7 +16,7 @@ $php = str_replace('/', '\\', PHP_BINARY);
 $script = str_replace('/', '\\', BASE_PATH . '/bin/backup.php');
 $print = in_array('--print', $argv, true);
 if (PHP_OS_FAMILY !== 'Windows' && !$print) {
-    fwrite(STDERR, "This creates a Windows scheduled task; on another system run bin/backup.php --auto from cron every 30 minutes.\n");
+    fwrite(STDERR, "This creates a Windows scheduled task; on another system run bin/backup.php --auto from cron once a day.\n");
     exit(1);
 }
 foreach (BackupService::oldTaskNames() as $old) {

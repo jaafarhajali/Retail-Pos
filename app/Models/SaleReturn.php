@@ -72,15 +72,4 @@ final class SaleReturn extends Model
         $this->execute('INSERT INTO return_refunds (return_id, method, currency, amount, amount_usd) VALUES (:r, :m, :c, :a, :u)',
             ['r' => $returnId, 'm' => $method, 'c' => $currency, 'a' => $amount, 'u' => $amountUsd]);
     }
-
-    /** Refund and cost totals of returns in a session or period (X/Z and reports). */
-    public function totals(string $where, array $params): array
-    {
-        return $this->fetch(
-            "SELECT COUNT(*) AS n, COALESCE(SUM(r.total_usd), 0) AS refund_usd,
-                    COALESCE((SELECT SUM(ri.cost_usd) FROM return_items ri JOIN returns r2 ON r2.id = ri.return_id WHERE {$where}), 0) AS cost_usd
-             FROM returns r WHERE " . str_replace('r2.', 'r.', $where),
-            $params + array_combine(array_map(static fn ($k) => $k . '2', array_keys($params)), array_values($params))
-        ) ?? ['n' => 0, 'refund_usd' => '0', 'cost_usd' => '0'];
-    }
 }

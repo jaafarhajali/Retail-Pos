@@ -45,31 +45,6 @@ final class Pricing
         return number_format((float) $costPerBase * $factor, 2, '.', '');
     }
 
-    /**
-     * profit = price − cost; margin % = profit / cost (cost $5, price $8 → $3, 60 %).
-     * @return array{profit: string, pct: ?string}|null null when not sold at this level
-     */
-    public static function margin(?string $price, string $unitCost): ?array
-    {
-        if ($price === null) {
-            return null;
-        }
-        $profit = (float) $price - (float) $unitCost;
-        $pct = (float) $unitCost > 0 ? number_format($profit / (float) $unitCost * 100, 1, '.', '') : null;
-
-        return ['profit' => number_format($profit, 2, '.', ''), 'pct' => $pct];
-    }
-
-    /** cost × (1 + target %), rounded to cents; null without a cost or a target. */
-    public static function suggestedPrice(string $unitCost, ?string $targetPct): ?string
-    {
-        if ($targetPct === null || (float) $unitCost <= 0) {
-            return null;
-        }
-
-        return number_format((float) $unitCost * (1 + (float) $targetPct / 100), 2, '.', '');
-    }
-
     public static function stockValue(int $stockBase, string $costPerBase): string
     {
         return number_format($stockBase * (float) $costPerBase, 2, '.', '');

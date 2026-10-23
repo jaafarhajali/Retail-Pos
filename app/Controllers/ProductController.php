@@ -55,55 +55,10 @@ final class ProductController extends Controller
         $this->render('products/form', $this->formData(null), 'Add product');
     }
 
-    /** Creates the product and, in the same transaction, its first unit, prices, cost and opening stock. */
-    public function store(): void
-    {
-        try {
-            $id = \App\Core\Database::transaction(function (): int {
-                $service = new ProductService();
-                $id = $service->create($this->productInput());
-                $unitName = $this->input('unit_name');
-                if ($unitName !== '') {
-                    $unitId = $service->addUnit($id, $unitName, $this->input('unit_factor') ?: '1', isset($_POST['allows_fraction']), false);
-                    if (Gate::allows('price.manage') && ($this->input('retail_price') !== '' || $this->input('wholesale_price') !== '')) {
-                        $service->setPrices($unitId, $this->input('retail_price'), $this->input('wholesale_price'));
-                    }
-                    if (Gate::allows('product.view_cost') && $this->input('unit_cost') !== '') {
-                        $unit = (new ProductUnit())->find($unitId);
-                        $service->setCost($id, $this->input('unit_cost'), (int) $unit['factor']);
-                    }
-                    if ($this->input('opening_qty') !== '' && Gate::allows('stock.adjust')) {
-                        (new \App\Services\StockService())->adjust($id, $unitId, $this->input('opening_qty'), 'opening', '', null, \App\Core\Auth::id());
-                    }
-                }
-
-                return $id;
-            });
-        } catch (\DomainException $e) {
-            $this->failBack('products/create', [], ['form' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Product created. Add more units, barcodes or a photo here.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
     public function edit(): void
     {
         $product = (new Product())->find($this->queryInt('id')) ?? throw new HttpException(404);
         $this->render('products/form', $this->formData($product), $product['name']);
-    }
-
-    public function update(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            $service = new ProductService();
-            $service->update($id, $this->productInput() + ['is_active' => isset($_POST['is_active'])]);
-            $service->setMinStock($id, $this->input('min_stock_qty'), $this->inputInt('min_stock_unit_id'));
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['form' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Product saved.');
-        redirect('products/edit', ['id' => $id]);
     }
 
     /** The whole product page in one request (ProductService::save). The photo is stored once the rest is safe. */
@@ -162,149 +117,6 @@ final class ProductController extends Controller
         Flash::set('success', $name . ' was deleted.');
         redirect('products');
     }
-    /** Route needs product.view_cost; changing it also needs product.manage. */
-    public function cost(): void
-    {
-        if (!Gate::allows('product.manage')) {
-            throw new HttpException(403);
-        }
-        $id = $this->inputInt('product_id');
-        try {
-            $factor = 1;
-            $unitId = $this->inputInt('unit_id');
-            if ($unitId > 0) {
-                $unit = (new ProductUnit())->find($unitId);
-                if ($unit === null || (int) $unit['product_id'] !== $id) {
-                    throw new \DomainException('Choose one of this product\'s units.');
-                }
-                $factor = (int) $unit['factor'];
-            }
-            (new ProductService())->setCost($id, $this->input('unit_cost'), $factor);
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['unit_cost' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Cost updated.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function unitStore(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            (new ProductService())->addUnit($id, $this->input('unit_name'), $this->input('unit_factor'), isset($_POST['allows_fraction']), isset($_POST['is_display']));
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['unit' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Unit added.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function unitUpdate(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            (new ProductService())->updateUnit($this->inputInt('unit_id'), $this->input('unit_name'), $this->input('unit_factor'), isset($_POST['allows_fraction']), isset($_POST['is_display']));
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['unit' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Unit saved.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function unitDelete(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            (new ProductService())->deleteUnit($this->inputInt('unit_id'));
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['unit' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Unit deleted.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function unitDefault(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            (new ProductService())->setDefaultUnit($this->inputInt('unit_id'), $this->input('kind'));
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['unit' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Default unit changed.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function prices(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            (new ProductService())->setPrices($this->inputInt('unit_id'), $this->input('retail_price'), $this->input('wholesale_price'));
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['prices' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Prices saved.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function barcodeStore(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            (new ProductService())->addBarcode($this->inputInt('unit_id'), $this->input('barcode'));
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['barcode' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Barcode added.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function barcodeDelete(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            (new ProductService())->removeBarcode($this->inputInt('barcode_id'));
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['barcode' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Barcode removed.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function imageStore(): void
-    {
-        $id = $this->inputInt('product_id');
-        $file = $_FILES['image'] ?? null;
-        try {
-            if (!is_array($file) || !is_int($file['error'] ?? null)) {
-                throw new \DomainException('Choose an image file.');
-            }
-            if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
-                throw new \DomainException('The image must be 5 MB or smaller.');
-            }
-            if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file((string) $file['tmp_name'])) {
-                throw new \DomainException('The upload failed. Try again.');
-            }
-            (new ProductImageService())->store($id, (string) $file['tmp_name'], (int) $file['size']);
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['image' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Image saved.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
-    public function imageDelete(): void
-    {
-        $id = $this->inputInt('product_id');
-        try {
-            (new ProductImageService())->remove($id);
-        } catch (\DomainException $e) {
-            $this->failBack('products/edit', ['id' => $id], ['image' => $e->getMessage()]);
-        }
-        Flash::set('success', 'Image removed.');
-        redirect('products/edit', ['id' => $id]);
-    }
-
     /** @return array<string, mixed> */
     private function productInput(): array
     {
@@ -354,7 +166,6 @@ final class ProductController extends Controller
             'stockText'  => $product === null ? '' : \App\Services\Quantity::format((int) $product['stock_base'], $units, (string) $product['base_unit']),
             'canStock'   => Gate::allows('stock.adjust'),
             'barcodes'   => $id > 0 ? (new Barcode())->forProduct($id) : [],
-            'unitNames'  => ProductService::DEFAULT_UNIT_NAMES,
             'unitTypes'  => ProductService::UNIT_TYPES,
             'canManage'  => Gate::allows('product.manage'),
             'canPrice'   => Gate::allows('price.manage'),

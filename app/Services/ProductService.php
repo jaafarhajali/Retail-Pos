@@ -19,8 +19,6 @@ final class ProductService
     public const CODE_PREFIX = 'P-';
 
     /** Offered in the unit dropdown (owner decision 2026-09-24); any other name may be typed. */
-    public const DEFAULT_UNIT_NAMES = ['Piece', 'Pack', 'Box', 'Dozen', 'kg', 'g', 'L', 'ml'];
-
     /**
      * The unit types an administrator can pick; there is no free text. Each type lists the base units it fits
      * and, for the plain measures, its fixed factor. Containers (Pack, Box…) ask how many base units they hold.

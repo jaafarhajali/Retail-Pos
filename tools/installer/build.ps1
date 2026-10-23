@@ -26,7 +26,7 @@ New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 
 # 1. the program, from git HEAD: never the working folder, never config/app.ini, backups, logs, tests, docs or tools
 $tar = "$env:TEMP\$Product-app.tar"
-& git -C $Repo archive --format=tar --output="$tar" HEAD ':!tests' ':!docs' ':!tools' ':!.gitignore' ':!.editorconfig' ':!README.md'
+& git -C $Repo archive --format=tar --output="$tar" HEAD ':!tests' ':!docs' ':!tools' ':!.gitignore' ':!.editorconfig' ':!README.md' ':!CLAUDE.md' ':!.agents' ':!skills-lock.json' ':!bin/seed-demo.php' ':!bin/seed-factory.php' ':!bin/reset-data.php'
 if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
 & tar -xf $tar -C "$Stage\app"
 Remove-Item $tar

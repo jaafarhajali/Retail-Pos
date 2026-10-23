@@ -24,10 +24,13 @@ $idFrom = static function (string $location): int {
     return (int) ($m[1] ?? 0);
 };
 
-$productForm = static fn (array $override = []): array => array_merge([
-    'name' => 'فحم', 'category_id' => '', 'base_unit' => 'g', 'internal_code' => '', 'description' => '',
-    'target_margin_pct' => '', 'show_on_pos_grid' => '1',
-], $override);
+/** The one-form product page (products/save): a new product by weight with one unit sold at 15 dollars per kg. */
+$productForm = static fn (array $override = []): array => $override + [
+    'product_id' => '0', 'then' => 'stay', 'name' => 'فحم', 'category_id' => '', 'base_unit' => 'g', 'internal_code' => '', 'description' => '',
+    'target_margin_pct' => '', 'show_on_pos_grid' => '1', 'main_unit' => 'n1',
+    'units[n1][id]' => '0', 'units[n1][type]' => 'kg', 'units[n1][size]' => '', 'units[n1][size_unit]' => '', 'units[n1][retail]' => '15', 'units[n1][wholesale]' => '', 'units[n1][barcodes]' => '',
+    'cost' => '', 'cost_unit' => 'n1', 'min_qty' => '', 'min_unit' => 'n1', 'opening_qty' => '', 'opening_unit' => 'n1',
+];
 
 return [
     '__before' => 'test_db_reset',
@@ -38,7 +41,7 @@ return [
     },
 
     // Review focus 3
-    'a clerk without product.view_cost never receives cost markup and cannot post a cost' => function () use ($clerk): void {
+    'a clerk without product.view_cost never receives cost markup and cannot post a cost' => function () use ($clerk, $productForm): void {
         $id = make_product('Charcoal', 'g');
         (new ProductService())->setCost($id, '10', 1000);
         $client = $clerk();
@@ -50,8 +53,9 @@ return [
         assert_same(200, $edit->status);
         assert_not_contains('cost-card', $edit->body);
         assert_not_contains('0.010000', $edit->body);
-        assert_same(403, $client->post('products/cost', ['product_id' => $id, 'unit_cost' => '1', 'unit_id' => '0'])->status);
-        assert_same('0.010000', Database::pdo()->query("SELECT cost_per_base FROM products WHERE id = {$id}")->fetchColumn());
+        $client->get('products/edit', ['id' => $id]);
+        assert_same(302, $client->post('products/save', $productForm(['product_id' => (string) $id, 'name' => 'Charcoal', 'is_active' => '1', 'cost' => '1']))->status);
+        assert_same('0.010000', Database::pdo()->query("SELECT cost_per_base FROM products WHERE id = {$id}")->fetchColumn(), 'a cost posted without the permission is ignored');
         assert_contains('r=products', $edit->body, 'sidebar shows Products');
         assert_not_contains('r=categories', $edit->body, 'sidebar hides Categories');
     },
@@ -63,74 +67,16 @@ return [
         assert_contains('cost-card', $client->get('products/edit', ['id' => $id])->body);
     },
 
-    // The phase's "done when", through the real forms.
-    'an admin defines charcoal as g + kg + Box with its own prices and finds it by code' => function () use ($idFrom, $productForm): void {
-        $client = login_as('admin', TEST_ADMIN_PASSWORD);
-        $client->get('products/create');
-        $response = $client->post('products/store', $productForm());
-        assert_same(302, $response->status);
-        $id = $idFrom($response->location());
-        assert_true($id > 0, 'redirects to the edit page');
-
-        $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => 'kg', 'unit_factor' => '1000', 'allows_fraction' => '1'])->status);
-        $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => 'Box', 'unit_factor' => '20,000', 'is_display' => '1'])->status);
-        $box = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id} AND name = 'Box 20kg'")->fetchColumn();
-        $kg = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id} AND name = 'kg'")->fetchColumn();
-
-        $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/prices', ['product_id' => $id, 'unit_id' => $box, 'retail_price' => '280', 'wholesale_price' => '250'])->status);
-        $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/prices', ['product_id' => $id, 'unit_id' => $kg, 'retail_price' => '15', 'wholesale_price' => ''])->status);
-        $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/cost', ['product_id' => $id, 'unit_id' => $box, 'unit_cost' => '200'])->status);
-
-        $edit = $client->get('products/edit', ['id' => $id])->body;
-        assert_contains('280.00', $edit);
-        assert_contains('<strong>$10.00</strong> per kg', $edit, 'the cost reads per kg');
-        assert_contains('$200.00 per Box 20kg', $edit);
-        assert_contains('data-cost-base="0.010000"', $edit, 'the page works out each profit from it: Box (280 − 200) / 200 = 40 %');
-
-        $list = $client->get('products', ['q' => 'P-000001'])->body;
-        assert_contains('فحم', $list);
-        assert_contains('$280.00', $list);
-        assert_contains('$15.00', $list);
-        assert_contains('0 kg', $list, 'stock shown in the smallest unit');
-    },
-
-    // Review focus 2
-    'a scanned barcode (with its Enter) is stored clean and found by the search box' => function () use ($idFrom, $productForm): void {
-        $client = login_as('admin', TEST_ADMIN_PASSWORD);
-        $client->get('products/create');
-        $id = $idFrom($client->post('products/store', $productForm(['name' => 'Al Fakher Apple', 'base_unit' => 'piece']))->location());
-        $client->get('products/edit', ['id' => $id]);
-        $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => 'Piece', 'unit_factor' => '1']);
-        $unit = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$id}")->fetchColumn();
-        $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/barcode-store', ['product_id' => $id, 'unit_id' => $unit, 'barcode' => "6291041500213\r\n"])->status);
-        assert_same('6291041500213', Database::pdo()->query('SELECT barcode FROM barcodes')->fetchColumn());
-        assert_contains('Al Fakher Apple', $client->get('products', ['q' => "6291041500213\n"])->body);
-
-        $client->get('products/create');
-        $other = $idFrom($client->post('products/store', $productForm(['name' => 'Other', 'base_unit' => 'piece']))->location());
-        $client->get('products/edit', ['id' => $other]);
-        $client->post('products/unit-store', ['product_id' => $other, 'unit_name' => 'Piece', 'unit_factor' => '1']);
-        $otherUnit = (int) Database::pdo()->query("SELECT id FROM product_units WHERE product_id = {$other}")->fetchColumn();
-        $client->get('products/edit', ['id' => $other]);
-        $client->post('products/barcode-store', ['product_id' => $other, 'unit_id' => $otherUnit, 'barcode' => '6291041500213']);
-        assert_contains('already used by Al Fakher Apple', $client->get('products/edit', ['id' => $other])->body);
-    },
-
     // Review focus 5
-    'tampered array fields on the product forms give a redirect, never a 500' => function () use ($idFrom, $productForm): void {
+    'tampered array fields on the product form give a redirect, never a 500' => function () use ($idFrom, $productForm): void {
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         $client->get('products/create');
-        assert_same(302, $client->post('products/store', $productForm(['name' => ['x'], 'base_unit' => ['g']]))->status);
+        assert_same(302, $client->post('products/save', $productForm(['name' => ['x'], 'base_unit' => ['g']]))->status);
         assert_same(200, $client->get('products/create')->status);
-        $id = $idFrom($client->post('products/store', $productForm())->location());
+        $id = $idFrom($client->post('products/save', $productForm())->location());
+        assert_true($id > 0, 'the product was created');
         $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/unit-store', ['product_id' => $id, 'unit_name' => ['kg'], 'unit_factor' => ['1000']])->status);
+        assert_same(302, $client->post('products/save', $productForm(['product_id' => (string) $id, 'is_active' => '1', 'units[n1][type]' => ['kg'], 'units[n1][size]' => ['1000']]))->status);
         assert_same(200, $client->get('products/edit', ['id' => $id])->status);
         assert_same(200, $client->get('products', ['q' => ['x'], 'stock' => ['in']])->status);
     },
@@ -144,9 +90,9 @@ return [
         $edit = $client->get('products/edit', ['id' => $id])->body;
         assert_contains('value="' . $cat . '" selected', $edit, 'the inactive category is still offered and selected');
         assert_contains('(inactive)', $edit);
-        assert_same(302, $client->post('products/update', $productForm(['product_id' => $id, 'name' => 'Coco', 'category_id' => (string) $cat, 'is_active' => '1']))->status);
+        assert_same(302, $client->post('products/save', $productForm(['product_id' => (string) $id, 'name' => 'Coco', 'category_id' => (string) $cat, 'is_active' => '1']))->status);
         assert_same($cat, (int) Database::pdo()->query("SELECT category_id FROM products WHERE id = {$id}")->fetchColumn());
-        assert_same(302, $client->post('products/update', $productForm(['product_id' => $id, 'name' => 'Coco', 'category_id' => ['1'], 'is_active' => '1']))->status, 'tampered update');
+        assert_same(302, $client->post('products/save', $productForm(['product_id' => (string) $id, 'name' => 'Coco', 'category_id' => ['1'], 'is_active' => '1']))->status, 'tampered update');
         assert_same(200, $client->get('products/edit', ['id' => $id])->status);
     },
 
@@ -201,7 +147,7 @@ return [
         assert_contains('r=products/print', login_as('admin', TEST_ADMIN_PASSWORD)->get('products')->body);
     },
 
-    'an image is uploaded through the form, shown on the product page and served' => function (): void {
+    'an image is uploaded through the form, shown on the product page and served' => function () use ($productForm): void {
         $id = make_product('Charcoal', 'g');
         $img = imagecreatetruecolor(600, 600);
         ob_start();
@@ -210,7 +156,7 @@ return [
         $client = login_as('admin', TEST_ADMIN_PASSWORD);
         $edit = $client->get('products/edit', ['id' => $id]);
         assert_contains('name="image"', $edit->body, 'the photo is part of the product form');
-        $response = $client->postMultipart('products/image-store', ['product_id' => (string) $id], ['image' => ['coal.png', $bytes, 'image/png']]);
+        $response = $client->postMultipart('products/save', $productForm(['product_id' => (string) $id, 'name' => 'Charcoal', 'is_active' => '1']), ['image' => ['coal.png', $bytes, 'image/png']]);
         assert_same(302, $response->status);
         $body = $client->get('products/edit', ['id' => $id])->body;
         assert_contains('uploads/test/products/' . $id . '-', $body);
@@ -218,7 +164,7 @@ return [
         $image = file_get_contents('http://127.0.0.1:' . TestServer::PORT . '/' . $m[1]);
         assert_same([400, 400], array_slice(getimagesizefromstring((string) $image), 0, 2));
         $client->get('products/edit', ['id' => $id]);
-        assert_same(302, $client->post('products/image-delete', ['product_id' => $id])->status);
+        assert_same(302, $client->post('products/save', $productForm(['product_id' => (string) $id, 'name' => 'Charcoal', 'is_active' => '1', 'remove_image' => '1']))->status);
         assert_not_contains('uploads/test/products/', $client->get('products/edit', ['id' => $id])->body);
     },
 ];

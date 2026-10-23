@@ -28,11 +28,6 @@ final class Product extends Model
         return $this->fetch(self::SELECT . ' WHERE p.id = :id', ['id' => $id]);
     }
 
-    public function findByCode(string $code): ?array
-    {
-        return $this->fetch(self::SELECT . ' WHERE p.internal_code = :c', ['c' => $code]);
-    }
-
     /** Case-insensitive (utf8mb4_unicode_ci). */
     public function codeExists(string $code, int $exceptId = 0): bool
     {

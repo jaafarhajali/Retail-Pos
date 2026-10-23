@@ -148,8 +148,7 @@ final class BackupService
         return 'ok';
     }
 
-    /** An hourly run after a night with no internet: if the last Google Drive upload failed, the newest daily or monthly zip is sent now. */
-    /** Sends the newest daily or monthly zip to Google Drive again when its last upload failed; the --auto run calls it every 30 minutes. */
+    /** Sends the newest daily or monthly zip to Google Drive again when its last upload failed; the daily task and the service call it when nothing else is due. */
     public function retryDrive(): string
     {
         if (!GoogleDriveService::connected()) {
@@ -237,8 +236,8 @@ final class BackupService
 
     /**
      * What the automatic run should make now (2026-10-23): the daily backup once today's set time has passed and none was
-     * made today (the 1st of the month gives the monthly one); null when there is nothing to do. The Windows task asks
-     * every 30 minutes, so a changed time needs nothing in Windows and a night the PC was off is caught up in the morning.
+     * made today (the 1st of the month gives the monthly one); null when there is nothing to do. The service checks
+     * once a minute and the Windows task runs once a day; a night the PC was off is caught up as soon as it is on.
      */
     public static function autoKind(?int $now = null): ?string
     {

@@ -8,7 +8,7 @@ use App\Core\Settings;
 use App\Models\Setting;
 use App\Services\BackupService;
 
-/** The backup service (2026-10-23): one decision every 30 minutes, the same as bin/backup.php --auto; a line per run. */
+/** The backup service (2026-10-23): one decision a minute, the same as bin/backup.php --auto; a log line only when it did something. */
 $clean = static function (): void {
     foreach (glob(BackupService::dir() . '/*.zip') ?: [] as $f) {
         @unlink($f);

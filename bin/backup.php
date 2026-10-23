@@ -1,6 +1,6 @@
 <?php
 /**
- * php bin/backup.php --auto            what the Windows task runs every 30 minutes: makes the daily backup once the time
+ * php bin/backup.php --auto            what the daily Windows task runs: makes the daily backup once the time
  *                                      set on the Backups page has passed and none was made today (the 1st: the monthly one)
  * php bin/backup.php [--kind=daily|monthly|manual]   a backup right now, of that kind (default manual)
  *

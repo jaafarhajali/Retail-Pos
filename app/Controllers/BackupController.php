@@ -67,7 +67,7 @@ final class BackupController extends Controller
         redirect('backup');
     }
 
-    /** The time of the daily backup (2026-10-23); the task that runs every 30 minutes reads it. */
+    /** The time of the daily backup (2026-10-23); the Windows task is moved to it, the service reads it. */
     public function schedule(): void
     {
         $time = $this->input('backup_daily_time');
