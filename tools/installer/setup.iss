@@ -49,8 +49,7 @@ SelectDirDesc=Where should {#DisplayName} be installed? A folder without spaces 
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "app\config\app.ini"
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\post-install.ps1"" -Root ""{app}"" -Product ""{#Product}"" -DisplayName ""{#DisplayName}"" -DbName ""{#DbName}"" -ShopName ""{code:GetShop}"" -AdminPassword ""{code:GetPass}"""; StatusMsg: "Installing the database, the web server and the backup service..."; Flags: runhidden waituntilterminated
-Filename: "{app}\open.cmd"; Description: "Open {#DisplayName} in the browser"; Flags: postinstall shellexec nowait skipifsilent
+Filename: "{app}\open.cmd"; Description: "Open {#DisplayName} in the browser"; Flags: postinstall shellexec nowait skipifsilent; Check: InstallWorked
 
 [UninstallRun]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\post-install.ps1"" -Root ""{app}"" -Product ""{#Product}"" -Uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "services"
@@ -58,6 +57,13 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Fil
 [Code]
 var
   ShopPage: TInputQueryWizardPage;
+  InstallOk: Boolean;
+
+function InstallWorked: Boolean;
+begin
+  Result := InstallOk;
+end;
+
 
 function IsUpdate: Boolean;
 begin
@@ -103,6 +109,22 @@ function GetPass(Param: String): String;
 begin
   Result := ShopPage.Values[1];
   if Result = '' then Result := ExpandConstant('{param:AdminPassword|}');
+end;
+
+{ After the files are copied: the services, the database and the administrator, by post-install.ps1.
+  Its exit code decides; a failure shows the log path instead of pretending. }
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Code: Integer;
+  Params: String;
+begin
+  if CurStep = ssPostInstall then begin
+    WizardForm.StatusLabel.Caption := 'Installing the database, the web server and the backup service...';
+    Params := '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}') + '\post-install.ps1" -Root "' + ExpandConstant('{app}') + '" -Product "{#Product}" -DisplayName "{#DisplayName}" -DbName "{#DbName}" -ShopName "' + GetShop('') + '" -AdminPassword "' + GetPass('') + '"';
+    InstallOk := Exec('powershell.exe', Params, '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
+    if not InstallOk then
+      MsgBox('The setup could not finish the services. Please send ' + ExpandConstant('{app}') + '\install.log with your question.', mbError, MB_OK);
+  end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
