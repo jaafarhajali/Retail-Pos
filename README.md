@@ -160,7 +160,7 @@ The **backup service** makes one backup a day at the time set on **Backups** (02
 | What you see | What to do |
 |---|---|
 | The browser cannot reach the program | On the server, Windows → Services: `RetailPOSWeb` and `RetailPOSDB` must be running. Start them, or run the setup again. |
-| "Something went wrong, error 500" | Settings → Check this installation, and send its screenshot and the file `C:\RetailPOS\app\storage\logs\app.log`. |
+| "Something went wrong, error 500" | Settings → Check this installation, and send its screenshot and the file `C:\RetailPOS\app\storage\logs\php-error.log`. |
 | The dashboard says the backup is old | The backup service stopped: Windows → Services → `RetailPOSBackup` → Start. Check the USB stick is plugged in. |
 | A cashier cannot approve a discount | No PIN is set on the administrator's user, or it was typed wrong five times. |
 | Receipts open as a page instead of printing | Chrome is not started with `--kiosk-printing`, or the receipt printer is not the default printer. |
