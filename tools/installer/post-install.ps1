@@ -29,7 +29,9 @@ function StopSvc([string]$n) {
 }
 function StartSvc([string]$n) { Log "starting $n"; Start-Service -Name $n; (Svc $n).WaitForStatus('Running', '00:01:00') }
 function PortFree([int]$p) {
-    try { $l = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $p); $l.Start(); $l.Stop(); return $true } catch { return $false }
+    # a bind test lies on Windows (a second socket may bind a port another process listens on): ask netstat who listens
+    $busy = (& netstat -ano -p TCP) | Select-String -Pattern ('^\s*TCP\s+\S+:' + $p + '\s+\S+\s+LISTENING')
+    return -not $busy
 }
 function FirstFree([int[]]$ports) { foreach ($p in $ports) { if (PortFree $p) { return $p } }; Fail "No free port among $($ports -join ', ')." }
 function WaitPort([int]$p, [int]$seconds) {
