@@ -75,9 +75,13 @@
         <?php if (form_error('backup_daily_time') !== ''): ?><div class="invalid-feedback d-block"><?= form_error('backup_daily_time') ?></div><?php endif; ?>
         <div class="form-text">One backup a day at this time. If the PC was off then, it is made as soon as the PC is on. The backup of the 1st is kept as that month's backup for two years.</div>
       </form>
-      <p class="small text-muted mb-2">Once, on the server, as the Windows user who is normally signed in, run:</p>
-      <p class="small wrap-code mb-2"><code><?= e(PHP_BINARY) ?> "<?= e(BASE_PATH) ?>\bin\install-backup-tasks.php"</code></p>
-      <p class="small text-muted mb-3">It creates one Windows task that checks every 30 minutes whether the daily backup is due. Changing the time above needs nothing else.</p>
+      <?php if ($status['runner'] === 'service'): ?>
+        <p class="small text-muted mb-3">The <strong>backup service</strong> installed with the program checks every 30 minutes whether the daily backup is due. Changing the time above needs nothing else.</p>
+      <?php else: ?>
+        <p class="small text-muted mb-2">Once, on the server, as the Windows user who is normally signed in, run:</p>
+        <p class="small wrap-code mb-2"><code><?= e(PHP_BINARY) ?> "<?= e(BASE_PATH) ?>\bin\install-backup-tasks.php"</code></p>
+        <p class="small text-muted mb-3">It creates one Windows task that checks every 30 minutes whether the daily backup is due. Changing the time above needs nothing else.</p>
+      <?php endif; ?>
       <form method="post" action="<?= url('backup/run') ?>"><?= csrf_field() ?><button class="btn btn-primary" type="submit" <?= $problems === [] ? '' : 'disabled' ?>>Back up now</button></form>
       <hr>
       <p class="small text-muted mb-1 wrap-code">Check that a backup really restores (the live data is only read): <code><?= e(PHP_BINARY) ?> "<?= e(BASE_PATH) ?>\bin\restore-drill.php"</code>. Do it after installing and once a month.</p>

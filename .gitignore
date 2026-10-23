@@ -3,6 +3,8 @@
 /storage/backups/*
 !/storage/backups/.gitkeep
 /config/app.ini
+/tools/installer/stage/
+/dist/
 *.log
 /storage/sessions/*
 !/storage/sessions/.gitkeep

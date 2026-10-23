@@ -196,9 +196,9 @@ final class BackupService
         $error = Settings::get('backup_last_error', '');
         $warnings = [];
         if ($age === null) {
-            $warnings[] = 'No automatic backup has run yet. Run bin/install-backup-tasks.php once on the server.';
+            $warnings[] = self::runner() === 'service' ? 'No automatic backup has run yet. Is the backup service running? See Settings → Check this installation.' : 'No automatic backup has run yet. Run bin/install-backup-tasks.php once on the server.';
         } elseif ($age > 26) {
-            $warnings[] = 'The last backup is ' . round($age / 24, 1) . ' days old. The scheduled task is not running: run bin/install-backup-tasks.php again on the server.';
+            $warnings[] = 'The last backup is ' . round($age / 24, 1) . ' days old. ' . (self::runner() === 'service' ? 'The backup service is not running: see Settings → Check this installation.' : 'The scheduled task is not running: run bin/install-backup-tasks.php again on the server.');
         }
         if ($error !== '') {
             $warnings[] = 'The last backup failed: ' . $error;
@@ -214,7 +214,7 @@ final class BackupService
         $drive = GoogleDriveService::status();
 
         return ['last_at' => $lastAt, 'last_file' => Settings::get('backup_last_file', ''), 'last_kind' => Settings::get('backup_last_kind', ''), 'copy' => $copy,
-                'copy_dir' => $copyDir, 'error' => $error, 'age_hours' => $age, 'daily_time' => self::dailyTime(), 'warnings' => array_merge($warnings, $drive['warnings']), 'drive' => $drive];
+                'copy_dir' => $copyDir, 'error' => $error, 'age_hours' => $age, 'daily_time' => self::dailyTime(), 'runner' => self::runner(), 'warnings' => array_merge($warnings, $drive['warnings']), 'drive' => $drive];
     }
 
     /** The time of the daily backup, HH:MM, as set on the Backups page. */
@@ -262,6 +262,28 @@ final class BackupService
     public static function taskCommands(string $php, string $script): array
     {
         return ['Retail POS backup' => 'schtasks /Create /F /SC MINUTE /MO 30 /TN "Retail POS backup" /TR "\\"' . $php . '\\" \\"' . $script . '\\" --auto"'];
+    }
+
+    /**
+     * One run of the backup service (and of `bin/backup.php --auto`): the daily backup when it is due, else a retry of a
+     * failed Google Drive upload. Returns the line for the log. $now is for tests.
+     */
+    public function serviceTick(?int $now = null): string
+    {
+        $kind = self::autoKind($now);
+        if ($kind === null) {
+            $retry = $this->retryDrive();
+            return 'nothing due (daily backup at ' . self::dailyTime() . ')' . ($retry !== 'skipped' && $retry !== 'off' ? '; Google Drive retry: ' . $retry : '');
+        }
+        $file = $this->create($kind);
+
+        return $kind . ' backup written: ' . basename($file) . ' · USB copy: ' . $this->lastCopy . ' · Google Drive: ' . $this->lastDrive;
+    }
+
+    /** 'service' when the installer set up the Windows service, else 'task' (the scheduled task of a XAMPP install). */
+    public static function runner(): string
+    {
+        return Settings::get('backup_runner', '') === 'service' ? 'service' : 'task';
     }
 
     /** Tasks of the old schedule (hourly + daily at a fixed hour), deleted by the installer. @return list<string> */

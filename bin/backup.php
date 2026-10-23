@@ -18,11 +18,7 @@ $opts = getopt('', ['kind:', 'auto']);
 if (isset($opts['auto'])) {
     $kind = BackupService::autoKind();
     if ($kind === null) {
-        echo 'Nothing to do: the daily backup (', BackupService::dailyTime(), ') is done for today or not due yet.', "\n";
-        $retry = (new BackupService())->retryDrive();   // a night upload that failed (no internet) goes again now
-        if ($retry !== 'skipped' && $retry !== 'off') {
-            echo 'Google Drive retry: ', $retry, "\n";
-        }
+        echo (new BackupService())->serviceTick(), "\n";   // nothing due: at most a Google Drive retry
         exit(0);
     }
     echo "Daily backup due (", BackupService::dailyTime(), "): making the {$kind} one.\n";

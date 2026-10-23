@@ -33,6 +33,8 @@ define('DB_PASS', (string) ($ini['database']['pass'] ?? ''));
 define('SESSION_IDLE_SECONDS', 8 * 3600);
 
 define('BASE_PATH', dirname(__DIR__));
+/** The program version shipped by the installer (the VERSION file); 'dev' in a plain checkout without one. */
+define('APP_VERSION', trim((string) @file_get_contents(BASE_PATH . '/VERSION')) ?: 'dev');
 define('APP_PATH', BASE_PATH . '/app');
 define('STORAGE_PATH', BASE_PATH . '/storage');
 

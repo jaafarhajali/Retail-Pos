@@ -15,6 +15,12 @@ final class SettingController extends Controller
         $this->render('settings/index', ['values' => (new Setting())->all()], 'Settings');
     }
 
+    /** Check this installation (2026-10-23): PHP, folders, database, backups, services, in words. */
+    public function check(): void
+    {
+        $this->render('settings/check', ['rows' => (new \App\Services\InstallCheckService())->run()], 'Check this installation');
+    }
+
     public function logo(): void
     {
         $file = $_FILES['logo'] ?? null;

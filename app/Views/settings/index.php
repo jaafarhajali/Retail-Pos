@@ -3,6 +3,7 @@ $field = static fn (string $key): string => old($key, $values[$key] ?? '');
 $stashedStep = $_SESSION['_old']['lbp_rounding_step'] ?? null;   // may be a tampered array
 $step = is_string($stashedStep) ? $stashedStep : (string) ($values['lbp_rounding_step'] ?? '5000');
 ?>
+<div class="toolbar"><p class="toolbar-note"><i class="bi bi-gear"></i>Version <?= e(APP_VERSION) ?></p><a class="btn btn-outline-secondary" href="<?= url('settings/check') ?>"><i class="bi bi-heart-pulse"></i> Check this installation</a></div>
 <form method="post" action="<?= url('settings/save') ?>" class="card" style="max-width: 820px">
   <div class="card-body">
     <?= csrf_field() ?>
