@@ -141,4 +141,41 @@ return [
         assert_contains('scan.txt: Choose a photo', $list);
         assert_same(3, (int) Database::pdo()->query('SELECT COUNT(*) FROM expenses')->fetchColumn());
     },
+
+    // 2026-11-05 (Aya): a wrong file comes off with the X on its thumbnail. The row and the file on disk go,
+    // the audit log keeps what it was, and the purchase route can never touch an expense's file (or the reverse).
+    'the X removes a wrong file: row and disk file gone, audited; routes are fenced per owner; a cashier may not' => function () use ($purchase, $expense, $upload, $png): void {
+        $pid = $purchase();
+        $eid = $expense();
+        $svc = new AttachmentService();
+        $onPurchase = $svc->store('purchase', $pid, $upload('wrong.pdf', "%PDF-1.4\n%%EOF"), TEST_ADMIN_ID);
+        $onExpense = $svc->store('expense', $eid, $upload('receipt.png', $png(300, 300)), TEST_ADMIN_ID);
+        $file = UPLOADS_PATH . '/attachments/' . (new Attachment())->find($onPurchase)['file'];
+        assert_true(is_file($file));
+
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $page = $client->get('purchases/view', ['id' => $pid])->body;
+        assert_contains('purchases/detach', $page, 'the X is on the thumbnail');
+        assert_contains('Remove this file', $page);
+
+        // the purchase route cannot take the expense's file, nor the expense route the purchase's
+        assert_same(302, $client->post('purchases/detach', ['attachment_id' => (string) $onExpense])->status);
+        assert_same(1, count((new Attachment())->forOwner('expense', $eid)), 'the expense file is untouched');
+        assert_same(302, $client->post('expenses/detach', ['attachment_id' => (string) $onPurchase])->status);
+        assert_same(1, count((new Attachment())->forOwner('purchase', $pid)), 'the purchase file is untouched');
+
+        $r = $client->post('purchases/detach', ['attachment_id' => (string) $onPurchase]);
+        assert_same(302, $r->status);
+        assert_contains('The file is removed.', $client->get('purchases/view', ['id' => $pid])->body);
+        assert_same([], (new Attachment())->forOwner('purchase', $pid));
+        clearstatcache(true, $file);   // the server process deleted it; this process cached the old stat
+        assert_true(!is_file($file), 'the file left the disk');
+        assert_same(1, (int) Database::pdo()->query("SELECT COUNT(*) FROM audit_log WHERE action = 'purchase.detached'")->fetchColumn());
+
+        assert_same(302, $client->post('expenses/detach', ['attachment_id' => (string) $onExpense])->status);
+        assert_same([], (new Attachment())->forOwner('expense', $eid));
+
+        make_user('cashier1');
+        assert_same(403, login_as('cashier1', 'password123')->post('purchases/detach', ['attachment_id' => '1'])->status);
+    },
 ];

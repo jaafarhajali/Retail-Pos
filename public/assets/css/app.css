@@ -909,7 +909,13 @@ body > .error-wrap .blocked { width: 100%; }
 .attachments .att-pdf { color: var(--red); font-weight: 600; font-size: .8rem; display: inline-flex; align-items: center; gap: .25rem; }
 .attachments .att-pdf i { font-size: 1.4rem; }
 .attachments .att-add { margin: 0; }
+.attachments .att-item { position: relative; display: inline-block; }
+.attachments .att-del { position: absolute; top: -7px; right: -7px; margin: 0; }
+.attachments .att-del button { width: 18px; height: 18px; padding: 0; display: grid; place-items: center; line-height: 1; font-size: 13px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--red); cursor: pointer; }
+.attachments .att-del button:hover { background: var(--red); border-color: var(--red); color: #fff; }
 .attachments.is-compact { gap: .3rem; }
 .attachments.is-compact .att-file { width: 30px; height: 30px; border-radius: 6px; }
 .attachments.is-compact .att-pdf i { font-size: 1.1rem; }
 .attachments.is-compact .att-add .btn { padding: .1rem .45rem; min-height: 28px; font-size: .78rem; }
+.attachments.is-compact .att-del { top: -6px; right: -6px; }
+.attachments.is-compact .att-del button { width: 15px; height: 15px; font-size: 11px; }

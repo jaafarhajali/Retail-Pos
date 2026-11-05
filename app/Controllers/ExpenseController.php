@@ -67,4 +67,16 @@ final class ExpenseController extends Controller
         }
         redirect('expenses');
     }
+
+    /** Takes a wrongly added file off the expense (Aya, 2026-11-05). */
+    public function detach(): void
+    {
+        try {
+            (new AttachmentService())->remove('expense', $this->inputInt('attachment_id'));
+            Flash::set('success', 'The file is removed.');
+        } catch (\DomainException $e) {
+            Flash::set('error', $e->getMessage());
+        }
+        redirect('expenses');
+    }
 }

@@ -85,6 +85,19 @@ final class PurchaseController extends Controller
         redirect('purchases/view', ['id' => $id]);
     }
 
+    /** Takes a wrongly added file off the purchase (Aya, 2026-11-05). */
+    public function detach(): void
+    {
+        try {
+            $purchaseId = (new AttachmentService())->remove('purchase', $this->inputInt('attachment_id'));
+        } catch (\DomainException $e) {
+            Flash::set('error', $e->getMessage());
+            redirect('purchases');
+        }
+        Flash::set('success', 'The file is removed.');
+        redirect('purchases/view', ['id' => $purchaseId]);
+    }
+
     private function dateQuery(string $key): string
     {
         $v = $this->query($key);

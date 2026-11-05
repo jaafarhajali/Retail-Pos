@@ -158,6 +158,26 @@ final class AttachmentService
         return $out;
     }
 
+    /**
+     * Removes a wrongly added file (Aya, 2026-11-05): the row and the file on disk go, the audit log keeps what it
+     * was. $owner guards the route: the purchases screen can only take files off a purchase, never off an expense.
+     *
+     * @return int the purchase or expense id the file hung on
+     */
+    public function remove(string $owner, int $attachmentId): int
+    {
+        $col = Attachment::OWNERS[$owner] ?? throw new \InvalidArgumentException("Unknown attachment owner {$owner}");
+        $r = $this->attachments->find($attachmentId);
+        if ($r === null || (int) ($r[$col] ?? 0) === 0) {
+            throw new \DomainException('The file is already gone.');
+        }
+        $this->attachments->delete($attachmentId);
+        @unlink(UPLOADS_PATH . '/attachments/' . $r['file']);
+        Audit::log($owner . '.detached', $owner, (int) $r[$col], ['file' => $r['file'], 'name' => $r['original_name'], 'bytes' => (int) $r['size_bytes']]);
+
+        return (int) $r[$col];
+    }
+
     /** @return list<array> one record's files, oldest first, each with url and is_pdf */
     public function forOwner(string $owner, int $ownerId): array
     {

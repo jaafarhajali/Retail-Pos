@@ -47,6 +47,12 @@ final class Attachment extends Model
         return $out;
     }
 
+    /** Removes a wrongly added file's row (Aya, 2026-11-05); the audit log keeps what it was. */
+    public function delete(int $id): void
+    {
+        $this->execute('DELETE FROM attachments WHERE id = :id', ['id' => $id]);
+    }
+
     public function create(string $owner, int $ownerId, array $f): int
     {
         $col = self::column($owner);

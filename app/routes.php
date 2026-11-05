@@ -88,6 +88,7 @@ return [
     ['POST', 'purchases/store',  [PurchaseController::class, 'store'],  'purchase.manage'],
     ['GET',  'purchases/view',   [PurchaseController::class, 'view'],   'purchase.manage'],
     ['POST', 'purchases/attach', [PurchaseController::class, 'attach'], 'purchase.manage'],   // the supplier's invoice, photo or PDF (2026-10-22)
+    ['POST', 'purchases/detach', [PurchaseController::class, 'detach'], 'purchase.manage'],   // a wrong file comes off (2026-11-05)
     ['GET',  'stock',            [StockController::class, 'index'],      'stock.view'],
     ['GET',  'stock/adjust',     [StockController::class, 'adjustForm'], 'stock.adjust'],
     ['POST', 'stock/adjust',     [StockController::class, 'adjust'],     'stock.adjust'],
@@ -134,6 +135,7 @@ return [
     ['GET',  'expenses',         [ExpenseController::class, 'index'], 'expense.manage'],
     ['POST', 'expenses/store',   [ExpenseController::class, 'store'], 'expense.manage'],
     ['POST', 'expenses/attach',  [ExpenseController::class, 'attach'], 'expense.manage'],   // the receipt, photo or PDF (2026-10-22)
+    ['POST', 'expenses/detach',  [ExpenseController::class, 'detach'], 'expense.manage'],   // a wrong file comes off (2026-11-05)
     // Phase 8 — reports (each type checks its own key in the controller)
     ['GET',  'reports',          [ReportController::class, 'index'], Router::AUTH],
     // Phase 9 — stocktaking
