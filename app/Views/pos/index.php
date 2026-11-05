@@ -102,9 +102,9 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
   </div>
   <div class="modal-body pos-split">
     <div>
+      <?php // just Add payment (Aya, 2026-11-05): the Exact USD / Exact LBP shortcuts only confused; the first row
+            // already opens filled with the exact amount due ?>
       <div class="pay-quick">
-        <button class="pos-btn" id="pay-exact-usd"><i class="bi bi-cash"></i> Exact USD</button>
-        <button class="pos-btn" id="pay-exact-lbp"><i class="bi bi-cash-stack"></i> Exact LBP</button>
         <button class="pos-btn" id="pay-add"><i class="bi bi-plus-lg"></i> Add payment</button>
       </div>
       <div id="pay-lines"></div>

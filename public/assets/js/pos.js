@@ -529,8 +529,6 @@
     $('done-check').classList.toggle('is-credit', credit > 0.004);
     $('done-check').innerHTML = credit > 0.004 ? '<i class="bi bi-journal-text"></i>' : '<i class="bi bi-check-lg"></i>';
   }
-  $('pay-exact-usd').addEventListener('click', function () { payments = []; payLine('cash', 'USD', totals().total.toFixed(2)); });
-  $('pay-exact-lbp').addEventListener('click', function () { payments = []; payLine('cash', 'LBP', String(roundLbp(totals().total * P.rate))); });
   $('pay-add').addEventListener('click', function () { var t = totals(), rest = Math.max(0, t.total - paidUsd()); payLine('cash', 'USD', rest > 0 ? rest.toFixed(2) : ''); });
   // Nothing of a sale that ended (paid, held, or emptied) follows the next one: its payments, its invoice discount,
   // its note and the administrator's approval it was given.
