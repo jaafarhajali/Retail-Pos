@@ -13,6 +13,7 @@
   <strong><?= e($pageTitle ?? '') ?></strong>
   <div class="d-flex gap-2">
     <button class="btn btn-primary" type="button" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+    <button class="btn btn-outline-secondary" type="button" id="btn-pdf" onclick="exportPdf('.print-sheet', <?= json_encode($pageTitle ?? 'document') ?>, 'a4')"><i class="bi bi-filetype-pdf"></i> Export PDF</button>
     <button class="btn btn-outline-secondary" type="button" onclick="window.close()">Close</button>
   </div>
 </div>
@@ -26,6 +27,9 @@
   <?php endif; ?>
   <?= $content ?>
 </main>
+<script src="assets/vendor/pdf/html2canvas.min.js"></script>
+<script src="assets/vendor/pdf/jspdf.umd.min.js"></script>
+<script src="<?= e(asset('assets/js/pdf-export.js')) ?>"></script>
 </body>
 </html>
 <?php clear_form_stash(); ?>
