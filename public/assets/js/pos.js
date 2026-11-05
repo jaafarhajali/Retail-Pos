@@ -563,7 +563,7 @@
       $('done-no').textContent = j.invoice_no;
       showDone(j);
       $('done-warn').textContent = (j.warnings || []).join(' ');
-      $('done-print').href = j.receipt + '&auto=1';
+      $('done-print').href = j.receipt + '&auto=1'; $('done-pdf').href = j.receipt + '&pdf=1';
       modals['m-done'].show();
       cart = []; selected = -1; clearPayment(); setCustomer(null); renderCart(); renderPay(); loadData();
     }).catch(function (e) {
@@ -627,7 +627,7 @@
   function retStep(name) {
     ['pin', 'find', 'sale', 'done'].forEach(function (s) { $('ret-' + s + '-step').hidden = s !== name; });
     $('ret-pin-ok').hidden = name !== 'pin'; $('ret-ok').hidden = name !== 'sale';
-    $('ret-print').hidden = name !== 'done'; $('ret-close').hidden = name !== 'done';
+    $('ret-print').hidden = name !== 'done'; $('ret-pdf').hidden = name !== 'done'; $('ret-close').hidden = name !== 'done';
     $('ret-title').textContent = name === 'done' ? 'Return recorded' : 'Return';
   }
   function retFind() { retStep('find'); $('ret-q').value = ''; $('ret-results').innerHTML = ''; retList(''); setTimeout(function () { $('ret-q').focus(); }, 300); }
@@ -777,18 +777,20 @@
     var none = total > 0 && ret.cash <= 0;
     $('ret-usd').disabled = $('ret-lbp').disabled = none;
     if (none) { $('ret-usd').value = ''; $('ret-lbp').value = ''; }
-    // sent by Whish: USD only and exact, so the two amounts are hidden; the server sends the whole rest
+    // sent by Whish: USD only and exact, so the owner fills the one amount and the LBP box goes away (Aya, 2026-11-05)
     var w = ret.method === 'whish';
-    $('ret-usd-col').hidden = $('ret-lbp-col').hidden = w;
-    if (w) { $('ret-usd').value = ''; $('ret-lbp').value = ''; }
+    $('ret-lbp-col').hidden = w;
+    if (w) { $('ret-lbp').value = ''; }
+    $('ret-usd-label').textContent = w ? 'Send by Whish in USD' : 'Give back in USD';
     $('ret-sum').textContent = !total ? (ret.mode === 'free' ? 'Scan or type the items that come back.' : 'Type how many items come back.')
       : 'Refund ' + money(total) + (none ? ' · nothing to give back in cash: the ' + money(debt) + ' comes off the customer\'s debt'
         : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + (w ? ' · sent by Whish ' + money(ret.cash) : ' · give back in cash ' + money(ret.cash)));
   }
   $('ret-method').querySelectorAll('button').forEach(function (b) {
-    b.addEventListener('click', function () { retSetMethod(b.dataset.method); ret.allowShort = false; $('ret-ok').textContent = 'Record return'; retTotals(); });
+    // back from Whish to Cash the boxes refill with the whole cash part, as they started (Aya, 2026-11-05)
+    b.addEventListener('click', function () { retSetMethod(b.dataset.method); ret.allowShort = false; $('ret-ok').textContent = 'Record return'; retRefill(); });
   });
-  $('ret-usd').addEventListener('input', function () { var rest = ret.cash - num(this.value); $('ret-lbp').value = rest > 0.004 ? groupDigits(String(roundLbp(rest * P.rate))) : ''; ret.allowShort = false; $('ret-ok').textContent = 'Record return'; });
+  $('ret-usd').addEventListener('input', function () { if (ret.method !== 'whish') { var rest = ret.cash - num(this.value); $('ret-lbp').value = rest > 0.004 ? groupDigits(String(roundLbp(rest * P.rate))) : ''; } ret.allowShort = false; $('ret-ok').textContent = 'Record return'; });
   $('ret-lbp').addEventListener('input', function () {
     groupField(this); var rest = Math.round((ret.cash - num(this.value) / P.rate) * 100) / 100;
     $('ret-usd').value = rest > (P.step / 2) / P.rate ? rest.toFixed(2) : ''; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
@@ -812,7 +814,7 @@
         $('ret-done-no').textContent = j.return_no + ' · ' + (ret.sale ? ret.sale.invoice_no : 'no invoice');
         $('ret-done-money').textContent = parts.length ? parts.join('\n+ ') : 'Nothing in cash';
         $('ret-done-debt').textContent = parseFloat(j.debt_reduction) > 0 ? 'Debt reduced by ' + money(j.debt_reduction) : '';
-        $('ret-print').href = j.receipt + '&auto=1';
+        $('ret-print').href = j.receipt + '&auto=1'; $('ret-pdf').href = j.receipt + '&pdf=1';
         retStep('done');
       })
       .catch(function (er) {

@@ -49,7 +49,7 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
           <input type="radio" class="btn-check" name="refund_method" id="rm-whish" value="whish"><label class="btn btn-outline-primary" for="rm-whish">Whish</label>
         </div>
         <div class="row g-2 align-items-end mt-1">
-          <div class="col-md-3" id="usd-part-col"><label class="form-label" for="usd_part">Give back in USD</label>
+          <div class="col-md-3" id="usd-part-col"><label class="form-label" for="usd_part" id="usd-part-label">Give back in USD</label>
             <div class="input-group"><span class="input-group-text">$</span><input class="form-control" id="usd_part" name="usd_part" inputmode="decimal" placeholder="0.00" value="<?= old('usd_part') ?>"></div></div>
           <div class="col-md-3" id="lbp-part-col"><label class="form-label" for="lbp_part">Give back in LBP</label>
             <div class="input-group"><input class="form-control" id="lbp_part" name="lbp_part" inputmode="numeric" data-lbp="always" placeholder="0" value="<?= old('lbp_part') ?>"><span class="input-group-text">LBP</span></div></div>
@@ -96,23 +96,25 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
     var none = total > 0 && cash <= 0;
     usd.disabled = lbp.disabled = none;
     if (none) { usd.value = ''; lbp.value = ''; }
-    // sent by Whish (2026-11-05): USD only and exact, so the two amounts are hidden; the server sends the whole rest
-    document.getElementById('usd-part-col').hidden = document.getElementById('lbp-part-col').hidden = whish();
-    if (whish()) { usd.value = ''; lbp.value = ''; }
+    // sent by Whish (2026-11-05): USD only and exact, so the owner fills the one amount and the LBP box goes away
+    document.getElementById('lbp-part-col').hidden = whish();
+    if (whish()) { lbp.value = ''; }
+    document.getElementById('usd-part-label').textContent = whish() ? 'Send by Whish in USD' : 'Give back in USD';
     if (!total) { sum.textContent = 'Type how many items come back.'; return; }
     sum.innerHTML = '';
     var b = document.createElement('b'); b.textContent = 'Refund ' + money(total); sum.appendChild(b);
     sum.appendChild(document.createTextNode(none ? ' · nothing to give back in cash: the ' + money(debt) + ' comes off the customer\'s debt'
       : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + (whish() ? ' · sent by Whish ' + money(cash) : ' · give back in cash ' + money(cash))));
   }
-  function fromUsd() { var rest = cash - num(usd.value); lbp.value = rest > 0.004 ? groupLbp(roundLbp(rest * rate)) : ''; }
+  function fromUsd() { if (whish()) return; var rest = cash - num(usd.value); lbp.value = rest > 0.004 ? groupLbp(roundLbp(rest * rate)) : ''; }
   function fromLbp() { var rest = Math.round((cash - num(lbp.value) / rate) * 100) / 100; usd.value = rest > (step / 2) / rate ? rest.toFixed(2) : ''; }
   document.querySelectorAll('input[data-paid]').forEach(function (q) {
     q.addEventListener('input', function () { totals(); usd.value = cash > 0 ? cash.toFixed(2) : ''; lbp.value = ''; });   // by default all in USD
   });
   usd.addEventListener('input', fromUsd);
   lbp.addEventListener('input', fromLbp);
-  document.querySelectorAll('input[name="refund_method"]').forEach(function (r) { r.addEventListener('change', totals); });
+  // on a method switch the one amount refills with the whole cash part, ready to check or retype (Aya, 2026-11-05)
+  document.querySelectorAll('input[name="refund_method"]').forEach(function (r) { r.addEventListener('change', function () { totals(); usd.value = cash > 0 ? cash.toFixed(2) : ''; lbp.value = ''; }); });
   totals();
 })();
 </script>

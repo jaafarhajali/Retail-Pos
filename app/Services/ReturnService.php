@@ -181,6 +181,11 @@ final class ReturnService
             $parts = [];   // each ['currency', 'amount', 'usd']
             $whishUsd = null;   // sent by Whish instead of cash: the whole rest, exact to the cent
             if ($whish && $remaining > 0.004) {
+                // The owner types what he sends (Aya, 2026-11-05). Whish has no change and no LBP, so it must be the whole rest.
+                $typed = Pricing::parse((string) ($usdPart ?? ''), true);
+                if ($typed !== null && abs((float) $typed - $remaining) > 0.005) {
+                    throw new \DomainException('The amount to send by Whish is exactly ' . usd($remaining) . ', not ' . usd((float) $typed) . '.');
+                }
                 $whishUsd = Money::fmt($remaining);
                 $remaining = 0.0;
             }

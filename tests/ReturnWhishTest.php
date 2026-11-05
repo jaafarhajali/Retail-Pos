@@ -74,6 +74,26 @@ return [
         assert_same('0.00', (new Customer())->balance($customer));
     },
 
+    'the owner fills the Whish amount: the exact rest passes, anything else is refused' => function () use ($setup, $refunds): void {
+        $s = $setup('7.24');
+        $item = (new Sale())->items($s['sale'])[0];
+        try {
+            (new ReturnService())->create($s['sale'], [['sale_item_id' => (int) $item['id'], 'qty' => '1', 'condition' => 'restock']],
+                'MIX', '', $s['session'], $s['register'], TEST_ADMIN_ID, false, '7.00', null, 'whish');
+            assert_true(false, 'a wrong Whish amount must be refused');
+        } catch (DomainException $e) {
+            assert_contains('exactly $7.24', $e->getMessage());
+        }
+        $ret = (new ReturnService())->create($s['sale'], [['sale_item_id' => (int) $item['id'], 'qty' => '1', 'condition' => 'restock']],
+            'MIX', '', $s['session'], $s['register'], TEST_ADMIN_ID, false, '7.24', null, 'whish');
+        assert_same([['method' => 'whish', 'currency' => 'USD', 'amount' => '7.24', 'amount_usd' => '7.24']], $refunds((int) $ret['id']));
+        // the screens keep the one amount on show, named for Whish, and refill it on a method switch
+        $js = (string) file_get_contents(BASE_PATH . '/public/assets/js/pos.js');
+        assert_contains('Send by Whish in USD', $js);
+        assert_contains("\$('ret-ok').textContent = 'Record return'; retRefill();", $js, 'a method switch refills the amount');
+        assert_contains('Send by Whish in USD', (string) file_get_contents(BASE_PATH . '/app/Views/returns/index.php'));
+    },
+
     'the Returns page and the till pop-up offer Cash / Whish, and the pages name the Whish refund' => function () use ($setup): void {
         $s = $setup('9.50');
         $itemId = (int) (new Sale())->items($s['sale'])[0]['id'];

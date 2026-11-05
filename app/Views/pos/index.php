@@ -134,6 +134,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
   </div>
   <div class="modal-footer done-actions">
     <a class="pos-btn" id="done-print" target="_blank"><i class="bi bi-printer"></i> Print receipt</a>
+    <a class="pos-btn" id="done-pdf" target="_blank"><i class="bi bi-filetype-pdf"></i> Export PDF</a>
     <button class="pos-btn primary" id="done-next">Next customer</button>
   </div>
 </div></div></div>
@@ -256,7 +257,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
             <button type="button" class="btn btn-outline-light active" data-method="cash">Cash</button>
             <button type="button" class="btn btn-outline-light" data-method="whish">Whish</button>
           </div></div>
-        <div class="col-md-3" id="ret-usd-col"><label class="form-label" for="ret-usd">Give back in USD</label><input class="form-control" id="ret-usd" inputmode="decimal" placeholder="0.00"></div>
+        <div class="col-md-3" id="ret-usd-col"><label class="form-label" for="ret-usd" id="ret-usd-label">Give back in USD</label><input class="form-control" id="ret-usd" inputmode="decimal" placeholder="0.00"></div>
         <div class="col-md-3" id="ret-lbp-col"><label class="form-label" for="ret-lbp">Give back in LBP</label><input class="form-control" id="ret-lbp" inputmode="numeric" placeholder="0"></div>
         <div class="col-md-6"><label class="form-label" for="ret-reason">Reason</label><input class="form-control" id="ret-reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour"></div>
       </div>
@@ -276,6 +277,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
     <button class="pos-btn primary pos-apply" id="ret-pin-ok" hidden>Open the return</button>
     <button class="pay-ok" id="ret-ok" hidden>Record return</button>
     <a class="pos-btn" id="ret-print" target="_blank" hidden><i class="bi bi-printer"></i> Print receipt</a>
+    <a class="pos-btn" id="ret-pdf" target="_blank" hidden><i class="bi bi-filetype-pdf"></i> Export PDF</a>
     <button class="pos-btn primary" id="ret-close" data-bs-dismiss="modal" hidden>Done</button>
   </div>
 </div></div></div>
