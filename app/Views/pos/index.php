@@ -148,9 +148,13 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
       <div id="debt-box" class="debt-box" hidden>
         <div class="debt-title">Collect debt from <span id="debt-name" dir="auto"></span>, who owes <b id="debt-owes"></b></div>
         <div class="form-text" id="debt-note" hidden></div>
+        <div class="btn-group w-100 mb-2" role="group" id="debt-method" aria-label="How he pays">
+          <button type="button" class="btn btn-outline-light active" data-method="cash">Cash</button>
+          <button type="button" class="btn btn-outline-light" data-method="whish">Whish</button>
+        </div>
         <div class="row g-2">
           <div class="col-6"><label class="form-label" for="debt-usd">Received in USD</label><input class="form-control" id="debt-usd" inputmode="decimal" placeholder="0.00"></div>
-          <div class="col-6"><label class="form-label" for="debt-lbp">Received in LBP</label><input class="form-control" id="debt-lbp" inputmode="numeric" placeholder="0"></div>
+          <div class="col-6" id="debt-lbp-col"><label class="form-label" for="debt-lbp">Received in LBP</label><input class="form-control" id="debt-lbp" inputmode="numeric" placeholder="0"></div>
         </div>
         <div class="debt-change mt-2" id="debt-change-row" hidden><label class="form-label" for="debt-change-cur">Give change in</label>
           <select class="form-select" id="debt-change-cur"><option value="LBP">LBP</option><option value="USD">USD (cents in LBP)</option></select></div>
@@ -247,8 +251,13 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
       </table></div>
       <div class="ret-sum" id="ret-sum">Type how many items come back.</div>
       <div class="row g-2 mt-1">
-        <div class="col-md-3"><label class="form-label" for="ret-usd">Give back in USD</label><input class="form-control" id="ret-usd" inputmode="decimal" placeholder="0.00"></div>
-        <div class="col-md-3"><label class="form-label" for="ret-lbp">Give back in LBP</label><input class="form-control" id="ret-lbp" inputmode="numeric" placeholder="0"></div>
+        <div class="col-md-3"><label class="form-label">Refund</label>
+          <div class="btn-group w-100" role="group" id="ret-method" aria-label="Refund method">
+            <button type="button" class="btn btn-outline-light active" data-method="cash">Cash</button>
+            <button type="button" class="btn btn-outline-light" data-method="whish">Whish</button>
+          </div></div>
+        <div class="col-md-3" id="ret-usd-col"><label class="form-label" for="ret-usd">Give back in USD</label><input class="form-control" id="ret-usd" inputmode="decimal" placeholder="0.00"></div>
+        <div class="col-md-3" id="ret-lbp-col"><label class="form-label" for="ret-lbp">Give back in LBP</label><input class="form-control" id="ret-lbp" inputmode="numeric" placeholder="0"></div>
         <div class="col-md-6"><label class="form-label" for="ret-reason">Reason</label><input class="form-control" id="ret-reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour"></div>
       </div>
       <p class="pin-error mt-2" id="ret-error" role="alert"></p>

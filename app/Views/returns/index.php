@@ -44,10 +44,14 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
         <?php endif; ?>
         <div class="refund-sum mt-3" id="refund-sum" data-rate="<?= (int) $rate ?>" data-step="<?= (int) $step ?>" data-owed="<?= e(number_format($owed, 2, '.', '')) ?>">Type how many items come back.</div>
         <input type="hidden" name="cash_currency" value="MIX">
+        <div class="btn-group mt-2" role="group" aria-label="Refund method">
+          <input type="radio" class="btn-check" name="refund_method" id="rm-cash" value="cash" checked><label class="btn btn-outline-primary" for="rm-cash">Cash</label>
+          <input type="radio" class="btn-check" name="refund_method" id="rm-whish" value="whish"><label class="btn btn-outline-primary" for="rm-whish">Whish</label>
+        </div>
         <div class="row g-2 align-items-end mt-1">
-          <div class="col-md-3"><label class="form-label" for="usd_part">Give back in USD</label>
+          <div class="col-md-3" id="usd-part-col"><label class="form-label" for="usd_part">Give back in USD</label>
             <div class="input-group"><span class="input-group-text">$</span><input class="form-control" id="usd_part" name="usd_part" inputmode="decimal" placeholder="0.00" value="<?= old('usd_part') ?>"></div></div>
-          <div class="col-md-3"><label class="form-label" for="lbp_part">Give back in LBP</label>
+          <div class="col-md-3" id="lbp-part-col"><label class="form-label" for="lbp_part">Give back in LBP</label>
             <div class="input-group"><input class="form-control" id="lbp_part" name="lbp_part" inputmode="numeric" data-lbp="always" placeholder="0" value="<?= old('lbp_part') ?>"><span class="input-group-text">LBP</span></div></div>
           <div class="col-md"><label class="form-label" for="return-reason">Reason</label><input class="form-control" id="return-reason" name="reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour" value="<?= old('reason') ?>"></div>
           <div class="col-md-3"><button class="btn btn-primary w-100" type="submit" <?= $session === null ? 'disabled' : '' ?>><i class="bi bi-arrow-return-left"></i> Record return</button></div>
@@ -75,6 +79,7 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
   var sum = document.getElementById('refund-sum'); if (!sum) return;
   var usd = document.getElementById('usd_part'), lbp = document.getElementById('lbp_part');
   var rate = parseInt(sum.dataset.rate, 10), step = parseInt(sum.dataset.step, 10), owed = parseFloat(sum.dataset.owed) || 0, cash = 0;
+  function whish() { var r = document.getElementById('rm-whish'); return !!(r && r.checked); }
   function num(v) { return parseFloat(String(v || '').replace(/,/g, '')) || 0; }
   function money(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function groupLbp(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
@@ -91,11 +96,14 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
     var none = total > 0 && cash <= 0;
     usd.disabled = lbp.disabled = none;
     if (none) { usd.value = ''; lbp.value = ''; }
+    // sent by Whish (2026-11-05): USD only and exact, so the two amounts are hidden; the server sends the whole rest
+    document.getElementById('usd-part-col').hidden = document.getElementById('lbp-part-col').hidden = whish();
+    if (whish()) { usd.value = ''; lbp.value = ''; }
     if (!total) { sum.textContent = 'Type how many items come back.'; return; }
     sum.innerHTML = '';
     var b = document.createElement('b'); b.textContent = 'Refund ' + money(total); sum.appendChild(b);
     sum.appendChild(document.createTextNode(none ? ' · nothing to give back in cash: the ' + money(debt) + ' comes off the customer\'s debt'
-      : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(cash)));
+      : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + (whish() ? ' · sent by Whish ' + money(cash) : ' · give back in cash ' + money(cash))));
   }
   function fromUsd() { var rest = cash - num(usd.value); lbp.value = rest > 0.004 ? groupLbp(roundLbp(rest * rate)) : ''; }
   function fromLbp() { var rest = Math.round((cash - num(lbp.value) / rate) * 100) / 100; usd.value = rest > (step / 2) / rate ? rest.toFixed(2) : ''; }
@@ -104,6 +112,7 @@ $shortDrawer = $_SESSION['_errors']['short_drawer'] ?? null;
   });
   usd.addEventListener('input', fromUsd);
   lbp.addEventListener('input', fromLbp);
+  document.querySelectorAll('input[name="refund_method"]').forEach(function (r) { r.addEventListener('change', totals); });
   totals();
 })();
 </script>

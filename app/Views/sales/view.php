@@ -34,7 +34,7 @@
       </tfoot>
     </table></div></div>
     <div class="card mb-3"><div class="card-header">Payments</div><div class="table-responsive"><table class="table table-sm">
-      <tbody><?php foreach ($payments as $p): ?><tr><td><?= e(ucfirst($p['method'])) ?> <?= e($p['currency']) ?></td><td class="text-end"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td><td class="text-end text-muted"><?= usd($p['amount_usd']) ?></td></tr><?php endforeach; ?></tbody>
+      <tbody><?php foreach ($payments as $p): ?><tr><td><?= e(pay_method_name($p['method'])) ?> <?= e($p['currency']) ?></td><td class="text-end"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td><td class="text-end text-muted"><?= usd($p['amount_usd']) ?></td></tr><?php endforeach; ?></tbody>
       <tfoot><tr><td>Change given</td><td class="text-end"><?= usd($s['change_usd']) ?> · <?= lbp($s['change_lbp']) ?></td><td class="text-end text-muted">rounding <?= usd($s['rounding_usd']) ?></td></tr></tfoot>
     </table></div></div>
     <?php if ($returns !== []): ?>

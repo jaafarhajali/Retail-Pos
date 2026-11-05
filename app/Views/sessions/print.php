@@ -26,7 +26,7 @@ $minus = static fn ($amount, string $shown): string => (float) $amount != 0 ? '-
   <table>
     <tr><td colspan="2"><b>Payments</b></td></tr>
     <?php foreach ($sales['payments'] ?? [] as $p): ?>
-      <tr><td><?= e($p['method']) ?> <?= e($p['currency']) ?></td><td class="r"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td></tr>
+      <tr><td><?= e(pay_method_name($p['method'])) ?> <?= e($p['currency']) ?></td><td class="r"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td></tr>
     <?php endforeach; ?>
     <tr><td>Change given</td><td class="r"><?= $minus($sales['change_usd'] ?? 0, usd($sales['change_usd'] ?? 0)) ?> / <?= $minus($sales['change_lbp'] ?? 0, lbp($sales['change_lbp'] ?? 0)) ?></td></tr>
   </table>

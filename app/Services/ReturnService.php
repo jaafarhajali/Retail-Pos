@@ -24,7 +24,7 @@ final class ReturnService
      * @param list<array{sale_item_id: int, qty: string, condition: string}> $items
      * @return array{id: int, return_no: string, total_usd: string, cash: array{currency: string, amount: string}|null, debt_reduction: string}
      */
-    public function create(int $saleId, array $items, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false, ?string $usdPart = null, ?string $lbpPart = null): array
+    public function create(int $saleId, array $items, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false, ?string $usdPart = null, ?string $lbpPart = null, string $method = 'cash'): array
     {
         $sales = new Sale();
         $sale = $sales->find($saleId) ?? throw new \DomainException('Sale not found.');
@@ -65,7 +65,7 @@ final class ReturnService
         if (!in_array($cashCurrency, ['USD', 'LBP', 'MIX'], true)) {
             throw new \DomainException('Choose the refund currency.');
         }
-        return $this->write($sale, $sale['customer_id'] === null ? null : (int) $sale['customer_id'], $lines, Money::fmt($total), $cashCurrency, $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart);
+        return $this->write($sale, $sale['customer_id'] === null ? null : (int) $sale['customer_id'], $lines, Money::fmt($total), $cashCurrency, $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart, $method);
     }
 
     /**
@@ -74,7 +74,7 @@ final class ReturnService
      *
      * @param list<array{product_id: int, unit_id: int, qty: string, price: string, condition: string}> $items
      */
-    public function createWithoutSale(array $items, ?int $customerId, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false, ?string $usdPart = null, ?string $lbpPart = null): array
+    public function createWithoutSale(array $items, ?int $customerId, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false, ?string $usdPart = null, ?string $lbpPart = null, string $method = 'cash'): array
     {
         $this->requireOpenSession($sessionId);
         $customer = $customerId > 0 ? ((new Customer())->find($customerId) ?? throw new \DomainException('Customer not found.')) : null;
@@ -121,7 +121,7 @@ final class ReturnService
             throw new \DomainException('Choose at least one item to return.');
         }
 
-        return $this->write(null, $customer === null ? null : (int) $customer['id'], $lines, Money::fmt($total), 'MIX', $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart);
+        return $this->write(null, $customer === null ? null : (int) $customer['id'], $lines, Money::fmt($total), 'MIX', $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart, $method);
     }
 
     /**
@@ -158,12 +158,13 @@ final class ReturnService
     }
 
     /** Writes the return, its stock, its refunds and the cash movements; $sale is null for a return without an invoice. */
-    private function write(?array $sale, ?int $customerId, array $lines, string $totalUsd, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer, ?string $usdPart, ?string $lbpPart): array
+    private function write(?array $sale, ?int $customerId, array $lines, string $totalUsd, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer, ?string $usdPart, ?string $lbpPart, string $method = 'cash'): array
     {
         $saleId = $sale === null ? null : (int) $sale['id'];
         $rate = (new ExchangeRate())->current();
+        $whish = $method === 'whish';   // sent back by Whish (2026-11-05): USD only, exact, never from the drawer
 
-        return Database::transaction(function () use ($sale, $saleId, $customerId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate, $allowShortDrawer, $usdPart, $lbpPart): array {
+        return Database::transaction(function () use ($sale, $saleId, $customerId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate, $allowShortDrawer, $usdPart, $lbpPart, $whish): array {
             // Refund: debt first on a credit customer, the rest in cash from this session's drawer.
             // Worked out before the return is written, so its rounding is stored with it (records are never edited).
             $debtReduction = '0.00';
@@ -178,6 +179,11 @@ final class ReturnService
             }
             // The cash part, in one currency or split: USD, LBP, or "MIX" = the USD part typed by the cashier + the rest in LBP.
             $parts = [];   // each ['currency', 'amount', 'usd']
+            $whishUsd = null;   // sent by Whish instead of cash: the whole rest, exact to the cent
+            if ($whish && $remaining > 0.004) {
+                $whishUsd = Money::fmt($remaining);
+                $remaining = 0.0;
+            }
             if ($remaining > 0.004) {
                 $inLbp = $remaining;
                 if ($cashCurrency === 'MIX') {
@@ -222,7 +228,7 @@ final class ReturnService
                     }
                 }
             }
-            $cashUsd = array_sum(array_map(static fn (array $p): float => (float) $p['usd'], $parts));
+            $cashUsd = array_sum(array_map(static fn (array $p): float => (float) $p['usd'], $parts)) + (float) ($whishUsd ?? 0);
             // What the rounding kept: +0.02 when $7.24 was refunded as 650,000 LBP ($7.22). Same sign as sales.rounding_usd.
             $rounding = Money::fmt((float) $totalUsd - (float) $debtReduction - $cashUsd);
             // The refund must come out of a drawer that has it, in each currency (I5, warn and allow).
@@ -259,6 +265,9 @@ final class ReturnService
                 (new CashSession())->addMovement(['session_id' => $sessionId, 'currency' => $p['currency'], 'amount' => '-' . $p['amount'], 'type' => 'refund',
                                                   'ref_type' => 'return', 'ref_id' => $id, 'user_id' => $userId, 'note' => $no]);
             }
+            if ($whishUsd !== null) {   // from the shop's Whish account: a refund line, never a cash movement
+                $returns->addRefund($id, 'whish', 'USD', $whishUsd, $whishUsd);
+            }
             $cashParts = array_map(static fn (array $p): array => ['currency' => $p['currency'], 'amount' => $p['amount']], $parts);
             $cash = count($cashParts) === 1 ? $cashParts[0] : ($cashParts === [] ? null : ['currency' => 'USD+LBP', 'amount' => null]);
             Audit::log('return.created', 'return', $id, ['no' => $no, 'invoice' => $sale['invoice_no'] ?? null, 'without_invoice' => $sale === null, 'lines' => count($lines), 'rounding_usd' => $rounding], (float) $totalUsd, 'USD');
@@ -266,7 +275,7 @@ final class ReturnService
                 Audit::log('drawer.short', 'return', $id, ['no' => $no, 'warning' => $short]);
             }
 
-            return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'cash' => $cash, 'cash_parts' => $cashParts, 'debt_reduction' => $debtReduction];
+            return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'cash' => $cash, 'cash_parts' => $cashParts, 'whish_usd' => $whishUsd, 'debt_reduction' => $debtReduction];
         });
     }
 }

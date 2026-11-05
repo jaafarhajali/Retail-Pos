@@ -52,7 +52,8 @@ final class ReturnController extends Controller
             $register = RegisterDevice::current() ?? throw new \DomainException('This device is not linked to a register.');
             $session = (new CashSession())->openForUser(Auth::id()) ?? throw new \DomainException('Open your cash session first: the refund comes from its drawer.');
             $result = (new ReturnService())->create($saleId, $items, $this->input('cash_currency'), $this->input('reason'), (int) $session['id'], (int) $register['id'], Auth::id(),
-                isset($_POST['allow_short_drawer']), $this->input('usd_part'), $this->input('lbp_part'));
+                isset($_POST['allow_short_drawer']), $this->input('usd_part'), $this->input('lbp_part'),
+                $this->input('refund_method') === 'whish' ? 'whish' : 'cash');
         } catch (\DomainException $e) {
             $sale = (new Sale())->find($saleId);
             // A short drawer comes back with the form as it was and a tick box to continue (I5, warn and allow)

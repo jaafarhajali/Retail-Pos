@@ -9,6 +9,6 @@
   <div class="rule"></div>
   <table>
     <tr class="total"><td>REFUND</td><td class="r"><?= usd($r['total_usd']) ?></td></tr>
-    <?php foreach ($refunds as $f): ?><tr><td><?= $f['method'] === 'cash' ? 'Cash ' . e($f['currency']) : 'Debt reduced' ?></td><td class="r"><?= $f['currency'] === 'USD' ? usd($f['amount']) : lbp($f['amount']) ?></td></tr><?php endforeach; ?>
+    <?php foreach ($refunds as $f): ?><tr><td><?= $f['method'] === 'cash' ? 'Cash ' . e($f['currency']) : ($f['method'] === 'whish' ? 'By Whish' : 'Debt reduced') ?></td><td class="r"><?= $f['currency'] === 'USD' ? usd($f['amount']) : lbp($f['amount']) ?></td></tr><?php endforeach; ?>
   </table>
 </div>

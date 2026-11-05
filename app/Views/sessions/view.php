@@ -73,7 +73,7 @@ $verdict = static function (float $diff, string $shown): string {
     </div>
     <div class="card mb-3"><div class="card-header">Payments</div><div class="table-responsive"><table class="table table-sm">
       <thead><tr><th>Method</th><th>Currency</th><th class="text-end">Amount</th><th class="text-end">USD value</th></tr></thead>
-      <tbody><?php foreach ($sales['payments'] ?? [] as $p): ?><tr><td><?= e(ucfirst($p['method'])) ?></td><td><?= e($p['currency']) ?></td><td class="text-end"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td><td class="text-end"><?= usd($p['amount_usd']) ?></td></tr><?php endforeach; ?>
+      <tbody><?php foreach ($sales['payments'] ?? [] as $p): ?><tr><td><?= e(pay_method_name($p['method'])) ?></td><td><?= e($p['currency']) ?></td><td class="text-end"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td><td class="text-end"><?= usd($p['amount_usd']) ?></td></tr><?php endforeach; ?>
       <?php if (($sales['payments'] ?? []) === []): ?><tr><td colspan="4" class="empty">No payments yet.</td></tr><?php endif; ?></tbody>
     </table></div></div>
     <div class="card"><div class="card-header">Cash movements</div><div class="table-responsive"><table class="table table-sm">

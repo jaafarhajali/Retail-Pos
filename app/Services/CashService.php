@@ -169,8 +169,11 @@ final class CashService
      *
      * @return array{paid_usd: string, change_usd: string, change_lbp: int, balance: string}
      */
-    public function collectDebt(int $customerId, string $usd, string $lbp, int $sessionId, int $userId, string $changeCurrency = 'LBP', bool $allowShortDrawer = false): array
+    public function collectDebt(int $customerId, string $usd, string $lbp, int $sessionId, int $userId, string $changeCurrency = 'LBP', bool $allowShortDrawer = false, string $method = 'cash'): array
     {
+        // Paid by Whish (2026-11-05, Aya): USD only, straight to the shop's Whish account, never into the drawer,
+        // and no change — a transfer gives nothing back, so at most what he owes.
+        $whish = $method === 'whish';
         $customers = new Customer();
         $customer = $customers->find($customerId) ?? throw new \DomainException('Customer not found.');
         $session = (new CashSession())->find($sessionId) ?? throw new \DomainException('Session not found.');
@@ -195,7 +198,15 @@ final class CashService
         $tolerance = ($step / 2) / $rate;
         $changeUsd = '0.00';
         $changeLbp = 0;
-        if ($received < $owed - $tolerance) {
+        if ($whish) {
+            if ($lbpIn > 0) {
+                throw new \DomainException('Whish is in USD only.');
+            }
+            if ($received > $owed + 0.004) {
+                throw new \DomainException('That is more than he owes (' . usd($owed) . '): by Whish there is no change.');
+            }
+            $paid = Money::fmt(min($received, $owed));
+        } elseif ($received < $owed - $tolerance) {
             $paid = Money::fmt($received);   // part of it
         } else {
             $paid = Money::fmt($owed);       // all of it; what is over is change
@@ -211,22 +222,23 @@ final class CashService
                 }
             }
         }
-        $short = self::drawerShortfall($sessionId, ['USD' => $changeUsd, 'LBP' => $changeLbp], ['USD' => $usdIn, 'LBP' => $lbpIn], 'change');
+        $short = $whish ? null : self::drawerShortfall($sessionId, ['USD' => $changeUsd, 'LBP' => $changeLbp], ['USD' => $usdIn, 'LBP' => $lbpIn], 'change');
         if ($short !== null && !$allowShortDrawer) {
             throw new \DomainException($short, self::SHORT_DRAWER);
         }
 
         $given = implode(' + ', array_filter([(float) $usdIn > 0 ? usd($usdIn) : '', $lbpIn > 0 ? lbp($lbpIn) : '']));
-        Database::transaction(function () use ($customers, $customer, $customerId, $usdIn, $lbpIn, $paid, $changeUsd, $changeLbp, $rate, $sessionId, $userId, $given, $short, $debts): void {
+        Database::transaction(function () use ($customers, $customer, $customerId, $usdIn, $lbpIn, $paid, $changeUsd, $changeLbp, $rate, $sessionId, $userId, $given, $short, $debts, $whish): void {
             $debts->charge($customerId, $userId, $sessionId);
             $single = (float) $usdIn > 0 xor $lbpIn > 0;   // one currency: the ledger keeps the amount as typed
             $customers->addLedger(['customer_id' => $customerId, 'type' => 'payment', 'amount_usd' => '-' . $paid,
                                    'currency' => $single ? ((float) $usdIn > 0 ? 'USD' : 'LBP') : null,
                                    'amount_original' => $single ? ((float) $usdIn > 0 ? $usdIn : (string) $lbpIn) : null,
-                                   'exchange_rate' => $rate, 'session_id' => $sessionId, 'user_id' => $userId, 'note' => 'Paid at the till' . ($single ? '' : ': ' . $given)]);
+                                   'exchange_rate' => $rate, 'session_id' => $sessionId, 'user_id' => $userId,
+                                   'note' => $whish ? 'Paid by Whish at the till' : 'Paid at the till' . ($single ? '' : ': ' . $given)]);
             $cash = new CashSession();
             foreach (['USD' => $usdIn, 'LBP' => (string) $lbpIn] as $cur => $in) {
-                if ((float) $in > 0) {
+                if (!$whish && (float) $in > 0) {   // a Whish transfer never touches the drawer
                     $cash->addMovement(['session_id' => $sessionId, 'currency' => $cur, 'amount' => $in, 'type' => 'debt_collection',
                                         'ref_type' => 'customer', 'ref_id' => $customerId, 'user_id' => $userId, 'note' => $customer['name']]);
                 }
@@ -237,7 +249,7 @@ final class CashService
                                         'ref_type' => 'customer', 'ref_id' => $customerId, 'user_id' => $userId, 'note' => 'Debt change: ' . $customer['name']]);
                 }
             }
-            Audit::log('debt.collected', 'customer', $customerId, ['given' => $given, 'change_usd' => $changeUsd, 'change_lbp' => $changeLbp], (float) $paid, 'USD');
+            Audit::log('debt.collected', 'customer', $customerId, ['given' => $given, 'change_usd' => $changeUsd, 'change_lbp' => $changeLbp] + ($whish ? ['method' => 'whish'] : []), (float) $paid, 'USD');
             if ($short !== null) {
                 Audit::log('drawer.short', 'customer', $customerId, ['warning' => $short]);
             }

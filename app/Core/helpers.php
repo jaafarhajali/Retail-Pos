@@ -52,6 +52,15 @@ function level_name(string $level): string
     return $level === 'wholesale' ? 'Wholesale / جملة' : 'Retail / مفرق';
 }
 
+/**
+ * A payment method as the shop says it (2026-11-05, Aya): the second way to be paid is Whish, not a card machine.
+ * The stored value stays 'card' (financial records are append-only); only the word on screen and paper changes.
+ */
+function pay_method_name(string $method): string
+{
+    return ['cash' => 'Cash', 'card' => 'Whish', 'credit' => 'Credit'][$method] ?? ucfirst($method);
+}
+
 /** 1,234,000 LBP — whole lira only. */
 function lbp(float|int|string|null $amount): string
 {

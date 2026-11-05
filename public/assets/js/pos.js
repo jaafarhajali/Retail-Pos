@@ -394,33 +394,46 @@
     if (!c || !(parseFloat(c.balance) > 0)) modals['m-customer'].hide();
   }
   $('cust-clear').addEventListener('click', function () { setCustomer(null); });
-  // Debt paid at the till: USD, LBP or both. The line under the amounts says what happens before Collect:
+  // Debt paid at the till: USD, LBP or both — or by Whish (2026-11-05): USD only, straight to the shop's Whish
+  // account, never into the drawer, no change. The line under the amounts says what happens before Collect:
   // a part payment and what is still owed, paid in full, or the change to give back. The server decides again.
-  var debtAllowShort = false;
+  var debtAllowShort = false, debtMethod = 'cash';
   function changeText(over, cur) {
     if (cur === 'USD') { var w = Math.floor(over), r = Math.round((over - w) * 100) / 100, l = r > 0.004 ? lbp(roundLbp(r * P.rate)) : ''; return w > 0 ? money(w) + (l ? ' + ' + l : '') : l; }
     return lbp(roundLbp(over * P.rate));
   }
   function debtText() {
     debtAllowShort = false; $('debt-ok').textContent = 'Collect';
-    var owed = parseFloat(customer ? customer.balance : 0) || 0, got = num($('debt-usd').value) + num($('debt-lbp').value) / P.rate, tol = (P.step / 2) / P.rate;
+    var whish = debtMethod === 'whish';
+    var owed = parseFloat(customer ? customer.balance : 0) || 0, got = num($('debt-usd').value) + (whish ? 0 : num($('debt-lbp').value) / P.rate), tol = (P.step / 2) / P.rate;
     var el = $('debt-result'), over = Math.round((got - owed) * 100) / 100;
-    $('debt-change-row').hidden = !(got > 0 && over > tol);
+    $('debt-change-row').hidden = whish || !(got > 0 && over > tol);
     el.className = 'debt-result';
     if (got <= 0.004) { el.textContent = ''; return; }
-    if (got < owed - tol) { el.textContent = 'Pays ' + money(got) + ' · still owes ' + money(owed - got); return; }
-    if (over > tol) { el.classList.add('is-change'); el.textContent = 'Pays ' + money(owed) + ' · Change: ' + changeText(over, $('debt-change-cur').value); return; }
-    el.textContent = 'Pays it all · no change';
+    if (whish && over > 0.004) { el.className = 'debt-result is-due'; el.textContent = 'He owes ' + money(owed) + ': by Whish there is no change.'; return; }
+    if (got < owed - (whish ? 0.004 : tol)) { el.textContent = 'Pays ' + money(got) + (whish ? ' by Whish' : '') + ' · still owes ' + money(owed - got); return; }
+    if (!whish && over > tol) { el.classList.add('is-change'); el.textContent = 'Pays ' + money(owed) + ' · Change: ' + changeText(over, $('debt-change-cur').value); return; }
+    el.textContent = 'Pays it all' + (whish ? ' by Whish' : ' · no change');
   }
   if ($('debt-usd')) {
     $('debt-usd').addEventListener('input', debtText);
     $('debt-lbp').addEventListener('input', function () { groupField(this); debtText(); });
     $('debt-change-cur').addEventListener('change', debtText);
+    // Cash or Whish: Whish is USD only, so the LBP amount is hidden and cleared
+    $('debt-method').querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        debtMethod = b.dataset.method;
+        $('debt-method').querySelectorAll('button').forEach(function (x) { x.classList.toggle('active', x === b); });
+        $('debt-lbp-col').hidden = debtMethod === 'whish';
+        if (debtMethod === 'whish') { $('debt-lbp').value = ''; }
+        debtText();
+      });
+    });
   }
   if ($('debt-ok')) $('debt-ok').addEventListener('click', function () {
-    api(P.urls.debt, { customer_id: customer.id, usd: $('debt-usd').value, lbp: $('debt-lbp').value, change_currency: $('debt-change-cur').value, allow_short_drawer: debtAllowShort }).then(function (j) {
+    api(P.urls.debt, { customer_id: customer.id, usd: $('debt-usd').value, lbp: $('debt-lbp').value, change_currency: $('debt-change-cur').value, allow_short_drawer: debtAllowShort, method: debtMethod }).then(function (j) {
       var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
-      msg('Collected ' + money(j.usd) + '.' + (ch.length ? ' Give back ' + ch.join(' + ') + '.' : '') + ' Balance now ' + money(j.balance));
+      msg('Collected ' + money(j.usd) + (debtMethod === 'whish' ? ' by Whish' : '') + '.' + (ch.length ? ' Give back ' + ch.join(' + ') + '.' : '') + ' Balance now ' + money(j.balance));
       customer.balance = j.balance; customer.pending = '0'; customer.pending_note = ''; $('debt-usd').value = ''; $('debt-lbp').value = ''; debtText(); setCustomer(customer);
       searchCustomers($('cust-q').value);   // the list shows the new balance at once (U12)
     }).catch(function (e) {
@@ -438,7 +451,7 @@
     var box = $('pay-lines'); box.innerHTML = '';
     payments.forEach(function (p, i) {
       var d = document.createElement('div'); d.className = 'pay-line';
-      d.innerHTML = '<select class="form-select" aria-label="Method"><option value="cash">Cash</option><option value="card">Card</option>' + (P.can.credit || true ? '<option value="credit">Credit</option>' : '') + '</select>' +
+      d.innerHTML = '<select class="form-select" aria-label="Method"><option value="cash">Cash</option><option value="card">Whish</option>' + (P.can.credit || true ? '<option value="credit">Credit</option>' : '') + '</select>' +
         '<select class="form-select" aria-label="Currency"><option>USD</option><option>LBP</option></select><input class="form-control" inputmode="decimal" aria-label="Amount"><button class="btn btn-outline-light" type="button" aria-label="Remove payment"><i class="bi bi-x-lg"></i></button>';
       d.children[0].value = p.method; d.children[1].value = p.currency; d.children[1].disabled = p.method !== 'cash'; d.children[2].value = p.currency === 'LBP' ? groupDigits(p.amount) : p.amount;
       d.children[0].addEventListener('change', function () { p.method = this.value; if (p.method !== 'cash') p.currency = 'USD'; renderPay(); });
@@ -464,7 +477,7 @@
       if (p.method === 'card') card += usd; else if (p.method === 'credit') credit += usd; else cash += usd;
     });
     var diff = cash + card + credit - total;
-    var parts = []; if (cash > 0.004) parts.push(money(cash) + ' cash'); if (card > 0.004) parts.push(money(card) + ' by card');
+    var parts = []; if (cash > 0.004) parts.push(money(cash) + ' cash'); if (card > 0.004) parts.push(money(card) + ' by Whish');
     var owes = '', over = false;
     if (credit > 0.004 && cust) {
       var owe = parseFloat(cust.balance || 0) + credit;
@@ -482,7 +495,7 @@
     if (credit > 0.004) {
       return { cls: over ? 'is-due' : 'is-credit', main: parts.length ? parts.join(' + ') + ' + ' + money(credit) + ' on credit' : 'On credit: ' + money(credit), sub: owes };
     }
-    if (card > 0.004) return { cls: 'is-change', main: cash > 0.004 ? parts.join(' + ') : 'By card: ' + money(card), sub: 'No change' };
+    if (card > 0.004) return { cls: 'is-change', main: cash > 0.004 ? parts.join(' + ') : 'By Whish: ' + money(card), sub: 'No change' };
     return { cls: 'is-change', main: 'Exact amount · no change', sub: '' };
   }
   function summary() {
@@ -499,7 +512,7 @@
   function showDone(j) {
     var cash = parseFloat(j.cash_usd) || 0, card = parseFloat(j.card_usd) || 0, credit = parseFloat(j.credit_usd) || 0;
     var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
-    var paid = []; if (cash > 0.004) paid.push(money(cash) + ' cash'); if (card > 0.004) paid.push(money(card) + ' by card');
+    var paid = []; if (cash > 0.004) paid.push(money(cash) + ' cash'); if (card > 0.004) paid.push(money(card) + ' by Whish');
     var label, big, mode = 'none';
     if (credit > 0.004) label = paid.length ? 'Paid ' + paid.join(' · ') + ' · ' + money(credit) + ' on credit' : 'On credit';
     else if (card > 0.004) label = 'Paid ' + paid.join(' · ');
@@ -604,7 +617,13 @@
 
   // ---- Returns in the till (2026-10-04): the administrator's PIN for a cashier, then find the sale by customer,
   // item or number, choose what comes back and give the money back in USD, LBP or both. The server checks it all again.
-  var ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [] };
+  var ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [], method: 'cash' };
+  // Refund in cash or by Whish (2026-11-05): Whish is USD only and exact, from the shop's Whish account, never the drawer.
+  function retSetMethod(m) {
+    ret.method = m;
+    var box = $('ret-method');
+    if (box) { box.querySelectorAll('button').forEach(function (b) { b.classList.toggle('active', b.dataset.method === m); }); }
+  }
   function retStep(name) {
     ['pin', 'find', 'sale', 'done'].forEach(function (s) { $('ret-' + s + '-step').hidden = s !== name; });
     $('ret-pin-ok').hidden = name !== 'pin'; $('ret-ok').hidden = name !== 'sale';
@@ -633,7 +652,8 @@
   }
   $('btn-returns').addEventListener('click', function (e) {
     e.preventDefault();
-    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [] };
+    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [], method: 'cash' };
+    retSetMethod('cash');
     $('ret-pin').value = ''; $('ret-pin-error').textContent = '';
     if (P.can.returns) {   // a role that may process returns: no PIN
       api(P.urls.returnPin, { pin: '' }).then(function () { retFind(); modals['m-return'].show(); }).catch(function (er) { msg(er.error || 'Failed', true); });
@@ -652,7 +672,7 @@
   });
   function retOpen(id) {
     api(P.urls.returnSale + '&id=' + id).then(function (j) {
-      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; ret.mode = 'sale'; ret.free = []; $('ret-ok').textContent = 'Record return';
+      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; ret.mode = 'sale'; ret.free = []; retSetMethod('cash'); $('ret-ok').textContent = 'Record return';
       retMode('sale');
       $('ret-inv').textContent = j.sale.invoice_no; $('ret-meta').textContent = '· ' + j.sale.date + ' · ' + (j.sale.customer || 'Walk-in') + ' · ' + money(j.sale.total);
       var body = $('ret-lines'); body.innerHTML = '';
@@ -682,7 +702,7 @@
   // the items; each is refunded at today's retail price of its unit, or at a lower price typed by hand, never more.
   // The till's customer, if one is chosen, gets the refund off their debt first, like any return.
   $('ret-free').addEventListener('click', function () {
-    ret.mode = 'free'; ret.sale = null; ret.lines = []; ret.free = []; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
+    ret.mode = 'free'; ret.sale = null; ret.lines = []; ret.free = []; ret.allowShort = false; retSetMethod('cash'); $('ret-ok').textContent = 'Record return';
     $('ret-inv').textContent = 'No invoice'; $('ret-meta').textContent = '· returned by item · ' + (customer ? customer.name : 'Walk-in');
     retMode('free'); $('ret-lines').innerHTML = ''; $('ret-free-q').value = ''; $('ret-free-results').innerHTML = '';
     $('ret-reason').value = ''; $('ret-error').textContent = '';
@@ -757,10 +777,17 @@
     var none = total > 0 && ret.cash <= 0;
     $('ret-usd').disabled = $('ret-lbp').disabled = none;
     if (none) { $('ret-usd').value = ''; $('ret-lbp').value = ''; }
+    // sent by Whish: USD only and exact, so the two amounts are hidden; the server sends the whole rest
+    var w = ret.method === 'whish';
+    $('ret-usd-col').hidden = $('ret-lbp-col').hidden = w;
+    if (w) { $('ret-usd').value = ''; $('ret-lbp').value = ''; }
     $('ret-sum').textContent = !total ? (ret.mode === 'free' ? 'Scan or type the items that come back.' : 'Type how many items come back.')
       : 'Refund ' + money(total) + (none ? ' · nothing to give back in cash: the ' + money(debt) + ' comes off the customer\'s debt'
-        : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + ' · give back in cash ' + money(ret.cash));
+        : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + (w ? ' · sent by Whish ' + money(ret.cash) : ' · give back in cash ' + money(ret.cash)));
   }
+  $('ret-method').querySelectorAll('button').forEach(function (b) {
+    b.addEventListener('click', function () { retSetMethod(b.dataset.method); ret.allowShort = false; $('ret-ok').textContent = 'Record return'; retTotals(); });
+  });
   $('ret-usd').addEventListener('input', function () { var rest = ret.cash - num(this.value); $('ret-lbp').value = rest > 0.004 ? groupDigits(String(roundLbp(rest * P.rate))) : ''; ret.allowShort = false; $('ret-ok').textContent = 'Record return'; });
   $('ret-lbp').addEventListener('input', function () {
     groupField(this); var rest = Math.round((ret.cash - num(this.value) / P.rate) * 100) / 100;
@@ -778,9 +805,10 @@
       if (!items.length) { $('ret-error').textContent = 'Type how many of an item come back.'; return; }
     }
     btn.disabled = true;
-    api(P.urls.returnStore, { sale_id: ret.sale ? ret.sale.id : 0, customer_id: ret.mode === 'free' && customer ? customer.id : null, items: items, usd: $('ret-usd').value, lbp: $('ret-lbp').value, reason: $('ret-reason').value, pin: ret.pin, allow_short_drawer: ret.allowShort })
+    api(P.urls.returnStore, { sale_id: ret.sale ? ret.sale.id : 0, customer_id: ret.mode === 'free' && customer ? customer.id : null, items: items, method: ret.method, usd: $('ret-usd').value, lbp: $('ret-lbp').value, reason: $('ret-reason').value, pin: ret.pin, allow_short_drawer: ret.allowShort })
       .then(function (j) {
         var parts = j.cash_parts.map(function (p) { return p.currency === 'USD' ? money(p.amount) : lbp(p.amount); });
+        if (j.whish_usd) { parts.push(money(j.whish_usd) + ' by Whish'); }
         $('ret-done-no').textContent = j.return_no + ' · ' + (ret.sale ? ret.sale.invoice_no : 'no invoice');
         $('ret-done-money').textContent = parts.length ? parts.join('\n+ ') : 'Nothing in cash';
         $('ret-done-debt').textContent = parseFloat(j.debt_reduction) > 0 ? 'Debt reduced by ' + money(j.debt_reduction) : '';

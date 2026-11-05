@@ -224,7 +224,8 @@ final class PosController extends Controller
         $in = $this->jsonInput();
         try {
             $r = (new CashService())->collectDebt((int) ($in['customer_id'] ?? 0), (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''), (int) $session['id'], Auth::id(),
-                ($in['change_currency'] ?? 'LBP') === 'USD' ? 'USD' : 'LBP', ($in['allow_short_drawer'] ?? false) === true);
+                ($in['change_currency'] ?? 'LBP') === 'USD' ? 'USD' : 'LBP', ($in['allow_short_drawer'] ?? false) === true,
+                ($in['method'] ?? 'cash') === 'whish' ? 'whish' : 'cash');
         } catch (\DomainException $e) {
             $this->json(['error' => $e->getMessage(), 'short_drawer' => $e->getCode() === CashService::SHORT_DRAWER], 422);
         }
@@ -303,11 +304,12 @@ final class PosController extends Controller
                 }
             }
             $svc = new \App\Services\ReturnService();
+            $method = ($in['method'] ?? 'cash') === 'whish' ? 'whish' : 'cash';
             $r = $saleId > 0
                 ? $svc->create($saleId, $items, 'MIX', (string) ($in['reason'] ?? ''), (int) $session['id'], (int) $register['id'],
-                    Auth::id(), ($in['allow_short_drawer'] ?? false) === true, (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''))
+                    Auth::id(), ($in['allow_short_drawer'] ?? false) === true, (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''), $method)
                 : $svc->createWithoutSale($items, (int) ($in['customer_id'] ?? 0) ?: null, (string) ($in['reason'] ?? ''), (int) $session['id'], (int) $register['id'],
-                    Auth::id(), ($in['allow_short_drawer'] ?? false) === true, (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''));
+                    Auth::id(), ($in['allow_short_drawer'] ?? false) === true, (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''), $method);
         } catch (\DomainException $e) {
             $this->json(['error' => $e->getMessage(), 'needs_pin' => str_starts_with($e->getMessage(), 'Needs an Admin PIN') || $e->getMessage() === 'Wrong PIN.',
                          'short_drawer' => $e->getCode() === CashService::SHORT_DRAWER], 422);
