@@ -14,5 +14,6 @@
 <script src="assets/vendor/pdf/jspdf.umd.min.js"></script>
 <script src="<?= e(asset('assets/js/pdf-export.js')) ?>"></script>
 <?php if (!empty($auto)): ?><script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 150); });</script><?php endif; ?>
+<?php if (!empty($_GET['pdf'])): ?><script>window.addEventListener('load', function () { setTimeout(function () { document.getElementById('btn-pdf').click(); }, 400); });</script><?php endif; ?>
 </body>
 </html>

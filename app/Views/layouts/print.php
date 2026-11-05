@@ -30,6 +30,7 @@
 <script src="assets/vendor/pdf/html2canvas.min.js"></script>
 <script src="assets/vendor/pdf/jspdf.umd.min.js"></script>
 <script src="<?= e(asset('assets/js/pdf-export.js')) ?>"></script>
+<?php if (!empty($_GET['pdf'])): ?><script>window.addEventListener('load', function () { setTimeout(function () { document.getElementById('btn-pdf').click(); }, 400); });</script><?php endif; ?>
 </body>
 </html>
 <?php clear_form_stash(); ?>

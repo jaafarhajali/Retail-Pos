@@ -46,6 +46,7 @@ $printWith = array_filter(['q' => $filters['q'], 'category_id' => $filters['cate
       <div class="d-flex gap-2 align-items-center">
         <span class="text-muted small"><?= (int) $pg['total'] ?> <?= (int) $pg['total'] === 1 ? 'product' : 'products' ?></span>
         <a class="btn btn-outline-secondary" href="<?= url('products/print', $printWith) ?>" target="_blank"><i class="bi bi-printer"></i> Print this list</a>
+        <a class="btn btn-outline-secondary" href="<?= url('products/print', $printWith + ['pdf' => 1]) ?>" target="_blank"><i class="bi bi-filetype-pdf"></i> Export PDF</a>
         <?php if ($canManage): ?>
           <a class="btn btn-primary" href="<?= url('products/create') ?>"><i class="bi bi-plus-lg"></i> Add product</a>
         <?php endif; ?>

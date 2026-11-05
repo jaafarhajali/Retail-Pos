@@ -11,7 +11,8 @@
   <?php if ($type === 'sales'): ?>
     <div><label class="form-label">Group by</label><select class="form-select" name="by"><?php foreach (['day' => 'Day', 'cashier' => 'Cashier', 'product' => 'Product', 'level' => 'Price level (مفرق / جملة)'] as $k => $v): ?><option value="<?= $k ?>" <?= $by === $k ? 'selected' : '' ?>><?= $v ?></option><?php endforeach; ?></select></div>
   <?php endif; ?>
-  <button class="btn btn-outline-primary" type="submit">Show</button>
+  <?php if (!in_array($type, ['credit', 'stock'], true)): ?><button class="btn btn-outline-primary" type="submit">Show</button><?php endif; ?>
   <a class="btn btn-outline-secondary" href="<?= url('reports', ['type' => $type, 'from' => $from, 'to' => $to, 'by' => $by, 'print' => 1]) ?>" target="_blank"><i class="bi bi-printer"></i> Print</a>
+  <a class="btn btn-outline-secondary" href="<?= url('reports', ['type' => $type, 'from' => $from, 'to' => $to, 'by' => $by, 'print' => 1, 'pdf' => 1]) ?>" target="_blank"><i class="bi bi-filetype-pdf"></i> Export PDF</a>
 </form>
 <?php $printing = false; require APP_PATH . '/Views/reports/' . $type . '.php'; ?>

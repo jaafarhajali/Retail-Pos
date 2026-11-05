@@ -25,6 +25,7 @@ $verdict = static function (float $diff, string $shown): string {
       <div class="d-flex flex-wrap gap-2">
         <?php if ($open && ($isMine || $canForce)): ?><a class="btn btn-primary w-100" href="<?= url('sessions/close', ['id' => $s['id']]) ?>"><i class="bi bi-lock"></i> <?= $isMine ? 'Count and close' : 'Count and close (admin)' ?></a><?php endif; ?>
         <a class="btn btn-outline-primary" href="<?= url('sessions/print', ['id' => $s['id']]) ?>" target="_blank"><i class="bi bi-printer"></i> <?= $open ? 'X report' : 'Z report' ?></a>
+        <a class="btn btn-outline-secondary" href="<?= url('sessions/print', ['id' => $s['id'], 'pdf' => 1]) ?>" target="_blank"><i class="bi bi-filetype-pdf"></i> Export PDF</a>
         <?php if ($open && $isMine): ?><a class="btn btn-outline-secondary" href="<?= url('pos') ?>"><i class="bi bi-cart3"></i> Till</a><?php endif; ?>
       </div>
     </div></div>

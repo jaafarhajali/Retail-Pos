@@ -11,7 +11,8 @@
         <?php if ($voided): ?><dt>Voided</dt><dd><span dir="auto"><?= e($s['void_reason']) ?></span><span class="cell-sub"><?= e(date('d/m/Y H:i', strtotime($s['voided_at']))) ?></span></dd><?php endif; ?>
       </dl>
       <div class="d-flex flex-wrap gap-2">
-        <?php if ($canReprint): ?><a class="btn btn-outline-primary" href="<?= url('sales/receipt', ['id' => $s['id'], 'copy' => 1]) ?>" target="_blank"><i class="bi bi-printer"></i> Reprint (COPY)</a><?php endif; ?>
+        <?php if ($canReprint): ?><a class="btn btn-outline-primary" href="<?= url('sales/receipt', ['id' => $s['id'], 'copy' => 1]) ?>" target="_blank"><i class="bi bi-printer"></i> Reprint (COPY)</a>
+        <a class="btn btn-outline-secondary" href="<?= url('sales/receipt', ['id' => $s['id'], 'copy' => 1, 'pdf' => 1]) ?>" target="_blank"><i class="bi bi-filetype-pdf"></i> Export PDF</a><?php endif; ?>
         <?php if ($canReturn && $s['status'] === 'completed'): ?><a class="btn btn-outline-secondary" href="<?= url('returns', ['invoice' => $s['invoice_no']]) ?>"><i class="bi bi-arrow-return-left"></i> Return items</a><?php endif; ?>
       </div>
     </div></div>

@@ -11,6 +11,7 @@
     </dl>
     <div class="d-flex flex-wrap gap-2">
       <a class="btn btn-outline-primary" href="<?= url('returns/receipt', ['id' => $r['id']]) ?>" target="_blank"><i class="bi bi-printer"></i> Print</a>
+      <a class="btn btn-outline-secondary" href="<?= url('returns/receipt', ['id' => $r['id'], 'pdf' => 1]) ?>" target="_blank"><i class="bi bi-filetype-pdf"></i> Export PDF</a>
       <a class="btn btn-link" href="<?= url('returns') ?>">Back to returns</a>
     </div>
   </div></div></div>

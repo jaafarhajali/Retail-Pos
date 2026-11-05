@@ -56,5 +56,22 @@ return [
         $report = $c->get('reports', ['type' => 'sales', 'print' => 1])->body;
         assert_contains("exportPdf('.print-sheet'", $report);
         assert_contains('Export PDF', $c->get('products/print')->body, 'the product list');
+
+        // 2026-11-05 (Aya): the button could not be found from the screens, so every screen with a Print button
+        // offers Export PDF right next to it; the link opens the print view with pdf=1, which downloads by itself.
+        $c->get('registers');
+        $c->post('registers/bind', ['id' => $register]);
+        foreach ([['reports', ['type' => 'stock']], ['products', []], ['sales/view', ['id' => $sale['id']]],
+                  ['sessions/view', ['id' => $session]]] as [$route, $params]) {
+            $body = $c->get($route, $params)->body;
+            assert_contains('Export PDF', $body, $route . ' offers Export PDF on the screen');
+            assert_contains('pdf=1', $body, $route . ' links the self-downloading print view');
+        }
+        $till = $c->get('pos')->body;   // the till's links are filled by its script when the sale or return is done
+        assert_contains('id="done-pdf"', $till);
+        assert_contains('id="ret-pdf"', $till);
+        $js = (string) file_get_contents(BASE_PATH . '/public/assets/js/pos.js');
+        assert_contains("\$('done-pdf').href = j.receipt + '&pdf=1'", $js, 'the till fills the done-screen link');
+        assert_contains("\$('ret-pdf').href = j.receipt + '&pdf=1'", $js, 'and the return done-screen link');
     },
 ];

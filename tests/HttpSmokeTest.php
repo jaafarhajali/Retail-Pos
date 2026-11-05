@@ -27,8 +27,15 @@ return [
             assert_same(200, $r->status, "GET {$route}");
         }
         foreach (['payments', 'profit', 'credit', 'stock', 'purchases', 'returns', 'waste', 'sessions'] as $type) {
-            assert_same(200, $client->get('reports', ['type' => $type])->status, "report {$type}");
+            $body = $client->get('reports', ['type' => $type]);
+            assert_same(200, $body->status, "report {$type}");
             assert_same(200, $client->get('reports', ['type' => $type, 'print' => 1])->status, "report {$type} print");
+            // Credit and Stock show "now" (Aya, 2026-11-05): no dates to pick, so no Show button either
+            if (in_array($type, ['credit', 'stock'], true)) {
+                assert_not_contains('>Show</button>', $body->body, "report {$type} has no Show");
+            } else {
+                assert_contains('>Show</button>', $body->body, "report {$type} keeps Show");
+            }
         }
     },
 
