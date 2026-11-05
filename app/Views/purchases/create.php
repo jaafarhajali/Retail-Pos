@@ -21,13 +21,25 @@ foreach ($unitsById as $pid => $units) {
     <div class="table-responsive"><table class="table align-middle" id="lines">
       <thead><tr><th style="width:38%">Product</th><th style="width:16%">Unit</th><th style="width:14%">Quantity</th><th style="width:16%">Cost per unit (USD)</th><th class="text-end">Line total</th><th></th></tr></thead>
       <tbody></tbody>
-      <tfoot class="totals"><tr class="grand"><td colspan="3"><button class="btn btn-outline-primary" type="button" id="add-line"><i class="bi bi-plus-lg"></i> Add line</button></td><td class="text-end align-middle">Total</td><td class="text-end align-middle" id="total">$0.00</td><td></td></tr></tfoot>
+      <tfoot class="totals">
+        <?php // the supplier's discount sits with the totals, % or $ (Aya, 2026-11-05, as in Retail Production)
+              $oldDisc = trim((string) old('discount')); $discPct = $oldDisc === '' || str_ends_with($oldDisc, '%'); ?>
+        <tr><td colspan="3" rowspan="3" class="align-top"><button class="btn btn-outline-primary" type="button" id="add-line"><i class="bi bi-plus-lg"></i> Add line</button></td>
+          <td class="text-end align-middle">Subtotal</td><td class="text-end align-middle" id="subtotal">$0.00</td><td></td></tr>
+        <tr><td class="text-end align-middle">Discount</td>
+          <td class="text-end"><div class="input-group input-group-sm flex-nowrap ms-auto" style="max-width:170px">
+            <input class="form-control text-end" id="discount-box" inputmode="decimal" placeholder="0" autocomplete="off" value="<?= e($discPct ? rtrim($oldDisc, '%') : $oldDisc) ?>" aria-label="Supplier discount">
+            <button class="btn btn-sm <?= $discPct ? 'btn-primary' : 'btn-outline-secondary' ?>" type="button" id="disc-pct" title="Percent of the subtotal">%</button>
+            <button class="btn btn-sm <?= $discPct ? 'btn-outline-secondary' : 'btn-primary' ?>" type="button" id="disc-usd" title="Dollars off">$</button>
+          </div><input type="hidden" name="discount" id="discount" value="<?= old('discount') ?>"></td><td></td></tr>
+        <tr class="grand"><td class="text-end align-middle">Total</td><td class="text-end align-middle" id="total">$0.00</td><td></td></tr>
+      </tfoot>
     </table></div>
   </div>
 
   <div class="card mb-3"><div class="card-body row g-3 align-items-start">
     <div class="col-md-3"><label class="form-label" for="paid_now">Paid now (USD)</label><input class="form-control" id="paid_now" name="paid_now" inputmode="decimal" placeholder="0.00" value="<?= old('paid_now') ?>"></div>
-    <div class="col-md-9 form-text mt-md-4 pt-md-2">Paid from outside the drawer (owner, bank); suppliers are never paid from the till. The rest stays as debt to the supplier. Cost prices update by moving average (5 @ $10 + 5 @ $15 → $12.50).</div>
+    <div class="col-md-9 form-text mt-md-4 pt-md-2">Paid from outside the drawer (owner, bank); suppliers are never paid from the till. The rest stays as debt to the supplier. Cost prices update by moving average (5 @ $10 + 5 @ $15 → $12.50). A supplier discount spreads over the items, so each one enters stock at the price really paid.</div>
   </div></div>
   <div class="card mb-3"><div class="card-body">
     <label class="form-label" for="attachments">Supplier's invoice (photo or PDF)</label>
@@ -53,6 +65,24 @@ foreach ($unitsById as $pid => $units) {
   var units = <?= json_encode($unitOptions, JSON_UNESCAPED_UNICODE) ?>;
   var tbody = document.querySelector('#lines tbody'), tpl = document.getElementById('line-tpl'), idx = 0;
   function money(n) { return '$' + (Math.round(n * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  // the supplier's discount with the totals (Aya, 2026-11-05): a number plus % or $; the server gets "5%" or "5"
+  var dBox = document.getElementById('discount-box'), dHidden = document.getElementById('discount');
+  var pctBtn = document.getElementById('disc-pct'), usdBtn = document.getElementById('disc-usd');
+  var dMode = pctBtn.classList.contains('btn-primary') ? '%' : '$';
+  function setMode(m) {
+    dMode = m;
+    pctBtn.classList.toggle('btn-primary', m === '%'); pctBtn.classList.toggle('btn-outline-secondary', m !== '%');
+    usdBtn.classList.toggle('btn-primary', m === '$'); usdBtn.classList.toggle('btn-outline-secondary', m !== '$');
+    recalc();
+  }
+  pctBtn.addEventListener('click', function () { setMode('%'); });
+  usdBtn.addEventListener('click', function () { setMode('$'); });
+  dBox.addEventListener('input', recalc);
+  function discountOf(total) {
+    var n = parseFloat((dBox.value || '').replace(',', '.')) || 0;
+    var d = dMode === '%' ? total * n / 100 : n;
+    return Math.min(Math.max(d, 0), total);
+  }
   function recalc() {
     var total = 0;
     tbody.querySelectorAll('tr').forEach(function (tr) {
@@ -60,7 +90,11 @@ foreach ($unitsById as $pid => $units) {
       var c = parseFloat((tr.querySelector('[name$="[unit_cost]"]').value || '0').replace(/,/g, '')) || 0;
       var t = q * c; total += t; tr.querySelector('.line-total').textContent = money(t);
     });
-    document.getElementById('total').textContent = money(total);
+    var d = discountOf(total);
+    document.getElementById('subtotal').textContent = money(total);
+    document.getElementById('total').textContent = money(total - d);
+    var v = (dBox.value || '').trim();
+    dHidden.value = v === '' ? '' : (dMode === '%' ? v + '%' : v);
   }
   function addLine() {
     var html = tpl.innerHTML.replace(/IDX/g, String(idx++));
