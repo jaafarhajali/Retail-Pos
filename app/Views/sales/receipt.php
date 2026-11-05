@@ -1,4 +1,14 @@
-<?php $s = $sale; ?>
+<?php
+$s = $sale;
+// Every discount on the paper (2026-11-05, Aya): line discounts and the invoice discount land in the lines
+// (invoice discounts are spread), so the items print at full price and one Discount row carries the whole cut.
+$discTotal = 0.0;
+$gross = 0.0;
+foreach ($items as $i) {
+    $discTotal += (float) $i['line_discount_usd'];
+    $gross += (float) $i['line_total_usd'] + (float) $i['line_discount_usd'];
+}
+?>
 <div class="receipt <?= e($width) ?>">
   <?php if (($logo = logo_url()) !== null): ?><img class="receipt-logo" src="<?= e($logo) ?>" alt=""><?php endif; ?>
   <div class="c big" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?></div>
@@ -19,12 +29,12 @@
   <table>
     <?php foreach ($items as $i): ?>
       <tr><td colspan="2" dir="auto"><?= e($i['product_name']) ?></td></tr>
-      <tr><td>&nbsp;&nbsp;<?= e(rtrim(rtrim($i['qty'], '0'), '.')) ?> <?= e($i['unit_name']) ?> × <?= usd($i['unit_price_usd']) ?><?= (float) $i['line_discount_usd'] > 0 ? ' −' . usd($i['line_discount_usd']) : '' ?></td><td class="r"><?= usd($i['line_total_usd']) ?></td></tr>
+      <tr><td>&nbsp;&nbsp;<?= e(rtrim(rtrim($i['qty'], '0'), '.')) ?> <?= e($i['unit_name']) ?> × <?= usd($i['unit_price_usd']) ?><?= (float) $i['line_discount_usd'] > 0 ? ' −' . usd($i['line_discount_usd']) : '' ?></td><td class="r"><?= usd((float) $i['line_total_usd'] + (float) $i['line_discount_usd']) ?></td></tr>
     <?php endforeach; ?>
   </table>
   <div class="rule"></div>
   <table>
-    <?php if ((float) $s['discount_usd'] > 0): ?><tr><td>Subtotal</td><td class="r"><?= usd($s['subtotal_usd']) ?></td></tr><tr><td>Discount</td><td class="r">-<?= usd($s['discount_usd']) ?></td></tr><?php endif; ?>
+    <?php if ($discTotal > 0.004): ?><tr><td>Subtotal</td><td class="r"><?= usd($gross) ?></td></tr><tr><td>Discount</td><td class="r">-<?= usd($discTotal) ?></td></tr><?php endif; ?>
     <tr class="total"><td>TOTAL</td><td class="r"><?= usd($s['total_usd']) ?></td></tr>
     <tr class="total-lbp"><td></td><td class="r"><?= lbp(\App\Services\Money::roundLbp(\App\Services\Money::usdToLbp($s['total_usd'], (int) $s['exchange_rate']))) ?></td></tr>
     <?php foreach ($payments as $p): ?><tr><td>Paid <?= e($p['method']) ?> <?= e($p['currency']) ?></td><td class="r"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td></tr><?php endforeach; ?>
