@@ -123,6 +123,7 @@ return [
     ['GET',  'pos/return-search', [PosController::class, 'returnSearch'], 'pos.use'],
     ['GET',  'pos/return-sale',   [PosController::class, 'returnSale'],   'pos.use'],
     ['POST', 'pos/return',        [PosController::class, 'returnStore'],  'pos.use'],
+    ['POST', 'pos/exchange',      [PosController::class, 'exchange'],     'sale.create'],   // he takes something else (2026-11-06)
     ['GET',  'sales',            [SaleController::class, 'index'],   Router::AUTH],
     ['GET',  'sales/view',       [SaleController::class, 'view'],    Router::AUTH],
     ['GET',  'sales/receipt',    [SaleController::class, 'receipt'], Router::AUTH],

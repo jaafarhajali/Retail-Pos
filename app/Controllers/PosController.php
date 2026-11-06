@@ -321,6 +321,48 @@ final class PosController extends Controller
                      'debt_reduction' => $r['debt_reduction'], 'receipt' => url('returns/receipt', ['id' => $r['id']])]);
     }
 
+    /** An exchange (Aya, 2026-11-06): the return and the sale of what he takes instead, in one atomic record. */
+    public function exchange(): void
+    {
+        [$register, $session] = $this->requireSession();
+        $in = $this->jsonInput();
+        try {
+            $approver = $this->approveReturn((string) ($in['pin'] ?? ''));
+            $saleId = (int) ($in['sale_id'] ?? 0);
+            $items = [];
+            foreach (is_array($in['items'] ?? null) ? $in['items'] : [] as $it) {
+                if (is_array($it)) {
+                    $items[] = $saleId > 0
+                        ? ['sale_item_id' => (int) ($it['sale_item_id'] ?? 0), 'qty' => (string) ($it['qty'] ?? ''), 'condition' => (string) ($it['condition'] ?? 'restock')]
+                        : ['product_id' => (int) ($it['product_id'] ?? 0), 'unit_id' => (int) ($it['unit_id'] ?? 0), 'qty' => (string) ($it['qty'] ?? ''),
+                           'price' => (string) ($it['price'] ?? ''), 'condition' => (string) ($it['condition'] ?? 'restock')];
+                }
+            }
+            $newLines = [];
+            foreach (is_array($in['new_lines'] ?? null) ? $in['new_lines'] : [] as $l) {
+                if (is_array($l)) {
+                    $newLines[] = ['product_id' => (int) ($l['product_id'] ?? 0), 'unit_id' => (int) ($l['unit_id'] ?? 0), 'qty' => (string) ($l['qty'] ?? '')];
+                }
+            }
+            $r = (new \App\Services\ExchangeService())->create($saleId ?: null, $items, (int) ($in['customer_id'] ?? 0) ?: null, $newLines,
+                ($in['price_level'] ?? 'retail') === 'wholesale' ? 'wholesale' : 'retail',
+                (string) ($in['usd'] ?? ''), (string) ($in['lbp'] ?? ''), ($in['change_currency'] ?? 'LBP') === 'USD' ? 'USD' : 'LBP',
+                (string) ($in['reason'] ?? ''), (int) $session['id'], (int) $register['id'], Auth::id(),
+                ($in['allow_short_drawer'] ?? false) === true, (string) ($in['pin'] ?? ''));
+        } catch (\DomainException $e) {
+            $this->json(['error' => $e->getMessage(), 'needs_pin' => str_starts_with($e->getMessage(), 'Needs an Admin PIN') || $e->getMessage() === 'Wrong PIN.',
+                         'short_drawer' => $e->getCode() === CashService::SHORT_DRAWER], 422);
+        }
+        if ($approver !== null) {
+            \App\Core\Audit::log('pin.override', 'return', (int) $r['return']['id'], ['approved_by' => $approver['username'], 'for' => ['exchange']]);
+        }
+        $this->json(['ok' => true, 'return_no' => $r['return']['return_no'], 'invoice_no' => $r['sale']['invoice_no'],
+                     'return_value' => $r['return_value'], 'new_total' => $r['new_total'], 'exchanged_usd' => $r['return']['exchanged_usd'],
+                     'change_usd' => $r['sale']['change_usd'], 'change_lbp' => $r['sale']['change_lbp'],
+                     'cash_parts' => $r['return']['cash_parts'], 'debt_reduction' => $r['return']['debt_reduction'],
+                     'warnings' => $r['sale']['warnings'], 'receipt' => url('sales/receipt', ['id' => $r['sale']['id']])]);
+    }
+
     /** @return array|null the approving administrator, or null when the user's role may process returns */
     private function approveReturn(string $pin): ?array
     {

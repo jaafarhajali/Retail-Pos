@@ -250,17 +250,28 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
         <thead id="ret-free-head" hidden><tr><th>Item</th><th style="width:12rem">Unit</th><th style="width:7rem">Qty</th><th style="width:8rem">Price (USD)</th><th style="width:12rem">Condition</th><th style="width:3rem"></th></tr></thead>
         <tbody id="ret-lines"></tbody>
       </table></div>
+      <?php // an exchange (Aya, 2026-11-06): he takes something else instead; one record, the drawer nets to the difference ?>
+      <div class="ret-exch mt-2" id="exch-box" hidden>
+        <div class="ret-head"><b>He takes instead</b> <button type="button" class="btn btn-link btn-sm" id="exch-off">Cancel the exchange</button></div>
+        <input class="form-control" id="exch-q" dir="auto" autocomplete="off" placeholder="Scan or type the item he takes">
+        <div class="list-group ret-results" id="exch-results"></div>
+        <div class="table-responsive"><table class="table ret-table">
+          <thead><tr><th>Item</th><th style="width:12rem">Unit</th><th style="width:7rem">Qty</th><th class="text-end">Line total</th><th style="width:3rem"></th></tr></thead>
+          <tbody id="exch-lines"></tbody>
+        </table></div>
+      </div>
       <div class="ret-sum" id="ret-sum">Type how many items come back.</div>
       <div class="row g-2 mt-1">
-        <div class="col-md-3"><label class="form-label">Refund</label>
+        <div class="col-md-3" id="ret-method-col"><label class="form-label">Refund</label>
           <div class="btn-group w-100" role="group" id="ret-method" aria-label="Refund method">
             <button type="button" class="btn btn-outline-light active" data-method="cash">Cash</button>
             <button type="button" class="btn btn-outline-light" data-method="whish">Whish</button>
           </div></div>
         <div class="col-md-3" id="ret-usd-col"><label class="form-label" for="ret-usd" id="ret-usd-label">Give back in USD</label><input class="form-control" id="ret-usd" inputmode="decimal" placeholder="0.00"></div>
-        <div class="col-md-3" id="ret-lbp-col"><label class="form-label" for="ret-lbp">Give back in LBP</label><input class="form-control" id="ret-lbp" inputmode="numeric" placeholder="0"></div>
+        <div class="col-md-3" id="ret-lbp-col"><label class="form-label" for="ret-lbp" id="ret-lbp-label">Give back in LBP</label><input class="form-control" id="ret-lbp" inputmode="numeric" placeholder="0"></div>
         <div class="col-md-6"><label class="form-label" for="ret-reason">Reason</label><input class="form-control" id="ret-reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour"></div>
       </div>
+      <div class="ret-noinv"><button type="button" class="btn btn-link btn-sm" id="exch-on"><i class="bi bi-arrow-left-right"></i> He takes something else instead</button></div>
       <p class="pin-error mt-2" id="ret-error" role="alert"></p>
       </div>
       <?php require APP_PATH . '/Views/pos/_keypad.php'; ?>
@@ -268,7 +279,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
     <div id="ret-done-step" class="done-body" hidden>
       <div class="done-check"><i class="bi bi-arrow-return-left"></i></div>
       <div class="done-inv" id="ret-done-no"></div>
-      <div class="done-label">Give back</div>
+      <div class="done-label" id="ret-done-label">Give back</div>
       <div class="done-change" id="ret-done-money"></div>
       <div class="done-sub" id="ret-done-debt"></div>
     </div>
@@ -290,7 +301,7 @@ window.POS = {
   levels: <?= json_encode(['retail' => level_name('retail'), 'wholesale' => level_name('wholesale')], JSON_UNESCAPED_UNICODE) ?>,
   urls: { data: <?= json_encode(url('pos/data')) ?>, prices: <?= json_encode(url('pos/prices')) ?>, complete: <?= json_encode(url('pos/complete')) ?>, hold: <?= json_encode(url('pos/hold')) ?>, held: <?= json_encode(url('pos/held')) ?>,
           resume: <?= json_encode(url('pos/resume')) ?>, expense: <?= json_encode(url('pos/expense')) ?>, customers: <?= json_encode(url('pos/customers')) ?>, debt: <?= json_encode(url('pos/debt')) ?>, pin: <?= json_encode(url('pos/pin')) ?>, check: <?= json_encode(url('pos/check')) ?>,
-          returnPin: <?= json_encode(url('pos/return-pin')) ?>, returnSearch: <?= json_encode(url('pos/return-search')) ?>, returnSale: <?= json_encode(url('pos/return-sale')) ?>, returnStore: <?= json_encode(url('pos/return')) ?> }
+          returnPin: <?= json_encode(url('pos/return-pin')) ?>, returnSearch: <?= json_encode(url('pos/return-search')) ?>, returnSale: <?= json_encode(url('pos/return-sale')) ?>, returnStore: <?= json_encode(url('pos/return')) ?>, exchange: <?= json_encode(url('pos/exchange')) ?> }
 };
 </script>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>

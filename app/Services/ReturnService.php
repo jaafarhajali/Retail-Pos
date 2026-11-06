@@ -26,12 +26,29 @@ final class ReturnService
      */
     public function create(int $saleId, array $items, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false, ?string $usdPart = null, ?string $lbpPart = null, string $method = 'cash'): array
     {
+        $this->requireOpenSession($sessionId);
+        $priced = $this->price($saleId, $items);
+        if (!in_array($cashCurrency, ['USD', 'LBP', 'MIX'], true)) {
+            throw new \DomainException('Choose the refund currency.');
+        }
+
+        return $this->write($priced['sale'], $priced['customer_id'], $priced['lines'], $priced['total'], $cashCurrency, $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart, $method);
+    }
+
+    /**
+     * Prices a return against its invoice without writing anything (split out 2026-11-06, so an exchange can know
+     * the return's value before it records the two halves).
+     *
+     * @param list<array{sale_item_id: int, qty: string, condition: string}> $items
+     * @return array{sale: array, customer_id: ?int, lines: list<array>, total: string}
+     */
+    public function price(int $saleId, array $items): array
+    {
         $sales = new Sale();
         $sale = $sales->find($saleId) ?? throw new \DomainException('Sale not found.');
         if ($sale['status'] !== 'completed') {
             throw new \DomainException('A voided sale cannot be returned.');
         }
-        $this->requireOpenSession($sessionId);
         $soldItems = array_column($sales->items($saleId), null, 'id');
         $lines = [];
         $total = 0.0;
@@ -62,10 +79,8 @@ final class ReturnService
         if ($lines === []) {
             throw new \DomainException('Choose at least one item to return.');
         }
-        if (!in_array($cashCurrency, ['USD', 'LBP', 'MIX'], true)) {
-            throw new \DomainException('Choose the refund currency.');
-        }
-        return $this->write($sale, $sale['customer_id'] === null ? null : (int) $sale['customer_id'], $lines, Money::fmt($total), $cashCurrency, $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart, $method);
+
+        return ['sale' => $sale, 'customer_id' => $sale['customer_id'] === null ? null : (int) $sale['customer_id'], 'lines' => $lines, 'total' => Money::fmt($total)];
     }
 
     /**
@@ -77,6 +92,19 @@ final class ReturnService
     public function createWithoutSale(array $items, ?int $customerId, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer = false, ?string $usdPart = null, ?string $lbpPart = null, string $method = 'cash'): array
     {
         $this->requireOpenSession($sessionId);
+        $priced = $this->priceFree($items, $customerId);
+
+        return $this->write(null, $priced['customer_id'], $priced['lines'], $priced['total'], 'MIX', $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart, $method);
+    }
+
+    /**
+     * Prices a return without an invoice, writing nothing (split out 2026-11-06, as price()).
+     *
+     * @param list<array{product_id: int, unit_id: int, qty: string, price: string, condition: string}> $items
+     * @return array{sale: null, customer_id: ?int, lines: list<array>, total: string}
+     */
+    public function priceFree(array $items, ?int $customerId): array
+    {
         $customer = $customerId > 0 ? ((new Customer())->find($customerId) ?? throw new \DomainException('Customer not found.')) : null;
         $units = new ProductUnit();
         $products = new Product();
@@ -121,7 +149,20 @@ final class ReturnService
             throw new \DomainException('Choose at least one item to return.');
         }
 
-        return $this->write(null, $customer === null ? null : (int) $customer['id'], $lines, Money::fmt($total), 'MIX', $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart, $method);
+        return ['sale' => null, 'customer_id' => $customer === null ? null : (int) $customer['id'], 'lines' => $lines, 'total' => Money::fmt($total)];
+    }
+
+    /**
+     * The return half of an exchange (Aya, 2026-11-06): $exchangeUsd of the refund went out as the new goods of the
+     * linked sale (its cash in matches exactly), goods before debt; only what is left follows the usual return rules.
+     *
+     * @param array{sale: ?array, customer_id: ?int, lines: list<array>, total: string} $priced from price()/priceFree()
+     */
+    public function recordForExchange(array $priced, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer, ?string $usdPart, ?string $lbpPart, string $exchangeUsd): array
+    {
+        $this->requireOpenSession($sessionId);
+
+        return $this->write($priced['sale'], $priced['customer_id'], $priced['lines'], $priced['total'], 'MIX', $reason, $sessionId, $registerId, $userId, $allowShortDrawer, $usdPart, $lbpPart, 'cash', $exchangeUsd);
     }
 
     /**
@@ -158,17 +199,24 @@ final class ReturnService
     }
 
     /** Writes the return, its stock, its refunds and the cash movements; $sale is null for a return without an invoice. */
-    private function write(?array $sale, ?int $customerId, array $lines, string $totalUsd, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer, ?string $usdPart, ?string $lbpPart, string $method = 'cash'): array
+    private function write(?array $sale, ?int $customerId, array $lines, string $totalUsd, string $cashCurrency, string $reason, int $sessionId, int $registerId, int $userId, bool $allowShortDrawer, ?string $usdPart, ?string $lbpPart, string $method = 'cash', ?string $exchangeUsd = null): array
     {
         $saleId = $sale === null ? null : (int) $sale['id'];
         $rate = (new ExchangeRate())->current();
         $whish = $method === 'whish';   // sent back by Whish (2026-11-05): USD only, exact, never from the drawer
 
-        return Database::transaction(function () use ($sale, $saleId, $customerId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate, $allowShortDrawer, $usdPart, $lbpPart, $whish): array {
+        return Database::transaction(function () use ($sale, $saleId, $customerId, $lines, $totalUsd, $cashCurrency, $reason, $sessionId, $registerId, $userId, $rate, $allowShortDrawer, $usdPart, $lbpPart, $whish, $exchangeUsd): array {
             // Refund: debt first on a credit customer, the rest in cash from this session's drawer.
             // Worked out before the return is written, so its rounding is stored with it (records are never edited).
             $debtReduction = '0.00';
             $remaining = (float) $totalUsd;
+            // An exchange (Aya, 2026-11-06): goods pay for goods first. This part of the refund went out as the new
+            // items of the linked sale, whose cash in matches it exactly, so the drawer nets to the difference alone.
+            $exchangedUsd = null;
+            if ($exchangeUsd !== null && (float) $exchangeUsd > 0.004 && $remaining > 0.004) {
+                $exchangedUsd = Money::fmt(min((float) $exchangeUsd, $remaining));
+                $remaining = round($remaining - (float) $exchangedUsd, 2);
+            }
             $customers = new Customer();
             if ($customerId !== null) {
                 $owed = (float) $customers->balance($customerId);
@@ -179,6 +227,9 @@ final class ReturnService
             }
             // The cash part, in one currency or split: USD, LBP, or "MIX" = the USD part typed by the cashier + the rest in LBP.
             $parts = [];   // each ['currency', 'amount', 'usd']
+            if ($exchangedUsd !== null) {   // the exchanged part: a cash refund matched by the sale's cash in
+                $parts[] = ['currency' => 'USD', 'amount' => $exchangedUsd, 'usd' => $exchangedUsd];
+            }
             $whishUsd = null;   // sent by Whish instead of cash: the whole rest, exact to the cent
             if ($whish && $remaining > 0.004) {
                 // The owner types what he sends (Aya, 2026-11-05). Whish has no change and no LBP, so it must be the whole rest.
@@ -280,7 +331,7 @@ final class ReturnService
                 Audit::log('drawer.short', 'return', $id, ['no' => $no, 'warning' => $short]);
             }
 
-            return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'cash' => $cash, 'cash_parts' => $cashParts, 'whish_usd' => $whishUsd, 'debt_reduction' => $debtReduction];
+            return ['id' => $id, 'return_no' => $no, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'cash' => $cash, 'cash_parts' => $cashParts, 'whish_usd' => $whishUsd, 'debt_reduction' => $debtReduction, 'exchanged_usd' => $exchangedUsd];
         });
     }
 }

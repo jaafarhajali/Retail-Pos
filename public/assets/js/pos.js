@@ -650,8 +650,8 @@
   }
   $('btn-returns').addEventListener('click', function (e) {
     e.preventDefault();
-    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [], method: 'cash' };
-    retSetMethod('cash');
+    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [], method: 'cash', exch: null };
+    retSetMethod('cash'); exchUi(false);
     $('ret-pin').value = ''; $('ret-pin-error').textContent = '';
     if (P.can.returns) {   // a role that may process returns: no PIN
       api(P.urls.returnPin, { pin: '' }).then(function () { retFind(); modals['m-return'].show(); }).catch(function (er) { msg(er.error || 'Failed', true); });
@@ -670,7 +670,7 @@
   });
   function retOpen(id) {
     api(P.urls.returnSale + '&id=' + id).then(function (j) {
-      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; ret.mode = 'sale'; ret.free = []; retSetMethod('cash'); $('ret-ok').textContent = 'Record return';
+      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; ret.mode = 'sale'; ret.free = []; retSetMethod('cash'); exchUi(false); $('ret-ok').textContent = 'Record return';
       retMode('sale');
       $('ret-inv').textContent = j.sale.invoice_no; $('ret-meta').textContent = '· ' + j.sale.date + ' · ' + (j.sale.customer || 'Walk-in') + ' · ' + money(j.sale.total);
       var body = $('ret-lines'); body.innerHTML = '';
@@ -700,7 +700,7 @@
   // the items; each is refunded at today's retail price of its unit, or at a lower price typed by hand, never more.
   // The till's customer, if one is chosen, gets the refund off their debt first, like any return.
   $('ret-free').addEventListener('click', function () {
-    ret.mode = 'free'; ret.sale = null; ret.lines = []; ret.free = []; ret.allowShort = false; retSetMethod('cash'); $('ret-ok').textContent = 'Record return';
+    ret.mode = 'free'; ret.sale = null; ret.lines = []; ret.free = []; ret.allowShort = false; retSetMethod('cash'); exchUi(false); $('ret-ok').textContent = 'Record return';
     $('ret-inv').textContent = 'No invoice'; $('ret-meta').textContent = '· returned by item · ' + (customer ? customer.name : 'Walk-in');
     retMode('free'); $('ret-lines').innerHTML = ''; $('ret-free-q').value = ''; $('ret-free-results').innerHTML = '';
     $('ret-reason').value = ''; $('ret-error').textContent = '';
@@ -756,6 +756,70 @@
       body.appendChild(tr);
     });
   }
+  // ---- exchange (Aya, 2026-11-06): he takes something else instead. One record: the return's value pays for the
+  // new items (at the till's current price level) and the boxes carry the one difference, in or out.
+  function exchUi(on) {
+    ret.exch = on ? { lines: [] } : null;
+    $('exch-box').hidden = !on; $('ret-method-col').hidden = on;
+    if (on) { retSetMethod('cash'); $('exch-q').value = ''; $('exch-results').innerHTML = ''; exchRender(); }
+  }
+  $('exch-on').addEventListener('click', function () { exchUi(true); retRefill(); setTimeout(function () { $('exch-q').focus(); }, 100); });
+  $('exch-off').addEventListener('click', function () { exchUi(false); $('ret-error').textContent = ''; retRefill(); });
+  function exchPricedUnits(p) { return p.units.filter(function (u) { return unitPrice(u) !== null; }); }
+  function exchSearch(q) {
+    var list = $('exch-results'); list.innerHTML = ''; q = q.trim().toLowerCase(); if (!q) return [];
+    var hits = data.products.filter(function (p) { return exchPricedUnits(p).length && (p.name.toLowerCase().indexOf(q) >= 0 || p.code.toLowerCase().indexOf(q) >= 0); }).slice(0, 8);
+    hits.forEach(function (p) {
+      var a = document.createElement('button'); a.type = 'button'; a.className = 'list-group-item list-group-item-action';
+      a.innerHTML = '<span class="li-main"><b dir="auto"></b><small></small></span><span class="li-meta"></span>';
+      a.querySelector('b').textContent = p.name; a.querySelector('small').textContent = p.code;
+      a.querySelector('.li-meta').textContent = exchPricedUnits(p).map(function (u) { return money(unitPrice(u)) + ' / ' + u.name; }).join(' · ');
+      a.addEventListener('click', function () { exchAdd(p, null); });
+      list.appendChild(a);
+    });
+    if (!hits.length) list.innerHTML = '<div class="empty">No item matches “' + q.replace(/[<>&]/g, '') + '”.</div>';
+    return hits;
+  }
+  $('exch-q').addEventListener('input', function () { exchSearch(this.value); });
+  $('exch-q').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return; e.preventDefault();
+    var code = this.value.trim(), hit = data.barcodes[code];
+    if (hit) { exchAdd(product(hit.p), hit.u); return; }
+    var hits = exchSearch(code); if (hits.length === 1) exchAdd(hits[0], null);
+  });
+  function exchAdd(p, unitId) {
+    var priced = exchPricedUnits(p);
+    if (!priced.length) { $('ret-error').textContent = p.name + ' is not sold at the ' + level + ' price.'; return; }
+    var u = priced.find(function (x) { return x.id === unitId; }) || priced.find(function (x) { return x.default; }) || priced[0];
+    ret.exch.lines.push({ p: p.id, u: u.id, qty: 1 });
+    $('exch-q').value = ''; $('exch-results').innerHTML = ''; $('ret-error').textContent = '';
+    exchRender(); retRefill(); $('exch-q').focus();
+  }
+  function exchRender() {
+    var body = $('exch-lines'); body.innerHTML = '';
+    (ret.exch ? ret.exch.lines : []).forEach(function (l, i) {
+      var p = product(l.p), tr = document.createElement('tr');
+      tr.innerHTML = '<td dir="auto"></td><td><select class="form-select form-select-sm" aria-label="Unit"></select></td>' +
+        '<td><input class="form-control form-control-sm" inputmode="decimal" aria-label="Quantity"></td><td class="text-end exch-line-total"></td>' +
+        '<td><button type="button" class="line-del" aria-label="Remove this line" title="Remove"><i class="bi bi-trash3"></i></button></td>';
+      tr.children[0].textContent = p.name;
+      var sel = tr.children[1].firstChild, qty = tr.children[2].firstChild;
+      exchPricedUnits(p).forEach(function (u) { var o = document.createElement('option'); o.value = u.id; o.textContent = u.name + ' · ' + money(unitPrice(u)); sel.appendChild(o); });
+      sel.value = l.u; qty.value = l.qty;
+      tr.querySelector('.exch-line-total').textContent = money(exchLineTotal(l));
+      sel.addEventListener('change', function () { l.u = parseInt(this.value, 10); exchRender(); retRefill(); });
+      qty.addEventListener('input', function () { l.qty = num(this.value); tr.querySelector('.exch-line-total').textContent = money(exchLineTotal(l)); retRefill(); });
+      tr.querySelector('.line-del').addEventListener('click', function () { ret.exch.lines.splice(i, 1); exchRender(); retRefill(); });
+      body.appendChild(tr);
+    });
+  }
+  function exchLineTotal(l) {
+    var u = product(l.p).units.find(function (x) { return x.id === l.u; });
+    var price = u ? unitPrice(u) : null;
+    return l.qty > 0 && price !== null ? Math.round(l.qty * price * 100) / 100 : 0;
+  }
+  function exchTotal() { var n = 0; (ret.exch ? ret.exch.lines : []).forEach(function (l) { n += exchLineTotal(l); }); return Math.round(n * 100) / 100; }
+
   /** The quantities changed: recompute, and offer the whole cash part in USD (the cashier can split it into LBP). */
   function retRefill() { retTotals(); $('ret-usd').value = ret.cash > 0 ? ret.cash.toFixed(2) : ''; $('ret-lbp').value = ''; }
   function retTotals() {
@@ -769,6 +833,26 @@
       });
     }
     var owed = ret.mode === 'free' ? (customer ? parseFloat(customer.balance) : 0) : parseFloat(ret.sale.owed);
+    // an exchange: the return's value pays for the new items first; the boxes carry the one difference
+    if (ret.exch) {
+      var N = exchTotal(), credit = Math.min(total, N);
+      var leftover = Math.round((total - credit) * 100) / 100;
+      var debtX = Math.min(owed > 0 ? owed : 0, leftover);
+      var give = Math.round((leftover - debtX) * 100) / 100;
+      var pays = Math.round((N - credit) * 100) / 100;
+      ret.cash = pays > 0.004 ? pays : give; ret.allowShort = false; $('ret-ok').textContent = 'Record exchange';
+      $('ret-usd-label').textContent = pays > 0.004 ? 'He pays in USD' : 'Give back in USD';
+      $('ret-lbp-label').textContent = pays > 0.004 ? 'He pays in LBP' : 'Give back in LBP';
+      $('ret-lbp-col').hidden = false;
+      var idle = ret.cash <= 0.004;
+      $('ret-usd').disabled = $('ret-lbp').disabled = idle;
+      if (idle) { $('ret-usd').value = ''; $('ret-lbp').value = ''; }
+      $('ret-sum').textContent = !total || !N ? (!total ? 'Type how many items come back.' : '') + (!N ? (total ? ' And scan' : 'Scan') + ' what he takes instead.' : '')
+        : 'Return ' + money(total) + ' · takes ' + money(N)
+          + (pays > 0.004 ? ' → he pays ' + money(pays)
+            : (debtX > 0.004 ? ' → debt reduced first ' + money(debtX) : '') + (give > 0.004 ? ' → give back ' + money(give) : (debtX > 0.004 ? '' : ' → nothing to pay')));
+      return;
+    }
     var debt = Math.min(owed || 0, total);
     ret.cash = Math.round((total - debt) * 100) / 100; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
     // all of it comes off the debt: no cash leaves the drawer, so the two amounts are locked
@@ -780,6 +864,7 @@
     $('ret-lbp-col').hidden = w;
     if (w) { $('ret-lbp').value = ''; }
     $('ret-usd-label').textContent = w ? 'Send by Whish in USD' : 'Give back in USD';
+    $('ret-lbp-label').textContent = 'Give back in LBP';
     $('ret-sum').textContent = !total ? (ret.mode === 'free' ? 'Scan or type the items that come back.' : 'Type how many items come back.')
       : 'Refund ' + money(total) + (none ? ' · nothing to give back in cash: the ' + money(debt) + ' comes off the customer\'s debt'
         : (debt > 0 ? ' · debt reduced first ' + money(debt) : '') + (w ? ' · sent by Whish ' + money(ret.cash) : ' · give back in cash ' + money(ret.cash)));
@@ -804,12 +889,49 @@
       });
       if (!items.length) { $('ret-error').textContent = 'Type how many of an item come back.'; return; }
     }
+    // an exchange records the return and the sale of what he takes, in one atomic call
+    if (ret.exch) {
+      var nl = [];
+      ret.exch.lines.forEach(function (l) { if (l.qty > 0) nl.push({ product_id: l.p, unit_id: l.u, qty: String(l.qty) }); });
+      if (!nl.length) { $('ret-error').textContent = 'Scan or type what he takes instead.'; return; }
+      btn.disabled = true;
+      api(P.urls.exchange, { sale_id: ret.sale ? ret.sale.id : 0, customer_id: ret.mode === 'free' && customer ? customer.id : null, items: items, new_lines: nl,
+        usd: $('ret-usd').value, lbp: $('ret-lbp').value, change_currency: 'LBP', price_level: level, reason: $('ret-reason').value, pin: ret.pin, allow_short_drawer: ret.allowShort })
+        .then(function (j) {
+          var R = parseFloat(j.return_value), N = parseFloat(j.new_total);
+          $('ret-done-no').textContent = j.return_no + ' + ' + j.invoice_no;
+          $('ret-done-label').textContent = 'Returned ' + money(R) + ' · took ' + money(N);
+          if (N > R + 0.004) {
+            var ch = []; if (parseFloat(j.change_usd) > 0) ch.push(money(j.change_usd)); if (j.change_lbp > 0) ch.push(lbp(j.change_lbp));
+            $('ret-done-money').textContent = 'He pays ' + money(N - R) + (ch.length ? '\nChange ' + ch.join(' + ') : '');
+          } else {
+            var skip = parseFloat(j.exchanged_usd || 0), gives = [];
+            (j.cash_parts || []).forEach(function (p) {
+              if (skip > 0 && p.currency === 'USD' && Math.abs(parseFloat(p.amount) - skip) < 0.005) { skip = 0; return; }
+              gives.push(p.currency === 'USD' ? money(p.amount) : lbp(p.amount));
+            });
+            $('ret-done-money').textContent = gives.length ? 'Give back ' + gives.join('\n+ ') : 'Nothing to pay';
+          }
+          $('ret-done-debt').textContent = parseFloat(j.debt_reduction) > 0 ? 'Debt reduced by ' + money(j.debt_reduction) : '';
+          $('ret-print').href = j.receipt + '&auto=1'; $('ret-pdf').href = j.receipt + '&pdf=1';
+          if (j.warnings && j.warnings.length) { msg(j.warnings.join(' · '), true); }
+          loadData();   // the new items left the shelf: the grid's stock numbers follow
+          retStep('done');
+        })
+        .catch(function (er) {
+          if (er.short_drawer) { ret.allowShort = true; btn.textContent = 'Continue: I add the money myself'; }
+          $('ret-error').textContent = er.error || 'Could not record the exchange';
+        })
+        .finally(function () { btn.disabled = false; });
+      return;
+    }
     btn.disabled = true;
     api(P.urls.returnStore, { sale_id: ret.sale ? ret.sale.id : 0, customer_id: ret.mode === 'free' && customer ? customer.id : null, items: items, method: ret.method, usd: $('ret-usd').value, lbp: $('ret-lbp').value, reason: $('ret-reason').value, pin: ret.pin, allow_short_drawer: ret.allowShort })
       .then(function (j) {
         var parts = j.cash_parts.map(function (p) { return p.currency === 'USD' ? money(p.amount) : lbp(p.amount); });
         if (j.whish_usd) { parts.push(money(j.whish_usd) + ' by Whish'); }
         $('ret-done-no').textContent = j.return_no + ' · ' + (ret.sale ? ret.sale.invoice_no : 'no invoice');
+        $('ret-done-label').textContent = 'Give back';
         $('ret-done-money').textContent = parts.length ? parts.join('\n+ ') : 'Nothing in cash';
         $('ret-done-debt').textContent = parseFloat(j.debt_reduction) > 0 ? 'Debt reduced by ' + money(j.debt_reduction) : '';
         $('ret-print').href = j.receipt + '&auto=1'; $('ret-pdf').href = j.receipt + '&pdf=1';
