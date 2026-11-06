@@ -480,11 +480,11 @@ final class ProductService
         }
         if ($changes !== []) {
             Audit::log('product.price_changed', 'product', (int) $unit['product_id'], ['unit' => $unit['name']] + $changes);
-            // Floating prices (2026-10-09): the history drives "Today's prices" and tells the tills something changed.
-            if ((int) ($this->products->find((int) $unit['product_id'])['price_floats'] ?? 0) === 1) {
-                Database::pdo()->prepare('INSERT INTO price_changes (product_unit_id, retail_old, retail_new, wholesale_old, wholesale_new, user_id) VALUES (:u, :ro, :rn, :wo, :wn, :by)')
-                    ->execute(['u' => $unitId, 'ro' => $unit['retail_price'], 'rn' => $newRetail, 'wo' => $unit['wholesale_price'], 'wn' => $newWholesale, 'by' => \App\Core\Auth::id()]);
-            }
+            // Every price change goes in the history (2026-11-06; floating-only since 2026-10-09): it drives
+            // "Today's prices" and its stamp tells every open till to follow — an open till used to keep selling a
+            // fixed product at the price its screen loaded with, while the server charged the new one.
+            Database::pdo()->prepare('INSERT INTO price_changes (product_unit_id, retail_old, retail_new, wholesale_old, wholesale_new, user_id) VALUES (:u, :ro, :rn, :wo, :wn, :by)')
+                ->execute(['u' => $unitId, 'ro' => $unit['retail_price'], 'rn' => $newRetail, 'wo' => $unit['wholesale_price'], 'wn' => $newWholesale, 'by' => \App\Core\Auth::id()]);
         }
     }
 

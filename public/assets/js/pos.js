@@ -878,8 +878,9 @@
   }
   loadData().catch(function () { msg('Could not load the catalog', true); });
 
-  // Floating prices (2026-10-09): the till asks every minute whether "Today's prices" changed and follows at once,
-  // on the grid and on the lines already in the cart (the server sells at the list price of the moment anyway).
+  // Price changes (every product since 2026-11-06; floating only before): the till asks every minute whether any
+  // price changed and follows at once, on the grid, on the lines already in the cart, and in an open payment box
+  // (the server sells at the list price of the moment anyway, so the screen must never fall behind).
   var priceStamp = null;
   function pollPrices() {
     if (!data) return;
@@ -887,7 +888,9 @@
       if (priceStamp !== null && j.stamp !== priceStamp) {
         var byId = {}; j.units.forEach(function (u) { byId[u.id] = u; });
         data.products.forEach(function (p) { p.units.forEach(function (u) { var n = byId[u.id]; if (n) { u.retail = n.retail; u.wholesale = n.wholesale; } }); });
-        renderGrid(); renderCart(); msg('Prices updated');
+        renderGrid(); renderCart();
+        if ($('m-pay').classList.contains('show')) { followTotal(); renderPay(); }
+        msg('Prices updated');
       }
       priceStamp = j.stamp;
     }).catch(function () {});

@@ -63,7 +63,14 @@ return [
         assert_same(['retail_old' => '32.00', 'retail_new' => '35.00', 'wholesale_old' => '30.00', 'wholesale_new' => '30.00', 'user_id' => TEST_ADMIN_ID], $change);
         $after = json_decode($client->get('pos/prices')->body, true);
         assert_true($after['stamp'] > $before['stamp'], 'the stamp moved');
-        assert_same([['id' => $s['box'], 'retail' => '35.00', 'wholesale' => '30.00']], $after['units']);
+        // since 2026-11-06 the poll carries every active product's prices, so pick the box out
+        $boxRow = null;
+        foreach ($after['units'] as $u) {
+            if ($u['id'] === $s['box']) {
+                $boxRow = $u;
+            }
+        }
+        assert_same(['id' => $s['box'], 'retail' => '35.00', 'wholesale' => '30.00'], $boxRow);
         assert_contains('1 price updated', $client->get('prices')->body);
         assert_contains('$32.00 → $35.00', $client->get('prices')->body);
         // a cashier may not open it
@@ -143,6 +150,29 @@ return [
         $price($s, '40');
         assert_same('0.00', $debts->pending($c)['amount']);
         assert_contains('Price of the day on debts', login_as('admin', TEST_ADMIN_PASSWORD)->get('reports', ['type' => 'profit'])->body);
+    },
+
+    // 2026-11-06 (Aya's till check): an open till used to keep a FIXED product's old price on screen while the
+    // server charged the new one (raised: "Not fully paid"; lowered: silent change). Now every price change moves
+    // the stamp and the poll carries every product, so open tills follow within a minute, payment box included.
+    'a fixed product\'s price change also moves the stamp and reaches the till poll' => function () use ($setup): void {
+        $s = $setup();
+        $client = login_as('admin', TEST_ADMIN_PASSWORD);
+        $client->get('pos');
+        $before = json_decode($client->get('pos/prices')->body, true);
+        (new ProductService())->setPrices($s['piece'], '6', '4');   // Charcoal: price_floats = 0
+        $after = json_decode($client->get('pos/prices')->body, true);
+        assert_true($after['stamp'] > $before['stamp'], 'a fixed product\'s change moves the stamp');
+        $pieceRow = null;
+        foreach ($after['units'] as $u) {
+            if ($u['id'] === $s['piece']) {
+                $pieceRow = $u;
+            }
+        }
+        assert_same(['id' => $s['piece'], 'retail' => '6.00', 'wholesale' => '4.00'], $pieceRow);
+        assert_not_contains('Charcoal', $client->get('prices')->body, "Today's prices still lists floating products only");
+        $js = (string) file_get_contents(BASE_PATH . '/public/assets/js/pos.js');
+        assert_contains("if (\$('m-pay').classList.contains('show')) { followTotal(); renderPay(); }", $js, 'an open payment box follows too');
     },
 
     'only open invoices are re-priced: one paid long ago stays as it was, the new one follows the price' => function () use ($setup, $sale, $price, $customer): void {

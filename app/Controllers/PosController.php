@@ -113,12 +113,12 @@ final class PosController extends Controller
         $this->json(['ok' => true, 'id' => $id, 'text' => implode(' + ', array_filter([(float) $usd > 0 ? usd($usd) : '', $lbp > 0 ? lbp($lbp) : ''])) . ' for ' . trim((string) ($in['category'] ?? ''))]);
     }
 
-    /** Floating prices for the tills, polled every minute; the stamp changes with every price change. */
+    /** Every price for the tills (all products since 2026-11-06), polled every minute; the stamp moves with every price change. */
     public function prices(): void
     {
         $pdo = \App\Core\Database::pdo();
         $units = [];
-        foreach ($pdo->query('SELECT pu.id, pu.retail_price, pu.wholesale_price FROM product_units pu JOIN products p ON p.id = pu.product_id WHERE p.price_floats = 1') as $u) {
+        foreach ($pdo->query('SELECT pu.id, pu.retail_price, pu.wholesale_price FROM product_units pu JOIN products p ON p.id = pu.product_id WHERE p.is_active = 1') as $u) {
             $units[] = ['id' => (int) $u['id'], 'retail' => $u['retail_price'], 'wholesale' => $u['wholesale_price']];
         }
         $this->json(['stamp' => (int) $pdo->query('SELECT COALESCE(MAX(id), 0) FROM price_changes')->fetchColumn(), 'units' => $units]);

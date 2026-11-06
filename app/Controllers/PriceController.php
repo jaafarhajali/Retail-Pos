@@ -33,9 +33,11 @@ final class PriceController extends Controller
             $u['last'] = $last[(int) $u['id']] ?? null;
         }
         unset($u);
+        // Every price change is recorded since 2026-11-06; this page keeps showing its own, the floating ones.
         $history = Database::pdo()->query(
             'SELECT pc.*, u.username, pu.name AS unit_name, p.name AS product_name FROM price_changes pc JOIN product_units pu ON pu.id = pc.product_unit_id
-             JOIN products p ON p.id = pu.product_id LEFT JOIN users u ON u.id = pc.user_id ORDER BY pc.id DESC LIMIT 50'
+             JOIN products p ON p.id = pu.product_id LEFT JOIN users u ON u.id = pc.user_id
+             WHERE p.price_floats = 1 ORDER BY pc.id DESC LIMIT 50'
         )->fetchAll(\PDO::FETCH_ASSOC);
         $this->render('prices/index', ['units' => $units, 'history' => $history], "Today's prices");
     }
