@@ -74,4 +74,25 @@ return [
         assert_contains("\$('done-pdf').href = j.receipt + '&pdf=1'", $js, 'the till fills the done-screen link');
         assert_contains("\$('ret-pdf').href = j.receipt + '&pdf=1'", $js, 'and the return done-screen link');
     },
+
+    // 2026-11-07 (Aya): the count sheet — a paper the helper fills by hand, so no expected numbers to copy from
+    'a stocktaking count prints a hand-out sheet with blank boxes and no expected numbers' => function (): void {
+        $svc = new ProductService();
+        $p = make_product('Nakhla');
+        $piece = $svc->addUnit($p, 'Piece', '1', false, true);
+        $svc->setPrices($piece, '5', '');
+        (new StockService())->adjust($p, $piece, '10', 'opening', '', '1', TEST_ADMIN_ID);
+        $id = (new \App\Services\CountService())->start('all', 0, '', TEST_ADMIN_ID);
+        $c = login_as('admin', TEST_ADMIN_PASSWORD);
+        $screen = $c->get('counts/view', ['id' => $id])->body;
+        assert_contains('Print count sheet', $screen);
+        assert_contains('pdf=1', $screen, 'the screen links the self-downloading sheet');
+        $sheet = $c->get('counts/print', ['id' => $id])->body;
+        assert_contains('Count sheet', $sheet);
+        assert_contains('Nakhla', $sheet);
+        assert_contains('Counted by:', $sheet);
+        assert_contains('fill-box', $sheet, 'blank boxes to write in');
+        assert_not_contains('Expected', $sheet, 'no numbers to copy: whoever counts writes what they see');
+        assert_contains('Export PDF', $sheet);
+    },
 ];

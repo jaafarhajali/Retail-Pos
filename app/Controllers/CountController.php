@@ -41,6 +41,18 @@ final class CountController extends Controller
         ], $count['count_no']);
     }
 
+    /** The hand-out count sheet (Aya, 2026-11-07): blank boxes to fill by hand, no expected numbers to copy. */
+    public function print(): void
+    {
+        $counts = new StockCount();
+        $count = $counts->find($this->queryInt('id')) ?? throw new HttpException(404);
+        $lines = $counts->lines((int) $count['id']);
+        \App\Core\View::render('counts/print', [
+            'pageTitle' => 'Count sheet ' . $count['count_no'], 'count' => $count, 'lines' => $lines,
+            'unitsById' => (new ProductUnit())->forProducts(array_map('intval', array_column($lines, 'product_id'))),
+        ], 'layouts/print');
+    }
+
     public function enter(): void
     {
         $countId = $this->inputInt('count_id');

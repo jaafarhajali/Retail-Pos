@@ -2,12 +2,15 @@
 <div class="toolbar">
   <p class="toolbar-note"><span class="badge <?= ['open' => 'text-bg-success', 'confirmed' => 'text-bg-secondary', 'cancelled' => 'text-bg-danger'][$c['status']] ?>"><?= e($c['status']) ?></span>
     started <?= e(date('d/m/Y H:i', strtotime($c['started_at']))) ?> by <?= e($c['started_by_name']) ?><?= $c['confirmed_at'] ? ' · confirmed ' . e(date('d/m/Y H:i', strtotime($c['confirmed_at']))) . ' by ' . e($c['confirmed_by_name']) : '' ?></p>
-  <?php if ($open): ?>
-    <div class="toolbar-actions">
+  <div class="toolbar-actions">
+    <?php // the hand-out count sheet (Aya, 2026-11-07): the helper fills the paper, the owner types it in after ?>
+    <a class="btn btn-outline-primary" href="<?= url('counts/print', ['id' => $c['id']]) ?>" target="_blank"><i class="bi bi-printer"></i> Print count sheet</a>
+    <a class="btn btn-outline-secondary" href="<?= url('counts/print', ['id' => $c['id'], 'pdf' => 1]) ?>" target="_blank"><i class="bi bi-filetype-pdf"></i> Export PDF</a>
+    <?php if ($open): ?>
       <form method="post" action="<?= url('counts/cancel') ?>" data-confirm="Cancel this count? Nothing will change."><?= csrf_field() ?><input type="hidden" name="count_id" value="<?= (int) $c['id'] ?>"><button class="btn btn-outline-danger" type="submit">Cancel count</button></form>
       <form method="post" action="<?= url('counts/confirm') ?>" data-confirm="Apply the differences of every counted line to the current stock?"><?= csrf_field() ?><input type="hidden" name="count_id" value="<?= (int) $c['id'] ?>"><button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle"></i> Confirm count</button></form>
-    </div>
-  <?php endif; ?>
+    <?php endif; ?>
+  </div>
 </div>
 <div class="card"><div class="table-responsive"><table class="table align-middle">
   <thead><tr><th>Product</th><th class="text-end">Expected <span class="fw-normal">(snapshot)</span></th><th class="count-col">Counted</th><th class="text-end">Difference</th></tr></thead>
