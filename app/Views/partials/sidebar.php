@@ -13,6 +13,7 @@ $navGroups = [
         ['sales', 'receipt', 'Sales', null],
         ['sessions', 'cash-stack', 'Cash sessions', null],
         ['returns', 'arrow-return-left', 'Returns', 'return.create'],
+        ['exchanges', 'arrow-left-right', 'Exchanges', 'return.create'],
         ['customers', 'person-lines-fill', 'Customers', 'customer.manage'],
     ]],
     ['Stock', false, [

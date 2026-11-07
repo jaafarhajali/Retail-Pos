@@ -13,6 +13,7 @@ use App\Controllers\CategoryController;
 use App\Controllers\CountController;
 use App\Controllers\CustomerController;
 use App\Controllers\DashboardController;
+use App\Controllers\ExchangeController;
 use App\Controllers\ExchangeRateController;
 use App\Controllers\ExpenseController;
 use App\Controllers\PosController;
@@ -132,6 +133,10 @@ return [
     ['POST', 'returns/store',    [ReturnController::class, 'store'],   'return.create'],
     ['GET',  'returns/view',     [ReturnController::class, 'view'],    'return.create'],
     ['GET',  'returns/receipt',  [ReturnController::class, 'receipt'], 'pos.use'],   // a cashier prints the receipt of a return approved with the PIN
+    // Exchanges outside the till (2026-11-07): its own tab beside Returns
+    ['GET',  'exchanges',        [ExchangeController::class, 'index'], 'return.create'],
+    ['GET',  'exchanges/view',   [ExchangeController::class, 'view'],  'return.create'],
+    ['POST', 'exchanges/store',  [ExchangeController::class, 'store'], 'return.create'],
     // Phase 7 — expenses
     ['GET',  'expenses',         [ExpenseController::class, 'index'], 'expense.manage'],
     ['POST', 'expenses/store',   [ExpenseController::class, 'store'], 'expense.manage'],
@@ -143,6 +148,7 @@ return [
     ['GET',  'counts',           [CountController::class, 'index'],   'stocktake.manage'],
     ['POST', 'counts/start',     [CountController::class, 'start'],   'stocktake.manage'],
     ['GET',  'counts/view',      [CountController::class, 'view'],    'stocktake.manage'],
+    ['GET',  'counts/print',     [CountController::class, 'print'],   'stocktake.manage'],   // the hand-out count sheet (2026-11-07)
     ['POST', 'counts/enter',     [CountController::class, 'enter'],   'stocktake.manage'],
     ['POST', 'counts/confirm',   [CountController::class, 'confirm'], 'stocktake.manage'],
     ['POST', 'counts/cancel',    [CountController::class, 'cancel'],  'stocktake.manage'],

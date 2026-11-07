@@ -26,6 +26,12 @@ final class SaleReturn extends Model
         return $this->fetchAll(self::SELECT . ' WHERE r.sale_id = :s ORDER BY r.id', ['s' => $saleId]);
     }
 
+    /** The latest exchanges: every return whose reason ExchangeService wrote. */
+    public function recentExchanges(int $limit = 50): array
+    {
+        return $this->fetchAll(self::SELECT . " WHERE r.reason LIKE 'Exchange with INV-%' ORDER BY r.id DESC LIMIT " . $limit);
+    }
+
     /** The return half of an exchange: its reason carries the new sale's invoice number (ExchangeService). */
     public function forExchange(string $invoiceNo): ?array
     {
