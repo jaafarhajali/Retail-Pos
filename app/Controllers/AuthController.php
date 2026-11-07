@@ -7,6 +7,8 @@ use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Flash;
+use App\Core\Gate;
+use App\Core\HttpException;
 use App\Core\View;
 use App\Models\User;
 
@@ -44,11 +46,13 @@ final class AuthController extends Controller
 
     public function showPassword(): void
     {
+        $this->requireOwnPassword();
         $this->render('auth/password', ['forced' => (int) Auth::user()['must_change_password'] === 1], 'Change password');
     }
 
     public function changePassword(): void
     {
+        $this->requireOwnPassword();
         $user = Auth::user();
         $current = $this->rawInput('current_password');
         $new = $this->rawInput('new_password');
@@ -70,5 +74,17 @@ final class AuthController extends Controller
         Audit::log('auth.password_changed', 'user', (int) $user['id']);
         Flash::set('success', 'Password changed.');
         redirect('dashboard');
+    }
+
+    /**
+     * "Change own password" is a role permission since 2026-11-07 (Aya). A forced change
+     * (the owner reset the password and ticked "must change at next sign-in") always passes:
+     * without it the user would be stuck with a password the owner knows.
+     */
+    private function requireOwnPassword(): void
+    {
+        if ((int) Auth::user()['must_change_password'] !== 1 && !Gate::allows('account.password')) {
+            throw new HttpException(403);
+        }
     }
 }

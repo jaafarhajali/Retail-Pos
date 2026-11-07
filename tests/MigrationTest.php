@@ -19,7 +19,7 @@ return [
 
     'a fresh install records every migration and a second run applies nothing' => function (): void {
         $applied = Database::pdo()->query('SELECT filename FROM migrations ORDER BY filename')->fetchAll(PDO::FETCH_COLUMN);
-        assert_same(['001_foundation.sql', '002_catalog.sql', '003_operations.sql', '004_admin_closes_sessions.sql', '005_return_rounding.sql', '006_expense_two_currencies.sql', '007_cashier_returns_need_pin.sql', '008_remove_void.sql', '009_return_without_invoice.sql', '010_floating_prices.sql', '011_attachments.sql', '012_return_whish.sql', '013_purchase_discount.sql'], $applied);
+        assert_same(['001_foundation.sql', '002_catalog.sql', '003_operations.sql', '004_admin_closes_sessions.sql', '005_return_rounding.sql', '006_expense_two_currencies.sql', '007_cashier_returns_need_pin.sql', '008_remove_void.sql', '009_return_without_invoice.sql', '010_floating_prices.sql', '011_attachments.sql', '012_return_whish.sql', '013_purchase_discount.sql', '014_password_permission.sql'], $applied);
         assert_same([], Installer::migrate());
     },
 
@@ -34,12 +34,12 @@ return [
     'seed data: roles, permissions, cashier defaults, rate, counters, settings' => function (): void {
         $pdo = Database::pdo();
         assert_same(1, (int) $pdo->query("SELECT is_super FROM roles WHERE name = 'Admin'")->fetchColumn());
-        assert_same(38, (int) $pdo->query('SELECT COUNT(*) FROM permissions')->fetchColumn());   // 008 removed sale.void
+        assert_same(39, (int) $pdo->query('SELECT COUNT(*) FROM permissions')->fetchColumn());   // 008 removed sale.void, 014 added account.password
         $cashier = $pdo->query(
             "SELECT rp.perm_key FROM role_permissions rp JOIN roles r ON r.id = rp.role_id
              WHERE r.name = 'Cashier' ORDER BY rp.perm_key"
         )->fetchAll(PDO::FETCH_COLUMN);
-        assert_same(['debt.collect', 'pos.use', 'sale.create', 'sale.credit',
+        assert_same(['account.password', 'debt.collect', 'pos.use', 'sale.create', 'sale.credit',
                      'sale.reprint', 'session.open_own'], $cashier, '004 removed session.close_own: the admin closes; 007 removed return.create: returns need the PIN');
         assert_same(90000, (int) $pdo->query('SELECT lbp_per_usd FROM exchange_rates ORDER BY id DESC LIMIT 1')->fetchColumn());
         assert_same(7, (int) $pdo->query('SELECT COUNT(*) FROM counters')->fetchColumn(), '6 foundation counters + product (002)');

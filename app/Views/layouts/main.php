@@ -57,7 +57,9 @@ if (!$navLocked && $backRoute !== '' && $backRoute !== 'dashboard') {
           </button>
           <div class="dropdown-menu dropdown-menu-end">
             <div class="dropdown-header"><strong dir="auto"><?= e($userName) ?></strong><?= e($authUser['role_name'] ?? '') ?></div>
-            <a class="dropdown-item" href="<?= url('auth/password') ?>"><i class="bi bi-key"></i> Change password</a>
+            <?php if ($navLocked || \App\Core\Gate::allows('account.password')): // a role permission since 2026-11-07 ?>
+              <a class="dropdown-item" href="<?= url('auth/password') ?>"><i class="bi bi-key"></i> Change password</a>
+            <?php endif; ?>
             <form method="post" action="<?= url('auth/logout') ?>" class="m-0">
               <?= csrf_field() ?>
               <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right"></i> Sign out</button>
