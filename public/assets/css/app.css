@@ -280,6 +280,8 @@ td.empty { background: var(--surface) !important; }
 .dash-meta dt { font-weight: 500; color: var(--ink-2); font-size: .88rem; }
 .dash-meta dd { margin: 0; font-family: var(--font-display); font-size: 1.45rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .dash-meta .is-warn dd, .dash-meta .is-warn dd a { color: var(--amber); }
+.dash-speed { grid-column: 1 / -1; }   /* the owner's averages span the row (2026-11-07) */
+.dash-speed .rate-note { display: block; margin-top: .6rem; }
 .dash-device { display: flex; flex-direction: column; }
 .dash-device .dash-name { font-family: var(--font-display); font-size: 1.55rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.2; }
 .dash-status { display: flex; align-items: center; gap: .5rem; margin: .45rem 0 1.1rem; color: var(--ink-2); }

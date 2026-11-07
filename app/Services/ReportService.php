@@ -127,4 +127,82 @@ final class ReportService
 
         return ['invoices' => (int) $s['invoices'], 'total' => Money::fmt($s['total']), 'low_stock' => (int) reset($low), 'open_sessions' => (int) reset($open)];
     }
+
+    /**
+     * The owner's "average per day and per month: how much do I sell of this item" (Aya, 2026-11-07).
+     * Per active product, net of returns, in its sale unit. Per day: the last 30 days — a product
+     * younger than that divides by its own age, so new items are not underestimated. Per month: the
+     * average of the last 3 full calendar months, counting only the months since its first sale;
+     * null until a product has at least one full month behind it.
+     */
+    public function sellingSpeed(): array
+    {
+        $monthStart = date('Y-m-01 00:00:00');
+        $windowStart = date('Y-m-01 00:00:00', strtotime($monthStart . ' -3 months'));
+        $from30 = date('Y-m-d H:i:s', time() - 30 * 86400);
+        $sum = function (string $table, string $join, string $from, ?string $to) : array {
+            $sql = "SELECT i.product_id, SUM(i.base_qty) AS q FROM {$table} i JOIN {$join} GROUP BY i.product_id";
+            $params = ['f' => $from];
+            if ($to !== null) {
+                $params['t'] = $to;
+            }
+
+            return array_column($this->rows($sql, $params), 'q', 'product_id');
+        };
+        $sold30 = $sum('sale_items', "sales s ON s.id = i.sale_id AND s.status = 'completed' AND s.created_at >= :f", $from30, null);
+        $back30 = $sum('return_items', 'returns r ON r.id = i.return_id AND r.created_at >= :f', $from30, null);
+        $byMonth = function (string $table, string $join) use ($windowStart, $monthStart): array {
+            $out = [];
+            $sql = "SELECT i.product_id, DATE_FORMAT(x.created_at, '%Y-%m-01') AS m, SUM(i.base_qty) AS q
+                    FROM {$table} i JOIN {$join} WHERE x.created_at >= :f AND x.created_at < :t GROUP BY i.product_id, m";
+            foreach ($this->rows($sql, ['f' => $windowStart, 't' => $monthStart]) as $r) {
+                $out[(int) $r['product_id']][$r['m']] = (float) $r['q'];
+            }
+
+            return $out;
+        };
+        $sold3m = $byMonth('sale_items', "sales x ON x.id = i.sale_id AND x.status = 'completed'");
+        $back3m = $byMonth('return_items', 'returns x ON x.id = i.return_id');
+        $first = array_column($this->rows(
+            "SELECT i.product_id, MIN(s.created_at) AS d FROM sale_items i JOIN sales s ON s.id = i.sale_id AND s.status = 'completed' GROUP BY i.product_id", []
+        ), 'd', 'product_id');
+
+        $months = [];   // the 3 full months of the window, as first-of-month dates
+        for ($k = 3; $k >= 1; $k--) {
+            $months[] = date('Y-m-01', strtotime($monthStart . " -{$k} months"));
+        }
+        $rows = [];
+        $products = $this->rows(
+            'SELECT p.id, p.name, p.internal_code, p.base_unit, du.name AS unit_name, du.factor
+             FROM products p LEFT JOIN product_units du ON du.product_id = p.id AND du.is_default_sale = 1
+             WHERE p.is_active = 1 ORDER BY p.name', []
+        );
+        foreach ($products as $p) {
+            $id = (int) $p['id'];
+            $factor = max(1, (int) ($p['factor'] ?? 1));
+            $start = $first[$id] ?? null;
+            $perDay = null;
+            $perMonth = null;
+            if ($start !== null) {
+                $age = max(1, min(30, (int) floor((time() - strtotime((string) $start)) / 86400) + 1));
+                $net30 = max(0.0, (float) ($sold30[$id] ?? 0) - (float) ($back30[$id] ?? 0));
+                $perDay = round($net30 / $age / $factor, 1);
+                // only months strictly after the first sale's month: a partial opening month would distort the average
+                $firstMonth = date('Y-m-01', strtotime((string) $start));
+                $covered = array_filter($months, static fn (string $m): bool => $m > $firstMonth);
+                if ($covered !== []) {
+                    $net3m = 0.0;
+                    foreach ($covered as $m) {
+                        $net3m += max(0.0, ($sold3m[$id][$m] ?? 0.0) - ($back3m[$id][$m] ?? 0.0));
+                    }
+                    $perMonth = round($net3m / count($covered) / $factor, 1);
+                }
+            }
+            $rows[] = ['id' => $id, 'name' => $p['name'], 'code' => $p['internal_code'],
+                       'unit' => $p['unit_name'] ?? $p['base_unit'], 'per_day' => $perDay, 'per_month' => $perMonth];
+        }
+        usort($rows, static fn (array $a, array $b): int => ($b['per_day'] ?? -1) <=> ($a['per_day'] ?? -1));
+
+        return $rows;
+    }
 }

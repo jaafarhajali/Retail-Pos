@@ -67,6 +67,40 @@
     <?php if (\App\Core\Gate::allows('rate.manage')): ?><a class="btn btn-sm btn-outline-secondary" href="<?= url('rates') ?>">Change rate</a><?php endif; ?>
   </section>
 
+  <?php if ($speed !== null && $speed !== []): // the owner's averages (Aya, 2026-11-07): per item, per day and per month ?>
+    <section class="dash-panel dash-speed">
+      <h2 class="dash-label">Selling speed — average per item</h2>
+      <input class="form-control form-control-sm mb-2" id="speed-q" dir="auto" autocomplete="off" placeholder="Type an item to look it up…" aria-label="Find an item">
+      <div class="table-responsive"><table class="table table-sm align-middle m-0">
+        <thead><tr><th>Item</th><th class="text-end">Per day</th><th class="text-end">Per month</th></tr></thead>
+        <tbody id="speed-rows"></tbody>
+      </table></div>
+      <div class="rate-note">Per day: the last 30 days, returns deducted. Per month: the average of the last 3 full months. In the item's sale unit.</div>
+    </section>
+    <script>
+    (function () {
+      var rows = <?= json_encode($speed, JSON_UNESCAPED_UNICODE) ?>;
+      var body = document.getElementById('speed-rows'), q = document.getElementById('speed-q');
+      function num(v, unit) { return v === null ? '—' : String(v).replace(/\.0$/, '') + ' ' + unit; }
+      function draw(filter) {
+        body.innerHTML = '';
+        var list = filter ? rows.filter(function (r) { return (r.name + ' ' + r.code).toLowerCase().indexOf(filter) >= 0; }) : rows.slice(0, 8);
+        list.slice(0, 20).forEach(function (r) {
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td dir="auto"></td><td class="text-end text-nowrap"></td><td class="text-end text-nowrap"></td>';
+          tr.children[0].textContent = r.name;
+          tr.children[1].textContent = num(r.per_day, r.unit);
+          tr.children[2].textContent = num(r.per_month, r.unit);
+          body.appendChild(tr);
+        });
+        if (!list.length) { body.innerHTML = '<tr><td colspan="3" class="text-muted">No item matches.</td></tr>'; }
+      }
+      q.addEventListener('input', function () { draw(this.value.trim().toLowerCase()); });
+      draw('');
+    })();
+    </script>
+  <?php endif; ?>
+
   <?php if (\App\Core\Gate::allows('return.create') || \App\Core\Gate::allows('report.sales')): ?>
     <div class="dash-links">
       <?php if (\App\Core\Gate::allows('return.create')): ?><a class="btn btn-outline-secondary" href="<?= url('returns') ?>"><i class="bi bi-arrow-return-left"></i> Returns</a><?php endif; ?>
