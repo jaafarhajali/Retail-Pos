@@ -90,7 +90,7 @@ return [
         // the screens keep the one amount on show, named for Whish, and refill it on a method switch
         $js = (string) file_get_contents(BASE_PATH . '/public/assets/js/pos.js');
         assert_contains('Send by Whish in USD', $js);
-        assert_contains("\$('ret-ok').textContent = 'Record return'; retRefill();", $js, 'a method switch refills the amount');
+        assert_contains('retOkLabel(); retRefill();', $js, 'a method switch refills the amount');
         assert_contains('Send by Whish in USD', (string) file_get_contents(BASE_PATH . '/app/Views/returns/index.php'));
     },
 

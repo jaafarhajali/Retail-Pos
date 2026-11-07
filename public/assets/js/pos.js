@@ -615,7 +615,8 @@
 
   // ---- Returns in the till (2026-10-04): the administrator's PIN for a cashier, then find the sale by customer,
   // item or number, choose what comes back and give the money back in USD, LBP or both. The server checks it all again.
-  var ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [], method: 'cash' };
+  var ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [], method: 'cash', kind: 'return' };
+  function retOkLabel() { $('ret-ok').textContent = ret.exch ? 'Record exchange' : 'Record return'; }
   // Refund in cash or by Whish (2026-11-05): Whish is USD only and exact, from the shop's Whish account, never the drawer.
   function retSetMethod(m) {
     ret.method = m;
@@ -626,7 +627,8 @@
     ['pin', 'find', 'sale', 'done'].forEach(function (s) { $('ret-' + s + '-step').hidden = s !== name; });
     $('ret-pin-ok').hidden = name !== 'pin'; $('ret-ok').hidden = name !== 'sale';
     $('ret-print').hidden = name !== 'done'; $('ret-pdf').hidden = name !== 'done'; $('ret-close').hidden = name !== 'done';
-    $('ret-title').textContent = name === 'done' ? 'Return recorded' : 'Return';
+    var what = ret.kind === 'exchange' ? 'Exchange' : 'Return';
+    $('ret-title').textContent = name === 'done' ? what + ' recorded' : what;
   }
   function retFind() { retStep('find'); $('ret-q').value = ''; $('ret-results').innerHTML = ''; retList(''); setTimeout(function () { $('ret-q').focus(); }, 300); }
   // The sales to choose from: the latest ones while nothing is typed (most returns are for something sold today),
@@ -648,15 +650,21 @@
       if (!j.sales.length) list.innerHTML = '<div class="empty">' + (q ? 'No sale matches “' + q.replace(/[<>&]/g, '') + '”.' : 'No sales yet.') + '</div>';
     }).catch(function (er) { if (er.needs_pin) { retStep('pin'); } msg(er.error || 'Failed', true); });
   }
-  $('btn-returns').addEventListener('click', function (e) {
-    e.preventDefault();
-    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [], method: 'cash', exch: null };
-    retSetMethod('cash'); exchUi(false);
+  // One pop-up, two tabs on the till (Aya, 2026-11-07): Returns gives money back, Exchange swaps the items.
+  function retLaunch(kind) {
+    ret = { pin: '', sale: null, lines: [], cash: 0, allowShort: false, timer: null, mode: 'sale', free: [], method: 'cash', exch: null, kind: kind };
+    retSetMethod('cash');
+    var x = kind === 'exchange';
+    $('ret-pin-for').textContent = 'A' + (x ? 'n exchange' : ' return') + " needs the administrator's approval.";
+    $('ret-free-label').textContent = "Can't find the sale? " + (x ? 'Exchange' : 'Return') + ' without an invoice';
+    document.querySelector('#ret-done-step .done-check i').className = x ? 'bi bi-arrow-left-right' : 'bi bi-arrow-return-left';
     $('ret-pin').value = ''; $('ret-pin-error').textContent = '';
-    if (P.can.returns) {   // a role that may process returns: no PIN
+    if (P.can.returns) {   // a role that may process returns: no PIN (an exchange is a return plus a sale)
       api(P.urls.returnPin, { pin: '' }).then(function () { retFind(); modals['m-return'].show(); }).catch(function (er) { msg(er.error || 'Failed', true); });
     } else { retStep('pin'); modals['m-return'].show(); setTimeout(function () { $('ret-pin').focus(); }, 300); }
-  });
+  }
+  $('btn-returns').addEventListener('click', function (e) { e.preventDefault(); retLaunch('return'); });
+  $('btn-exchange').addEventListener('click', function (e) { e.preventDefault(); retLaunch('exchange'); });
   function retPinOk() {
     var pin = $('ret-pin').value.trim();
     api(P.urls.returnPin, { pin: pin }).then(function () { ret.pin = pin; retFind(); })
@@ -670,7 +678,7 @@
   });
   function retOpen(id) {
     api(P.urls.returnSale + '&id=' + id).then(function (j) {
-      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; ret.mode = 'sale'; ret.free = []; retSetMethod('cash'); exchUi(false); $('ret-ok').textContent = 'Record return';
+      ret.sale = j.sale; ret.lines = j.lines; ret.allowShort = false; ret.mode = 'sale'; ret.free = []; retSetMethod('cash'); exchUi(ret.kind === 'exchange'); retOkLabel();
       retMode('sale');
       $('ret-inv').textContent = j.sale.invoice_no; $('ret-meta').textContent = '· ' + j.sale.date + ' · ' + (j.sale.customer || 'Walk-in') + ' · ' + money(j.sale.total);
       var body = $('ret-lines'); body.innerHTML = '';
@@ -689,6 +697,7 @@
       });
       $('ret-reason').value = ''; $('ret-error').textContent = '';
       retRefill(); retStep('sale');
+      if (ret.kind === 'exchange') { setTimeout(function () { $('exch-q').focus(); }, 100); }
     }).catch(function (er) { if (er.needs_pin) { retStep('pin'); } msg(er.error || 'Failed', true); });
   }
   $('ret-back').addEventListener('click', retFind);
@@ -700,7 +709,7 @@
   // the items; each is refunded at today's retail price of its unit, or at a lower price typed by hand, never more.
   // The till's customer, if one is chosen, gets the refund off their debt first, like any return.
   $('ret-free').addEventListener('click', function () {
-    ret.mode = 'free'; ret.sale = null; ret.lines = []; ret.free = []; ret.allowShort = false; retSetMethod('cash'); exchUi(false); $('ret-ok').textContent = 'Record return';
+    ret.mode = 'free'; ret.sale = null; ret.lines = []; ret.free = []; ret.allowShort = false; retSetMethod('cash'); exchUi(ret.kind === 'exchange'); retOkLabel();
     $('ret-inv').textContent = 'No invoice'; $('ret-meta').textContent = '· returned by item · ' + (customer ? customer.name : 'Walk-in');
     retMode('free'); $('ret-lines').innerHTML = ''; $('ret-free-q').value = ''; $('ret-free-results').innerHTML = '';
     $('ret-reason').value = ''; $('ret-error').textContent = '';
@@ -763,8 +772,6 @@
     $('exch-box').hidden = !on; $('ret-method-col').hidden = on;
     if (on) { retSetMethod('cash'); $('exch-q').value = ''; $('exch-results').innerHTML = ''; exchRender(); }
   }
-  $('exch-on').addEventListener('click', function () { exchUi(true); retRefill(); setTimeout(function () { $('exch-q').focus(); }, 100); });
-  $('exch-off').addEventListener('click', function () { exchUi(false); $('ret-error').textContent = ''; retRefill(); });
   function exchPricedUnits(p) { return p.units.filter(function (u) { return unitPrice(u) !== null; }); }
   function exchSearch(q) {
     var list = $('exch-results'); list.innerHTML = ''; q = q.trim().toLowerCase(); if (!q) return [];
@@ -847,10 +854,16 @@
       var idle = ret.cash <= 0.004;
       $('ret-usd').disabled = $('ret-lbp').disabled = idle;
       if (idle) { $('ret-usd').value = ''; $('ret-lbp').value = ''; }
-      $('ret-sum').textContent = !total || !N ? (!total ? 'Type how many items come back.' : '') + (!N ? (total ? ' And scan' : 'Scan') + ' what he takes instead.' : '')
-        : 'Return ' + money(total) + ' · takes ' + money(N)
-          + (pays > 0.004 ? ' → he pays ' + money(pays)
-            : (debtX > 0.004 ? ' → debt reduced first ' + money(debtX) : '') + (give > 0.004 ? ' → give back ' + money(give) : (debtX > 0.004 ? '' : ' → nothing to pay')));
+      // say plainly who pays whom (Aya, 2026-11-07): green when the customer pays, amber when money leaves the drawer
+      if (!total || !N) {
+        $('ret-sum').textContent = (!total ? 'Type how many items come back.' : '') + (!N ? (total ? ' And scan' : 'Scan') + ' what he takes instead.' : '');
+      } else {
+        var who = pays > 0.004 ? '<b class="sum-pay">The customer pays you ' + money(pays) + '</b>'
+          : give > 0.004 ? '<b class="sum-give">You give the customer back ' + money(give) + '</b>'
+          : '<b class="sum-even">' + (debtX > 0.004 ? 'Nothing in cash' : 'Nothing to pay — an even swap') + '</b>';
+        $('ret-sum').innerHTML = 'Returns ' + money(total) + ' · takes ' + money(N) + ' — ' + who
+          + (debtX > 0.004 ? ' · his debt drops by ' + money(debtX) : '');
+      }
       return;
     }
     var debt = Math.min(owed || 0, total);
@@ -871,12 +884,12 @@
   }
   $('ret-method').querySelectorAll('button').forEach(function (b) {
     // back from Whish to Cash the boxes refill with the whole cash part, as they started (Aya, 2026-11-05)
-    b.addEventListener('click', function () { retSetMethod(b.dataset.method); ret.allowShort = false; $('ret-ok').textContent = 'Record return'; retRefill(); });
+    b.addEventListener('click', function () { retSetMethod(b.dataset.method); ret.allowShort = false; retOkLabel(); retRefill(); });
   });
-  $('ret-usd').addEventListener('input', function () { if (ret.method !== 'whish') { var rest = ret.cash - num(this.value); $('ret-lbp').value = rest > 0.004 ? groupDigits(String(roundLbp(rest * P.rate))) : ''; } ret.allowShort = false; $('ret-ok').textContent = 'Record return'; });
+  $('ret-usd').addEventListener('input', function () { if (ret.method !== 'whish') { var rest = ret.cash - num(this.value); $('ret-lbp').value = rest > 0.004 ? groupDigits(String(roundLbp(rest * P.rate))) : ''; } ret.allowShort = false; retOkLabel(); });
   $('ret-lbp').addEventListener('input', function () {
     groupField(this); var rest = Math.round((ret.cash - num(this.value) / P.rate) * 100) / 100;
-    $('ret-usd').value = rest > (P.step / 2) / P.rate ? rest.toFixed(2) : ''; ret.allowShort = false; $('ret-ok').textContent = 'Record return';
+    $('ret-usd').value = rest > (P.step / 2) / P.rate ? rest.toFixed(2) : ''; ret.allowShort = false; retOkLabel();
   });
   $('ret-ok').addEventListener('click', function () {
     var btn = this, items = [];

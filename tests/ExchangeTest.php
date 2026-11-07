@@ -116,7 +116,7 @@ return [
         $client->get('registers');
         $client->post('registers/bind', ['id' => $s['register']]);
         $till = $client->get('pos')->body;
-        assert_contains('He takes something else instead', $till);
+        assert_contains('id="btn-exchange"', $till, 'the Exchange tab next to Returns');
         assert_contains('id="exch-box"', $till);
         $r = $client->postJson('pos/exchange', ['sale_id' => $s['sale'], 'items' => [['sale_item_id' => $s['item'], 'qty' => '1', 'condition' => 'restock']],
             'new_lines' => [['product_id' => $s['grape'], 'unit_id' => $s['grapeP'], 'qty' => '1']],
@@ -126,5 +126,13 @@ return [
         assert_same(['3.00', '3.00', '3.00'], [$j['return_value'], $j['new_total'], $j['exchanged_usd']]);
         assert_contains('RTN-', $j['return_no']);
         assert_contains('INV-', $j['invoice_no']);
+        // the invoice says it was an exchange (Aya, 2026-11-07): what came back, its value, and that it paid for the goods
+        $saleId = (int) Database::pdo()->query('SELECT id FROM sales WHERE invoice_no = ' . Database::pdo()->quote($j['invoice_no']))->fetchColumn();
+        $paper = $client->get('sales/receipt', ['id' => $saleId])->body;
+        assert_contains('*** EXCHANGE ***', $paper);
+        assert_contains($j['return_no'], $paper);
+        assert_contains('Nakhla Mint', $paper, 'the returned item is on the invoice');
+        assert_contains('Returned value', $paper);
+        assert_contains('Paid by returned goods', $paper, 'the credit row is named, not shown as plain cash');
     },
 ];

@@ -46,9 +46,16 @@ final class SaleController extends Controller
         $credit = (float) $onCredit > 0 && $sale['customer_id'] !== null && $sale['status'] === 'completed'
             ? ['usd' => $onCredit, 'balance' => (new \App\Models\Customer())->balanceAfterSale((int) $sale['customer_id'], (int) $sale['id'])]
             : null;
+        // An exchange's invoice says so (Aya, 2026-11-07): what came back, its value, and that it paid for the goods.
+        $returns = new SaleReturn();
+        $pair = $sale['notes'] === 'Exchange: taken against a return' ? $returns->forExchange((string) $sale['invoice_no']) : null;
+        $exchange = $pair === null ? null : [
+            'return' => $pair, 'items' => $returns->items((int) $pair['id']), 'refunds' => $returns->refunds((int) $pair['id']),
+            'credit' => min((float) $pair['total_usd'], (float) $sale['total_usd']),
+        ];
         View::render('sales/receipt', [
             'pageTitle' => $sale['invoice_no'], 'sale' => $sale, 'items' => $sales->items((int) $sale['id']), 'payments' => $sales->payments((int) $sale['id']),
-            'credit' => $credit,
+            'credit' => $credit, 'exchange' => $exchange,
             'copy' => $this->query('copy') === '1', 'width' => $this->query('w') === '58' ? 'w58' : '', 'auto' => $this->query('auto') === '1',
         ], 'layouts/receipt');
     }

@@ -37,7 +37,14 @@ foreach ($items as $i) {
     <?php if ($discTotal > 0.004): ?><tr><td>Subtotal</td><td class="r"><?= usd($gross) ?></td></tr><tr><td>Discount</td><td class="r">-<?= usd($discTotal) ?></td></tr><?php endif; ?>
     <tr class="total"><td>TOTAL</td><td class="r"><?= usd($s['total_usd']) ?></td></tr>
     <tr class="total-lbp"><td></td><td class="r"><?= lbp(\App\Services\Money::roundLbp(\App\Services\Money::usdToLbp($s['total_usd'], (int) $s['exchange_rate']))) ?></td></tr>
-    <?php foreach ($payments as $p): ?><tr><td>Paid <?= e(pay_method_name($p['method'])) ?> <?= e($p['currency']) ?></td><td class="r"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td></tr><?php endforeach; ?>
+    <?php $exCredit = $exchange['credit'] ?? null; // the exchange's cash-in row reads what it really was: the returned goods ?>
+    <?php foreach ($payments as $p): ?>
+      <?php if ($exCredit !== null && $p['method'] === 'cash' && $p['currency'] === 'USD' && abs((float) $p['amount'] - $exCredit) < 0.005): $exCredit = null; ?>
+        <tr><td>Paid by returned goods</td><td class="r"><?= usd($p['amount']) ?></td></tr>
+      <?php else: ?>
+        <tr><td>Paid <?= e(pay_method_name($p['method'])) ?> <?= e($p['currency']) ?></td><td class="r"><?= $p['currency'] === 'USD' ? usd($p['amount']) : lbp($p['amount']) ?></td></tr>
+      <?php endif; ?>
+    <?php endforeach; ?>
     <?php if ((float) $s['change_usd'] > 0): ?><tr><td>Change USD</td><td class="r"><?= usd($s['change_usd']) ?></td></tr><?php endif; ?>
     <?php if ((int) $s['change_lbp'] > 0): ?><tr><td>Change LBP</td><td class="r"><?= lbp($s['change_lbp']) ?></td></tr><?php endif; ?>
     <tr><td>Rate</td><td class="r">1 USD = <?= number_format((int) $s['exchange_rate']) ?> LBP</td></tr>
@@ -50,6 +57,21 @@ foreach ($items as $i) {
       <tr><td><b>Balance owed</b></td><td class="r"><b><?= usd($credit['balance']) ?></b></td></tr>
     </table>
     <div class="receipt-sign">Customer signature: ____________</div>
+  <?php endif; ?>
+  <?php if ($exchange !== null): $x = $exchange; ?>
+    <div class="rule"></div>
+    <div class="c big">*** EXCHANGE ***</div>
+    <div class="c">Returned · <?= e($x['return']['return_no']) ?></div>
+    <table>
+      <?php foreach ($x['items'] as $i): ?>
+        <tr><td dir="auto"><?= e($i['product_name']) ?> <?= e(rtrim(rtrim($i['qty'], '0'), '.')) ?> <?= e($i['unit_name']) ?></td><td class="r"><?= usd($i['refund_usd']) ?></td></tr>
+      <?php endforeach; ?>
+      <tr class="total"><td>Returned value</td><td class="r"><?= usd($x['return']['total_usd']) ?></td></tr>
+      <?php $skip = $x['credit']; foreach ($x['refunds'] as $f): ?>
+        <?php if ($skip !== null && $f['method'] === 'cash' && $f['currency'] === 'USD' && abs((float) $f['amount'] - $skip) < 0.005) { $skip = null; continue; } // the part that paid for the goods above ?>
+        <tr><td><?= $f['method'] === 'debt_reduction' ? 'Debt reduced' : 'Given back ' . e($f['currency']) ?></td><td class="r"><?= $f['currency'] === 'USD' ? usd($f['amount']) : lbp($f['amount']) ?></td></tr>
+      <?php endforeach; ?>
+    </table>
   <?php endif; ?>
   <div class="rule"></div>
   <div class="c" dir="auto"><?= e(setting('receipt_footer', 'Thank you for your visit!')) ?></div>

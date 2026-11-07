@@ -37,6 +37,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
       <a href="<?= url('sales') ?>" title="Sales"><i class="bi bi-receipt"></i><span>Sales</span></a>
       <a href="#" id="btn-expense" role="button" title="Pay an expense from this drawer"><i class="bi bi-cash-stack"></i><span>Expense</span></a>
       <a href="#" id="btn-returns" role="button" title="Return items from a sale"><i class="bi bi-arrow-return-left"></i><span>Returns</span></a>
+      <a href="#" id="btn-exchange" role="button" title="He brings items back and takes others instead"><i class="bi bi-arrow-left-right"></i><span>Exchange</span></a>
       <a class="exit" href="<?= url('dashboard') ?>" title="Exit"><i class="bi bi-box-arrow-left"></i><span>Exit</span></a>
     </nav>
   </header>
@@ -225,7 +226,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
   <div class="modal-body">
     <div id="ret-pin-step" class="pos-split" hidden>
       <div>
-        <p class="pin-for">A return needs the administrator's approval.</p>
+        <p class="pin-for" id="ret-pin-for">A return needs the administrator's approval.</p>
         <label class="form-label" for="ret-pin">Administrator's PIN</label>
         <input class="form-control pin-mask ret-pin" id="ret-pin" type="text" inputmode="numeric" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="6">
         <p class="pin-error" id="ret-pin-error" role="alert"></p>
@@ -235,7 +236,7 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
     <div id="ret-find-step" hidden>
       <label class="form-label" for="ret-q">Find the sale</label>
       <input class="form-control" id="ret-q" dir="auto" autocomplete="off" placeholder="Customer name, item, phone or invoice number">
-      <div class="ret-noinv"><button type="button" class="btn btn-link btn-sm" id="ret-free"><i class="bi bi-receipt-cutoff"></i> Can't find the sale? Return without an invoice</button></div>
+      <div class="ret-noinv"><button type="button" class="btn btn-link btn-sm" id="ret-free"><i class="bi bi-receipt-cutoff"></i> <span id="ret-free-label">Can't find the sale? Return without an invoice</span></button></div>
       <div class="list-group ret-results" id="ret-results"></div>
     </div>
     <div id="ret-sale-step" class="pos-split" hidden>
@@ -250,9 +251,9 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
         <thead id="ret-free-head" hidden><tr><th>Item</th><th style="width:12rem">Unit</th><th style="width:7rem">Qty</th><th style="width:8rem">Price (USD)</th><th style="width:12rem">Condition</th><th style="width:3rem"></th></tr></thead>
         <tbody id="ret-lines"></tbody>
       </table></div>
-      <?php // an exchange (Aya, 2026-11-06): he takes something else instead; one record, the drawer nets to the difference ?>
+      <?php // an exchange (Aya, 2026-11-06; its own tab since 2026-11-07): he takes something else instead; one record, the drawer nets to the difference ?>
       <div class="ret-exch mt-2" id="exch-box" hidden>
-        <div class="ret-head"><b>He takes instead</b> <button type="button" class="btn btn-link btn-sm" id="exch-off">Cancel the exchange</button></div>
+        <div class="ret-head"><b>He takes instead</b></div>
         <input class="form-control" id="exch-q" dir="auto" autocomplete="off" placeholder="Scan or type the item he takes">
         <div class="list-group ret-results" id="exch-results"></div>
         <div class="table-responsive"><table class="table ret-table">
@@ -271,7 +272,6 @@ try { if (localStorage.getItem('pos.theme') === 'light') { document.body.setAttr
         <div class="col-md-3" id="ret-lbp-col"><label class="form-label" for="ret-lbp" id="ret-lbp-label">Give back in LBP</label><input class="form-control" id="ret-lbp" inputmode="numeric" placeholder="0"></div>
         <div class="col-md-6"><label class="form-label" for="ret-reason">Reason</label><input class="form-control" id="ret-reason" dir="auto" maxlength="255" placeholder="e.g. wrong flavour"></div>
       </div>
-      <div class="ret-noinv"><button type="button" class="btn btn-link btn-sm" id="exch-on"><i class="bi bi-arrow-left-right"></i> He takes something else instead</button></div>
       <p class="pin-error mt-2" id="ret-error" role="alert"></p>
       </div>
       <?php require APP_PATH . '/Views/pos/_keypad.php'; ?>

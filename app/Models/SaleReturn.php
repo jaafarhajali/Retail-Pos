@@ -26,6 +26,13 @@ final class SaleReturn extends Model
         return $this->fetchAll(self::SELECT . ' WHERE r.sale_id = :s ORDER BY r.id', ['s' => $saleId]);
     }
 
+    /** The return half of an exchange: its reason carries the new sale's invoice number (ExchangeService). */
+    public function forExchange(string $invoiceNo): ?array
+    {
+        return $this->fetch(self::SELECT . ' WHERE r.reason = :p OR r.reason LIKE :q ORDER BY r.id DESC LIMIT 1',
+            ['p' => 'Exchange with ' . $invoiceNo, 'q' => 'Exchange with ' . $invoiceNo . ' · %']);
+    }
+
     public function items(int $returnId): array
     {
         return $this->fetchAll(
