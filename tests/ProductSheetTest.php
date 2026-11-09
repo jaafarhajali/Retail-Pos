@@ -44,26 +44,23 @@ return [
         assert_contains('name="Products"', $workbook);
 
         $sheet = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
-        assert_contains('Units the system has', $sheet);
+        assert_contains('How you can sell something (column C)', $sheet);
         foreach (array_keys(ProductService::UNIT_TYPES) as $unit) {
-            assert_contains('>' . $unit . '<', $sheet, 'every unit type the system accepts is listed: ' . $unit);
+            assert_contains('>' . $unit . '<', $sheet, 'every way the system can sell is listed: ' . $unit);
         }
-        assert_contains('you write it: Box of 6 = 6, Box 10kg = 10000', $sheet, 'and how a sized unit is written');
-        assert_contains('>Tobacco<', $sheet, 'the categories too');
+        assert_contains('write what is inside it in column D', $sheet, 'and what to do for a Box, Pack …');
+        assert_not_contains('Tobacco', $sheet, 'no category of the system on the sheet');
         assert_not_contains('Nakhla Double Apple', $sheet, 'no existing product on the sheet');
         assert_not_contains('28.00', $sheet, 'nor its prices');
-        assert_contains('<dataValidation type="list"', $sheet, 'dropdowns for category, unit name, base unit and yes/no');
-        assert_contains('&quot;piece,g,ml&quot;', $sheet);
-        // the layout is fixed: title, blank, "How to fill" + 7 steps, blank, units heading + header + 11 unit types, blank,
-        // "Your products", header, 2 examples, then the 200 yellow lines (rows 30-229). Excel refused "B1:B0" on 2026-11-10.
-        assert_contains('sqref="B30:B229"', $sheet, 'the dropdowns cover exactly the yellow lines');
-        assert_contains('sqref="M30:N229"', $sheet);
-        assert_contains('<formula1>$A$14:$A$24</formula1>', $sheet, 'the unit dropdown points at the 11 listed unit types');
-        assert_contains('<formula1>$E$14:$E$14</formula1>', $sheet, 'the category dropdown points at the one listed category');
-        assert_contains('<selection activeCell="A30"', $sheet, 'the cursor starts on the first yellow line');
-        assert_contains('Stock now in Shop', $sheet);
-        assert_contains('Stock now in Warehouse', $sheet);
-        assert_contains('Other units it is also sold in', $sheet);
+        assert_same(1, substr_count($sheet, '<dataValidation '), 'one dropdown only: how you sell it');
+        // the layout is fixed: title, blank, 5 steps, blank, units heading + header + 11 ways to sell, blank,
+        // "My products", header, 2 examples, then the 200 yellow lines (rows 27-226). Excel refused "B1:B0" on 2026-11-10.
+        assert_contains('sqref="C27:C226"', $sheet, 'the dropdown covers exactly the yellow lines');
+        assert_contains('<formula1>$A$11:$A$21</formula1>', $sheet, 'and points at the 11 listed ways to sell');
+        assert_contains('<selection activeCell="A27"', $sheet, 'the cursor starts on the first yellow line');
+        assert_contains('How many in the Shop now', $sheet);
+        assert_contains('How many in the Warehouse now', $sheet);
+        assert_contains('Also sold as (other units and their prices)', $sheet);
         $zip->close();
         unlink($out);
     },
