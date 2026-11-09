@@ -54,6 +54,13 @@ return [
         assert_not_contains('28.00', $sheet, 'nor its prices');
         assert_contains('<dataValidation type="list"', $sheet, 'dropdowns for category, unit name, base unit and yes/no');
         assert_contains('&quot;piece,g,ml&quot;', $sheet);
+        // the layout is fixed: title, blank, "How to fill" + 7 steps, blank, units heading + header + 11 unit types, blank,
+        // "Your products", header, 2 examples, then the 200 yellow lines (rows 30-229). Excel refused "B1:B0" on 2026-11-10.
+        assert_contains('sqref="B30:B229"', $sheet, 'the dropdowns cover exactly the yellow lines');
+        assert_contains('sqref="M30:N229"', $sheet);
+        assert_contains('<formula1>$A$14:$A$24</formula1>', $sheet, 'the unit dropdown points at the 11 listed unit types');
+        assert_contains('<formula1>$E$14:$E$14</formula1>', $sheet, 'the category dropdown points at the one listed category');
+        assert_contains('<selection activeCell="A30"', $sheet, 'the cursor starts on the first yellow line');
         assert_contains('Stock now in Shop', $sheet);
         assert_contains('Stock now in Warehouse', $sheet);
         assert_contains('Other units it is also sold in', $sheet);

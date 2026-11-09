@@ -48,7 +48,9 @@ $COLS = 16;
 $rows = [];
 $heights = [];
 $merge = [];
-$last = static fn (): int => count($rows);   // the row number of the last row added (1-based)
+$last = static function () use (&$rows): int {   // the row number of the last row added (1-based)
+    return count($rows);
+};
 
 $text = static function (string $s, int $style = 4) use (&$rows, &$heights, &$merge, $COLS): void {
     $rows[] = [[$s, $style]];
