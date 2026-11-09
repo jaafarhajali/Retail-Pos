@@ -1,7 +1,7 @@
 <?php $c = $count; $open = $c['status'] === 'open'; $entered = 0; $gain = 0.0; $loss = 0.0; ?>
 <div class="toolbar">
   <p class="toolbar-note"><span class="badge <?= ['open' => 'text-bg-success', 'confirmed' => 'text-bg-secondary', 'cancelled' => 'text-bg-danger'][$c['status']] ?>"><?= e($c['status']) ?></span>
-    started <?= e(date('d/m/Y H:i', strtotime($c['started_at']))) ?> by <?= e($c['started_by_name']) ?><?= $c['confirmed_at'] ? ' · confirmed ' . e(date('d/m/Y H:i', strtotime($c['confirmed_at']))) . ' by ' . e($c['confirmed_by_name']) : '' ?></p>
+    <?= $c['location_name'] !== null ? '<b dir="auto">' . e($c['location_name']) . '</b> · ' : '' ?>started <?= e(date('d/m/Y H:i', strtotime($c['started_at']))) ?> by <?= e($c['started_by_name']) ?><?= $c['confirmed_at'] ? ' · confirmed ' . e(date('d/m/Y H:i', strtotime($c['confirmed_at']))) . ' by ' . e($c['confirmed_by_name']) : '' ?></p>
   <div class="toolbar-actions">
     <?php // the hand-out count sheet (Aya, 2026-11-07): the helper fills the paper, the owner types it in after ?>
     <a class="btn btn-outline-primary" href="<?= url('counts/print', ['id' => $c['id']]) ?>" target="_blank"><i class="bi bi-printer"></i> Print count sheet</a>

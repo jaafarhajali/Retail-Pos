@@ -8,8 +8,9 @@ use App\Core\Model;
 /** Stocktaking (spec §3.4, §12). */
 final class StockCount extends Model
 {
-    private const SELECT = 'SELECT c.*, u1.username AS started_by_name, u2.username AS confirmed_by_name, cat.name AS category_name FROM stock_counts c
-                            JOIN users u1 ON u1.id = c.started_by LEFT JOIN users u2 ON u2.id = c.confirmed_by LEFT JOIN categories cat ON cat.id = c.category_id';
+    private const SELECT = 'SELECT c.*, u1.username AS started_by_name, u2.username AS confirmed_by_name, cat.name AS category_name, loc.name AS location_name FROM stock_counts c
+                            JOIN users u1 ON u1.id = c.started_by LEFT JOIN users u2 ON u2.id = c.confirmed_by LEFT JOIN categories cat ON cat.id = c.category_id
+                            LEFT JOIN locations loc ON loc.id = c.location_id';
 
     public function find(int $id): ?array
     {
@@ -26,10 +27,10 @@ final class StockCount extends Model
         return $this->fetch(self::SELECT . " WHERE c.status = 'open' ORDER BY c.id DESC LIMIT 1");
     }
 
-    public function create(string $countNo, string $scope, ?int $categoryId, int $userId, ?string $note): int
+    public function create(string $countNo, string $scope, ?int $categoryId, int $userId, ?string $note, ?int $locationId = null): int
     {
-        $this->execute('INSERT INTO stock_counts (count_no, scope, category_id, started_by, note) VALUES (:n, :s, :c, :u, :o)',
-            ['n' => $countNo, 's' => $scope, 'c' => $categoryId, 'u' => $userId, 'o' => $note]);
+        $this->execute('INSERT INTO stock_counts (count_no, scope, location_id, category_id, started_by, note) VALUES (:n, :s, :l, :c, :u, :o)',
+            ['n' => $countNo, 's' => $scope, 'l' => $locationId, 'c' => $categoryId, 'u' => $userId, 'o' => $note]);
 
         return $this->lastId();
     }
@@ -42,9 +43,15 @@ final class StockCount extends Model
 
     public function lines(int $countId): array
     {
+        // the "now" column follows the count's own location (2026-11-09): counting the shop compares with the shop
         return $this->fetchAll(
-            'SELECT l.*, p.name AS product_name, p.internal_code, p.base_unit, p.stock_base AS current_base FROM stock_count_lines l
-             JOIN products p ON p.id = l.product_id WHERE l.count_id = :c ORDER BY p.name',
+            'SELECT l.*, p.name AS product_name, p.internal_code, p.base_unit,
+                    COALESCE(ps.stock_base, 0) AS current_base
+             FROM stock_count_lines l
+             JOIN stock_counts c ON c.id = l.count_id
+             JOIN products p ON p.id = l.product_id
+             LEFT JOIN product_stocks ps ON ps.product_id = p.id AND ps.location_id = c.location_id
+             WHERE l.count_id = :c ORDER BY p.name',
             ['c' => $countId]
         );
     }

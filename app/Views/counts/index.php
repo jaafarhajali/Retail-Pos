@@ -11,6 +11,7 @@
         <p class="text-muted small">Expected quantities are snapshotted now. Selling continues; on confirm, only the difference you found is applied to the current stock.</p>
         <form method="post" action="<?= url('counts/start') ?>">
           <?= csrf_field() ?>
+          <div class="mb-2"><label class="form-label" for="count-location">Where</label><select class="form-select" id="count-location" name="location_id"><?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>" <?= (int) $l['is_default_sale'] === 1 ? 'selected' : '' ?> dir="auto"><?= e($l['name']) ?></option><?php endforeach; ?></select></div>
           <div class="mb-2"><label class="form-label" for="scope">What to count</label><select class="form-select" name="scope" id="scope"><option value="all">All products</option><option value="category">One category</option></select></div>
           <div class="mb-2"><label class="form-label" for="count-category">Category <span class="text-muted fw-normal">(for one category)</span></label><select class="form-select" id="count-category" name="category_id"><option value="0">— category —</option><?php foreach ($categories as $c): ?><option value="<?= (int) $c['id'] ?>" dir="auto"><?= e($c['name']) ?></option><?php endforeach; ?></select></div>
           <div class="mb-3"><label class="form-label" for="count-note">Note <span class="text-muted fw-normal">(optional)</span></label><input class="form-control" id="count-note" name="note" dir="auto" placeholder="e.g. month end"></div>

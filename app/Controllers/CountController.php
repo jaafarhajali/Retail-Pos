@@ -17,13 +17,14 @@ final class CountController extends Controller
     public function index(): void
     {
         $counts = new StockCount();
-        $this->render('counts/index', ['open' => $counts->openCount(), 'recent' => $counts->recent(), 'categories' => (new Category())->all(true)], 'Stocktaking');
+        $this->render('counts/index', ['open' => $counts->openCount(), 'recent' => $counts->recent(), 'categories' => (new Category())->all(true),
+            'locations' => (new \App\Models\Location())->all(true)], 'Stocktaking');
     }
 
     public function start(): void
     {
         try {
-            $id = (new CountService())->start($this->input('scope'), $this->inputInt('category_id'), $this->input('note'), Auth::id());
+            $id = (new CountService())->start($this->input('scope'), $this->inputInt('category_id'), $this->input('note'), Auth::id(), $this->inputInt('location_id') ?: null);
         } catch (\DomainException $e) {
             $this->failBack('counts', [], ['form' => $e->getMessage()]);
         }

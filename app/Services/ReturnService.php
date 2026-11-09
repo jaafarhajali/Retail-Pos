@@ -303,11 +303,12 @@ final class ReturnService
                                     'customer_id' => $customerId, 'total_usd' => $totalUsd, 'rounding_usd' => $rounding, 'exchange_rate' => $rate,
                                     'reason' => trim($reason) ?: null]);
             $stock = new StockService();
+            $loc = (int) (new \App\Models\Location())->forRegister($registerId)['id'];   // back onto this till's floor (2026-11-09)
             foreach ($lines as $l) {
                 $returns->addItem($id, $l);
-                $stock->move($l['product_id'], $l['base_qty'], 'return_restock', null, $l['cost_per_base'], 'return', $id, $userId, $sessionId);
+                $stock->move($l['product_id'], $l['base_qty'], 'return_restock', null, $l['cost_per_base'], 'return', $id, $userId, $sessionId, $loc);
                 if ($l['item_condition'] === 'waste') {
-                    $stock->move($l['product_id'], -$l['base_qty'], 'waste', 'returned-damaged', $l['cost_per_base'], 'return', $id, $userId, $sessionId);
+                    $stock->move($l['product_id'], -$l['base_qty'], 'waste', 'returned-damaged', $l['cost_per_base'], 'return', $id, $userId, $sessionId, $loc);
                 }
             }
 

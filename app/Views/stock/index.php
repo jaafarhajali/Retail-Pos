@@ -11,14 +11,23 @@
     <?php if ($canAdjust): ?><a class="btn btn-primary filters-end" href="<?= url('stock/adjust', $filters['product_id'] ? ['product_id' => $filters['product_id']] : []) ?>"><i class="bi bi-plus-slash-minus"></i> Adjust stock</a><?php endif; ?>
   </div>
 </form>
+<?php if ($byPlace !== null): ?>
+  <div class="alert alert-light border d-flex flex-wrap gap-3 align-items-center">
+    <b>Stock by place:</b>
+    <?php foreach ($byPlace as $place => $qty): ?><span dir="auto"><?= e($place) ?> <b><?= number_format($qty) ?></b></span><?php endforeach; ?>
+    <span class="text-muted">(total <?= number_format(array_sum($byPlace)) ?>)</span>
+    <a class="ms-auto" href="<?= url('transfers') ?>">Move between places</a>
+  </div>
+<?php endif; ?>
 <div class="card"><div class="table-responsive">
   <table class="table table-hover align-middle">
-    <thead><tr><th>When</th><th>Product</th><th>Type</th><th class="text-end">Change</th><th>Reason / ref</th><?php if ($showCost): ?><th class="text-end">Cost / base</th><?php endif; ?><th>By</th></tr></thead>
+    <thead><tr><th>When</th><th>Product</th><th>Place</th><th>Type</th><th class="text-end">Change</th><th>Reason / ref</th><?php if ($showCost): ?><th class="text-end">Cost / base</th><?php endif; ?><th>By</th></tr></thead>
     <tbody>
     <?php foreach ($pg['rows'] as $m): ?>
       <tr>
         <td class="text-nowrap"><?= e(date('d/m/Y H:i', strtotime($m['created_at']))) ?></td>
         <td dir="auto"><?= e($m['product_name']) ?><span class="cell-sub"><code><?= e($m['internal_code']) ?></code></span></td>
+        <td dir="auto" class="text-nowrap"><?= e($m['location_name'] ?? '') ?></td>
         <td class="text-nowrap"><?= e(\App\Models\StockMovement::LABELS[$m['type']] ?? ucfirst(str_replace('_', ' ', $m['type']))) ?></td>
         <td class="text-end text-nowrap <?= (int) $m['base_qty'] < 0 ? 'text-danger' : 'text-success' ?>"><?= (int) $m['base_qty'] > 0 ? '+' : '' ?><?= number_format((int) $m['base_qty']) ?> <?= e($m['base_unit']) ?></td>
         <td dir="auto"><?= e($m['reason'] ?? '') ?><?= $m['ref_type'] ? ' <span class="text-muted">' . e($m['ref_type'] . ' #' . $m['ref_id']) . '</span>' : '' ?></td>

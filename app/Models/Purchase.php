@@ -7,8 +7,9 @@ use App\Core\Model;
 
 final class Purchase extends Model
 {
-    private const SELECT = 'SELECT p.*, s.name AS supplier_name, u.username FROM purchases p
-                            LEFT JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN users u ON u.id = p.user_id';
+    private const SELECT = 'SELECT p.*, s.name AS supplier_name, u.username, l.name AS location_name FROM purchases p
+                            LEFT JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN users u ON u.id = p.user_id
+                            LEFT JOIN locations l ON l.id = p.location_id';
 
     public function find(int $id): ?array
     {
@@ -48,10 +49,10 @@ final class Purchase extends Model
     public function create(array $f): int
     {
         $this->execute(
-            'INSERT INTO purchases (purchase_no, supplier_id, supplier_invoice_ref, purchase_date, total_usd, discount_usd, paid_now_usd, notes, user_id, session_id)
-             VALUES (:no, :s, :ref, :d, :t, :disc, :paid, :n, :u, :ses)',
+            'INSERT INTO purchases (purchase_no, supplier_id, location_id, supplier_invoice_ref, purchase_date, total_usd, discount_usd, paid_now_usd, notes, user_id, session_id)
+             VALUES (:no, :s, :l, :ref, :d, :t, :disc, :paid, :n, :u, :ses)',
             [
-                'no' => $f['purchase_no'], 's' => $f['supplier_id'], 'ref' => $f['supplier_invoice_ref'], 'd' => $f['purchase_date'],
+                'no' => $f['purchase_no'], 's' => $f['supplier_id'], 'l' => $f['location_id'] ?? null, 'ref' => $f['supplier_invoice_ref'], 'd' => $f['purchase_date'],
                 't' => $f['total_usd'], 'disc' => $f['discount_usd'] ?? '0.00', 'paid' => $f['paid_now_usd'], 'n' => $f['notes'], 'u' => $f['user_id'], 'ses' => $f['session_id'],
             ]
         );

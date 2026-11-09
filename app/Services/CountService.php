@@ -12,7 +12,7 @@ use App\Models\StockCount;
 /** Stocktaking (spec §12): snapshot, count by unit, apply the difference to the current stock. */
 final class CountService
 {
-    public function start(string $scope, int $categoryId, string $note, int $userId): int
+    public function start(string $scope, int $categoryId, string $note, int $userId, ?int $locationId = null): int
     {
         $counts = new StockCount();
         if ($counts->openCount() !== null) {
@@ -22,17 +22,23 @@ final class CountService
         if ($scope === 'category' && $categoryId <= 0) {
             throw new \DomainException('Choose the category to count.');
         }
+        // a count belongs to ONE location since 2026-11-09: counting the shop does not force counting the warehouse
+        $locations = new \App\Models\Location();
+        $location = $locationId === null ? $locations->defaultSale()
+            : ($locations->find($locationId) ?? throw new \DomainException('Choose the place to count.'));
 
-        return Database::transaction(function () use ($counts, $scope, $categoryId, $note, $userId): int {
+        return Database::transaction(function () use ($counts, $scope, $categoryId, $note, $userId, $location): int {
             $no = Counter::format('CNT-', Counter::next('count'));
-            $id = $counts->create($no, $scope, $scope === 'category' ? $categoryId : null, $userId, trim($note) ?: null);
-            $sql = 'SELECT id, stock_base, cost_per_base FROM products WHERE is_active = 1' . ($scope === 'category' ? ' AND category_id = :c' : '');
+            $id = $counts->create($no, $scope, $scope === 'category' ? $categoryId : null, $userId, trim($note) ?: null, (int) $location['id']);
+            $sql = 'SELECT p.id, COALESCE(ps.stock_base, 0) AS stock_base, p.cost_per_base FROM products p
+                    LEFT JOIN product_stocks ps ON ps.product_id = p.id AND ps.location_id = :l
+                    WHERE p.is_active = 1' . ($scope === 'category' ? ' AND p.category_id = :c' : '');
             $stmt = Database::pdo()->prepare($sql);
-            $stmt->execute($scope === 'category' ? ['c' => $categoryId] : []);
+            $stmt->execute(['l' => (int) $location['id']] + ($scope === 'category' ? ['c' => $categoryId] : []));
             foreach ($stmt->fetchAll() as $p) {
                 $counts->addLine($id, (int) $p['id'], (int) $p['stock_base'], $p['cost_per_base']);
             }
-            Audit::log('stocktake.started', 'stock_count', $id, ['no' => $no, 'scope' => $scope]);
+            Audit::log('stocktake.started', 'stock_count', $id, ['no' => $no, 'scope' => $scope, 'location' => $location['name']]);
 
             return $id;
         });
@@ -102,7 +108,8 @@ final class CountService
                 if ($diff === 0) {
                     continue;
                 }
-                $stock->move((int) $l['product_id'], $diff, 'stocktake', $count['count_no'], $l['cost_per_base'], 'stock_count', $countId, $userId, null);
+                $stock->move((int) $l['product_id'], $diff, 'stocktake', $count['count_no'], $l['cost_per_base'], 'stock_count', $countId, $userId, null,
+                    $count['location_id'] !== null ? (int) $count['location_id'] : null);
                 $value = $diff * (float) $l['cost_per_base'];
                 $value > 0 ? $gain += $value : $loss += -$value;
                 $applied++;

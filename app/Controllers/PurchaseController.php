@@ -28,7 +28,8 @@ final class PurchaseController extends Controller
     {
         $products = (new Product())->forPrint();
         $units = (new ProductUnit())->forProducts(array_map('intval', array_column($products, 'id')));
-        $this->render('purchases/create', ['suppliers' => (new Supplier())->all(true), 'products' => $products, 'unitsById' => $units], 'New purchase');
+        $this->render('purchases/create', ['suppliers' => (new Supplier())->all(true), 'products' => $products, 'unitsById' => $units,
+            'locations' => (new \App\Models\Location())->all(true), 'receiveId' => (int) (new \App\Models\Location())->defaultReceive()['id']], 'New purchase');
     }
 
     public function store(): void
@@ -45,7 +46,7 @@ final class PurchaseController extends Controller
         }
         try {
             $id = (new PurchaseService())->create($this->inputInt('supplier_id') ?: null, $this->input('supplier_invoice_ref'), $this->input('purchase_date'), $lines,
-                $this->input('paid_now'), 'outside', $this->input('notes'), Auth::id(), $this->input('discount'));
+                $this->input('paid_now'), 'outside', $this->input('notes'), Auth::id(), $this->input('discount'), $this->inputInt('location_id') ?: null);
         } catch (\DomainException $e) {
             $this->failBack('purchases/create', [], ['form' => $e->getMessage()]);
         }

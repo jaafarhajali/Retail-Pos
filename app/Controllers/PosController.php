@@ -52,6 +52,13 @@ final class PosController extends Controller
     {
         $products = (new Product())->forPrint();
         $units = (new ProductUnit())->forProducts(array_map('intval', array_column($products, 'id')));
+        // the till's numbers are ITS floor's stock (2026-11-09), not the total with the warehouse
+        $register = \App\Core\RegisterDevice::current();
+        $floor = (new \App\Models\Location())->forRegister($register === null ? null : (int) $register['id']);
+        $atFloor = [];
+        foreach (\App\Core\Database::pdo()->query('SELECT product_id, stock_base FROM product_stocks WHERE location_id = ' . (int) $floor['id']) as $r) {
+            $atFloor[(int) $r['product_id']] = (int) $r['stock_base'];
+        }
         $barcodes = [];
         foreach (\App\Core\Database::pdo()->query('SELECT b.barcode, b.product_unit_id, u.product_id FROM barcodes b JOIN product_units u ON u.id = b.product_unit_id') as $b) {
             $barcodes[$b['barcode']] = ['p' => (int) $b['product_id'], 'u' => (int) $b['product_unit_id']];
@@ -60,7 +67,7 @@ final class PosController extends Controller
         foreach ($products as $p) {
             $out[] = [
                 'id' => (int) $p['id'], 'name' => $p['name'], 'code' => $p['internal_code'], 'cat' => (int) ($p['category_id'] ?? 0), 'color' => $p['category_color'],
-                'grid' => (int) $p['show_on_pos_grid'] === 1, 'base' => $p['base_unit'], 'stock' => (int) $p['stock_base'], 'override' => (int) $p['allow_price_override'] === 1,
+                'grid' => (int) $p['show_on_pos_grid'] === 1, 'base' => $p['base_unit'], 'stock' => $atFloor[(int) $p['id']] ?? 0, 'override' => (int) $p['allow_price_override'] === 1,
                 'img' => ProductImageService::url($p['image_file']),
                 'units' => array_values(array_map(static fn (array $u): array => [
                     'id' => (int) $u['id'], 'name' => $u['name'], 'factor' => (int) $u['factor'], 'fraction' => (int) $u['allows_fraction'] === 1,

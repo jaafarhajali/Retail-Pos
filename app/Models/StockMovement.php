@@ -12,6 +12,7 @@ final class StockMovement extends Model
     public const LABELS = [
         'opening' => 'Opening stock', 'purchase' => 'Purchase', 'sale' => 'Sale', 'sale_void' => 'Cancelled sale',
         'return_restock' => 'Returned to stock', 'waste' => 'Thrown away', 'adjustment' => 'Manual adjustment', 'stocktake' => 'Stocktaking',
+        'transfer' => 'Transfer between locations',
     ];
 
     /** @return list<string> the movement types that really occurred, in LABELS order */
@@ -24,18 +25,29 @@ final class StockMovement extends Model
 
     public function add(array $f): int
     {
+        // since 2026-11-09 every movement says WHERE it happened; products.stock_base stays the total
+        $location = (int) ($f['location_id'] ?? 0);
+        if ($location <= 0) {
+            throw new \DomainException('Every stock movement needs a location.');
+        }
         $this->execute(
-            'INSERT INTO stock_movements (product_id, base_qty, type, reason, cost_per_base, ref_type, ref_id, user_id, session_id)
-             VALUES (:p, :q, :t, :r, :c, :rt, :ri, :u, :s)',
+            'INSERT INTO stock_movements (product_id, location_id, base_qty, type, reason, cost_per_base, ref_type, ref_id, user_id, session_id)
+             VALUES (:p, :l, :q, :t, :r, :c, :rt, :ri, :u, :s)',
             [
-                'p' => $f['product_id'], 'q' => $f['base_qty'], 't' => $f['type'], 'r' => $f['reason'] ?? null,
+                'p' => $f['product_id'], 'l' => $location, 'q' => $f['base_qty'], 't' => $f['type'], 'r' => $f['reason'] ?? null,
                 'c' => $f['cost_per_base'], 'rt' => $f['ref_type'] ?? null, 'ri' => $f['ref_id'] ?? null,
                 'u' => $f['user_id'] ?? null, 's' => $f['session_id'] ?? null,
             ]
         );
+        $id = $this->lastId();
         $this->execute('UPDATE products SET stock_base = stock_base + :q WHERE id = :p', ['q' => $f['base_qty'], 'p' => $f['product_id']]);
+        $this->execute(
+            'INSERT INTO product_stocks (product_id, location_id, stock_base) VALUES (:p, :l, :q)
+             ON DUPLICATE KEY UPDATE stock_base = stock_base + VALUES(stock_base)',
+            ['p' => $f['product_id'], 'l' => $location, 'q' => $f['base_qty']]
+        );
 
-        return $this->lastId();
+        return $id;
     }
 
     /** Lock the product row and return its current stock and cost. */
@@ -78,8 +90,8 @@ final class StockMovement extends Model
         $w = implode(' AND ', $where);
 
         return $this->paginate(
-            "SELECT m.*, p.name AS product_name, p.base_unit, p.internal_code, u.username FROM stock_movements m
-             JOIN products p ON p.id = m.product_id LEFT JOIN users u ON u.id = m.user_id WHERE {$w} ORDER BY m.id DESC",
+            "SELECT m.*, p.name AS product_name, p.base_unit, p.internal_code, u.username, l.name AS location_name FROM stock_movements m
+             JOIN products p ON p.id = m.product_id LEFT JOIN users u ON u.id = m.user_id LEFT JOIN locations l ON l.id = m.location_id WHERE {$w} ORDER BY m.id DESC",
             "SELECT COUNT(*) FROM stock_movements m WHERE {$w}",
             $params, $page, 50
         );

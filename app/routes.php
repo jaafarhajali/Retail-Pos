@@ -15,6 +15,8 @@ use App\Controllers\CustomerController;
 use App\Controllers\DashboardController;
 use App\Controllers\ExchangeController;
 use App\Controllers\ExchangeRateController;
+use App\Controllers\LocationController;
+use App\Controllers\TransferController;
 use App\Controllers\ExpenseController;
 use App\Controllers\PosController;
 use App\Controllers\PriceController;
@@ -145,6 +147,13 @@ return [
     // Phase 8 — reports (each type checks its own key in the controller)
     ['GET',  'reports',          [ReportController::class, 'index'], Router::AUTH],
     // Phase 9 — stocktaking
+    // Locations and transfers (2026-11-09): stock lives in places; transfers move it between them
+    ['POST', 'registers/location', [RegisterController::class, 'setLocation'], 'register.manage'],
+    ['GET',  'transfers',        [TransferController::class, 'index'],  'stock.transfer'],
+    ['POST', 'transfers/store',  [TransferController::class, 'store'],  'stock.transfer'],
+    ['GET',  'locations',        [LocationController::class, 'index'],  'settings.manage'],
+    ['POST', 'locations/store',  [LocationController::class, 'store'],  'settings.manage'],
+    ['POST', 'locations/update', [LocationController::class, 'update'], 'settings.manage'],
     ['GET',  'counts',           [CountController::class, 'index'],   'stocktake.manage'],
     ['POST', 'counts/start',     [CountController::class, 'start'],   'stocktake.manage'],
     ['GET',  'counts/view',      [CountController::class, 'view'],    'stocktake.manage'],

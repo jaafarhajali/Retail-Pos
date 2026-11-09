@@ -14,12 +14,23 @@
 </form>
 <div class="card"><div class="table-responsive">
   <table class="table align-middle m-0">
-    <thead><tr><th>Register</th><th>Status</th><th>In use by</th><th>Device linked</th><th></th></tr></thead>
+    <thead><tr><th>Register</th><th>Status</th><th>Sells from</th><th>In use by</th><th>Device linked</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($registers as $r): $isThis = $current !== null && (int) $current['id'] === (int) $r['id']; $s = $inUse[(int) $r['id']] ?? null; ?>
       <tr>
         <td dir="auto"><?= e($r['name']) ?><?= $isThis ? '<span class="cell-sub"><span class="badge text-bg-success">This device</span></span>' : '' ?></td>
         <td><?= (int) $r['is_active'] ? 'Active' : '<span class="badge text-bg-secondary">Deactivated</span>' ?></td>
+        <td>
+          <?php if (count($locations) > 1): // only one shop: nothing to choose (2026-11-09) ?>
+            <form method="post" action="<?= url('registers/location') ?>" class="d-inline-flex gap-1">
+              <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+              <select class="form-select form-select-sm" name="location_id" style="max-width: 10rem" aria-label="Sells from">
+                <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>" <?= (int) ($r['location_id'] ?? $defaultSaleId) === (int) $l['id'] ? 'selected' : '' ?> dir="auto"><?= e($l['name']) ?></option><?php endforeach; ?>
+              </select>
+              <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
+            </form>
+          <?php else: ?><span dir="auto"><?= e($locations[0]['name'] ?? '') ?></span><?php endif; ?>
+        </td>
         <td>
           <?php if ($s !== null): ?>
             <a href="<?= url('sessions/view', ['id' => $s['id']]) ?>" dir="auto"><?= e($s['full_name']) ?></a><span class="cell-sub text-nowrap"><?= e($s['session_no']) ?> since <?= e(date('d/m H:i', strtotime($s['opened_at']))) ?></span>

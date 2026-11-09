@@ -175,7 +175,8 @@ final class SaleService
         }
 
         $stockService = new StockService();
-        $result = Database::transaction(function () use ($in, $lines, $payments, $customer, $level, $subtotal, $invoiceDiscount, $total, $rounding, $rate, $changeUsd, $changeLbp, $stockService, $credit, &$warnings, $needsPin, $approver): array {
+        $saleLocation = (new \App\Models\Location())->forRegister((int) $in['register_id']);   // this till's floor (2026-11-09)
+        $result = Database::transaction(function () use ($in, $lines, $payments, $customer, $level, $subtotal, $invoiceDiscount, $total, $rounding, $rate, $changeUsd, $changeLbp, $stockService, $saleLocation, $credit, &$warnings, $needsPin, $approver): array {
             $no = Counter::format('INV-', Counter::next('invoice'));
             $sales = new Sale();
             $saleId = $sales->create([
@@ -185,12 +186,13 @@ final class SaleService
                 'cost_total_usd' => Money::fmt(array_sum(array_map(static fn (array $l): float => (float) $l['line_cost_usd'], $lines))),
                 'exchange_rate' => $rate, 'change_usd' => $changeUsd, 'change_lbp' => $changeLbp, 'notes' => trim((string) ($in['notes'] ?? '')) ?: null,
             ]);
+            $locations = new \App\Models\Location();
             foreach ($lines as $l) {
                 $sales->addItem($saleId, $l);
-                if ($l['stock_base'] - $l['base_qty'] < 0) {
-                    $warnings[] = $l['product_name'] . ' is now below zero stock.';
+                if ($locations->stockAt((int) $l['product_id'], (int) $saleLocation['id']) - $l['base_qty'] < 0) {
+                    $warnings[] = $l['product_name'] . ' is now below zero stock at ' . $saleLocation['name'] . '.';
                 }
-                $stockService->move($l['product_id'], -$l['base_qty'], 'sale', null, $l['cost_per_base'], 'sale', $saleId, $in['user_id'], $in['session_id']);
+                $stockService->move($l['product_id'], -$l['base_qty'], 'sale', null, $l['cost_per_base'], 'sale', $saleId, $in['user_id'], $in['session_id'], (int) $saleLocation['id']);
             }
             $cash = new CashSession();
             foreach ($payments as $p) {

@@ -35,7 +35,7 @@ if (APP_ENV === 'production') {
 }
 
 /** Tables left untouched. Everything else is emptied. */
-$keep = ['migrations', 'users', 'roles', 'permissions', 'role_permissions', 'registers', 'settings', 'exchange_rates'];
+$keep = ['migrations', 'users', 'roles', 'permissions', 'role_permissions', 'registers', 'locations', 'settings', 'exchange_rates'];
 if ($keepProducts) {
     $keep = [...$keep, 'categories', 'products', 'product_units', 'barcodes'];
 }

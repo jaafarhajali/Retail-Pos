@@ -18,6 +18,10 @@ $selected = (int) old('product_id', $productId);
     <div class="row g-2 mb-3">
       <div class="col-6"><label class="form-label" for="qty">Quantity</label><input class="form-control" id="qty" name="qty" inputmode="decimal" required placeholder="2 or -2.5" value="<?= old('qty') ?>"></div>
       <div class="col-6"><label class="form-label" for="unit_id">Unit</label><select class="form-select" id="unit_id" name="unit_id"></select></div>
+      <div class="col-6"><label class="form-label" for="adj-location">Where</label>
+        <select class="form-select" id="adj-location" name="location_id">
+          <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>" <?= (int) old('location_id', (string) $saleId) === (int) $l['id'] ? 'selected' : '' ?> dir="auto"><?= e($l['name']) ?></option><?php endforeach; ?>
+        </select></div>
     </div>
     <div class="mb-3"><label class="form-label" for="reason">Reason</label>
       <input class="form-control" id="reason" name="reason" list="reasons" dir="auto" maxlength="100" value="<?= old('reason') ?>" placeholder="damaged, lost, found…">

@@ -8,7 +8,7 @@ $c = $count;
   .fill-unit { margin-right: 1.1rem; white-space: nowrap; }
 </style>
 <h1 class="h4 mb-0" dir="auto"><?= e(setting('shop_name', APP_NAME)) ?> — Count sheet <?= e($c['count_no']) ?></h1>
-<p class="text-muted small mb-2">Started <?= e(date('d/m/Y H:i', strtotime($c['started_at']))) ?> by <?= e($c['started_by_name']) ?> · <?= count($lines) ?> product(s)</p>
+<p class="text-muted small mb-2"><?= $c['location_name'] !== null ? 'Count of ' . e($c['location_name']) . ' · ' : '' ?>Started <?= e(date('d/m/Y H:i', strtotime($c['started_at']))) ?> by <?= e($c['started_by_name']) ?> · <?= count($lines) ?> product(s)</p>
 <p class="mb-3">Counted by: <span class="fill-box" style="width: 12rem"></span>&nbsp;&nbsp; Date: <span class="fill-box" style="width: 7rem"></span></p>
 <table class="table table-sm table-bordered m-0">
   <thead><tr><th style="width: 2.2rem">#</th><th style="width: 7rem">Code</th><th>Product</th><th style="width: 45%">Counted — write what you see</th></tr></thead>

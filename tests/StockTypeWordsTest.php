@@ -20,7 +20,7 @@ return [
     },
 
     'every movement type has its words, and the filter lists only the types that happened' => function (): void {
-        assert_same(['opening', 'purchase', 'sale', 'sale_void', 'return_restock', 'waste', 'adjustment', 'stocktake'], array_keys(StockMovement::LABELS));
+        assert_same(['opening', 'purchase', 'sale', 'sale_void', 'return_restock', 'waste', 'adjustment', 'stocktake', 'transfer'], array_keys(StockMovement::LABELS));
         assert_same('Returned to stock', StockMovement::LABELS['return_restock']);
         assert_same([], (new StockMovement())->typesUsed(), 'nothing happened yet');
         $p = make_product('Nakhla');

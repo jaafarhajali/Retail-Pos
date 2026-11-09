@@ -13,6 +13,10 @@ foreach ($unitsById as $pid => $units) {
           <?php foreach ($suppliers as $s): ?><option value="<?= (int) $s['id'] ?>" <?= (int) old('supplier_id') === (int) $s['id'] ? 'selected' : '' ?> dir="auto"><?= e($s['name']) ?></option><?php endforeach; ?></select></div>
       <div class="col-md-3"><label class="form-label" for="supplier_invoice_ref">Supplier invoice ref</label><input class="form-control" id="supplier_invoice_ref" name="supplier_invoice_ref" maxlength="60" value="<?= old('supplier_invoice_ref') ?>"></div>
       <div class="col-md-2"><label class="form-label" for="purchase_date">Date</label><input class="form-control" id="purchase_date" type="date" name="purchase_date" value="<?= old('purchase_date', date('Y-m-d')) ?>" required></div>
+      <div class="col-md-3"><label class="form-label" for="location_id">Deliver to</label>
+        <select class="form-select" id="location_id" name="location_id">
+          <?php foreach ($locations as $l): ?><option value="<?= (int) $l['id'] ?>" <?= (int) old('location_id', (string) $receiveId) === (int) $l['id'] ? 'selected' : '' ?> dir="auto"><?= e($l['name']) ?></option><?php endforeach; ?>
+        </select></div>
       <div class="col-md-3"><label class="form-label" for="notes">Notes</label><input class="form-control" id="notes" name="notes" dir="auto" value="<?= old('notes') ?>"></div>
     </div>
   </div></div>

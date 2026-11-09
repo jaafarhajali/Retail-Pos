@@ -6,6 +6,7 @@
         <dt>Date</dt><dd><?= e(date('d/m/Y', strtotime($purchase['purchase_date']))) ?></dd>
         <dt>Supplier</dt><dd dir="auto"><?= $purchase['supplier_id'] ? '<a href="' . url('suppliers/edit', ['id' => $purchase['supplier_id']]) . '">' . e($purchase['supplier_name']) . '</a>' : '—' ?></dd>
         <dt>Supplier ref</dt><dd><?= e($purchase['supplier_invoice_ref'] ?? '—') ?></dd>
+        <?php if ($purchase['location_name'] !== null): ?><dt>Delivered to</dt><dd dir="auto"><?= e($purchase['location_name']) ?></dd><?php endif; ?>
         <?php if ((float) ($purchase['discount_usd'] ?? 0) > 0.004): ?>
           <dt>Subtotal</dt><dd><?= usd((float) $purchase['total_usd'] + (float) $purchase['discount_usd']) ?></dd>
           <dt>Discount</dt><dd>−<?= usd($purchase['discount_usd']) ?></dd>

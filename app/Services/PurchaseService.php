@@ -18,7 +18,7 @@ final class PurchaseService
      * @param array<int, array{product_id: int, unit_id: int, qty: string, unit_cost: string}> $lines
      * @return int purchase id
      */
-    public function create(?int $supplierId, string $ref, string $date, array $lines, string $paidNow, string $paidFrom, string $notes, int $userId, string $discount = ''): int
+    public function create(?int $supplierId, string $ref, string $date, array $lines, string $paidNow, string $paidFrom, string $notes, int $userId, string $discount = '', ?int $locationId = null): int
     {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             throw new \DomainException('Choose the purchase date.');
@@ -74,18 +74,23 @@ final class PurchaseService
         }
         // A supplier is never paid from the drawer (owner, 2026-10-09): "paid now" always comes from outside, so no cash session is touched.
         $sessionId = null;
+        // Where the delivery lands (2026-11-09): the chosen place, or the receiving default (the warehouse)
+        $locations = new \App\Models\Location();
+        $location = $locationId === null || $locationId <= 0 ? $locations->defaultReceive()
+            : ($locations->find($locationId) ?? throw new \DomainException('Choose where the delivery goes.'));
 
-        return Database::transaction(function () use ($supplier, $ref, $date, $prepared, $totalUsd, $discountUsd, $paid, $notes, $userId, $sessionId): int {
+        return Database::transaction(function () use ($supplier, $ref, $date, $prepared, $totalUsd, $discountUsd, $paid, $notes, $userId, $sessionId, $location): int {
             $no = Counter::format('PUR-', Counter::next('purchase'));
             $purchases = new Purchase();
             $id = $purchases->create([
                 'purchase_no' => $no, 'supplier_id' => $supplier === null ? null : (int) $supplier['id'], 'supplier_invoice_ref' => $ref === '' ? null : mb_substr($ref, 0, 60),
                 'purchase_date' => $date, 'total_usd' => $totalUsd, 'discount_usd' => $discountUsd, 'paid_now_usd' => $paid, 'notes' => $notes === '' ? null : $notes, 'user_id' => $userId, 'session_id' => $sessionId,
+                'location_id' => (int) $location['id'],
             ]);
             $stock = new StockService();
             foreach ($prepared as $line) {
                 $purchases->addItem($id, $line);
-                $stock->purchase($line['product_id'], $line['base_qty'], $line['cost_per_base'], $id, $userId);
+                $stock->purchase($line['product_id'], $line['base_qty'], $line['cost_per_base'], $id, $userId, (int) $location['id']);
             }
             if ($supplier !== null) {
                 $suppliers = new Supplier();

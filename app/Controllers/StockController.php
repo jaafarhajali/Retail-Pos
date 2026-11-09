@@ -27,6 +27,8 @@ final class StockController extends Controller
             'pg' => (new StockMovement())->search($filters, max(1, $this->queryInt('page', 1))), 'filters' => $filters,
             'products' => (new Product())->forPrint(), 'types' => (new StockMovement())->typesUsed(),   // only what really happened, in real words (2026-10-22)
             'showCost' => Gate::allows('product.view_cost'), 'canAdjust' => Gate::allows('stock.adjust'),
+            // where this product sits right now (2026-11-09): Shop 7 · Warehouse 40
+            'byPlace' => $filters['product_id'] > 0 ? (new \App\Models\Location())->stockOf($filters['product_id']) : null,
         ], 'Stock movements');
     }
 
@@ -36,6 +38,7 @@ final class StockController extends Controller
         $this->render('stock/adjust', [
             'products' => $products, 'unitsById' => (new ProductUnit())->forProducts(array_map('intval', array_column($products, 'id'))),
             'reasons' => StockService::REASONS, 'productId' => $this->queryInt('product_id'), 'showCost' => Gate::allows('product.view_cost'),
+            'locations' => (new \App\Models\Location())->all(true), 'saleId' => (int) (new \App\Models\Location())->defaultSale()['id'],
         ], 'Stock adjustment');
     }
 
@@ -43,7 +46,7 @@ final class StockController extends Controller
     {
         try {
             (new StockService())->adjust($this->inputInt('product_id'), $this->inputInt('unit_id'), $this->input('qty'), $this->input('type'), $this->input('reason'),
-                Gate::allows('product.view_cost') ? $this->input('unit_cost') : null, Auth::id());
+                Gate::allows('product.view_cost') ? $this->input('unit_cost') : null, Auth::id(), $this->inputInt('location_id') ?: null);
         } catch (\DomainException $e) {
             $this->failBack('stock/adjust', ['product_id' => $this->inputInt('product_id')], ['form' => $e->getMessage()]);
         }
