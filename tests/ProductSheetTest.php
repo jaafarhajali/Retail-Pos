@@ -6,9 +6,9 @@ use App\Services\ProductService;
 use App\Services\StockService;
 
 /**
- * 2026-11-09 (Aya): bin/product-sheet.php builds the Excel workbook the owner fills in with his
- * products. It must be a real .xlsx (a zip of well-formed XML parts), list what the system already
- * has so he adds only what is missing, and carry the dropdowns that keep his answers typeable.
+ * 2026-11-09 (Aya): bin/product-sheet.php builds the Excel the owner fills in with his products.
+ * 2026-11-10: one tab only, the unit names and categories the system knows (as dropdowns), and no
+ * existing product listed. It must be a real .xlsx (a zip of well-formed XML parts).
  */
 return [
     '__before' => function (): void {
@@ -16,13 +16,15 @@ return [
         Auth::login(TEST_ADMIN_ID);
     },
 
-    'the workbook opens as a zip, has the five sheets, lists the existing catalogue and carries the dropdowns' => function (): void {
+    'one sheet: the units and categories of the system are there to pick from, the existing products are not' => function (): void {
         $svc = new ProductService();
         $cat = (new \App\Models\Category())->create('Tobacco', '#6c757d', 1);
-        $p = make_product('Nakhla Mint', 'piece', $cat);
-        $piece = $svc->addUnit($p, 'Piece', '1', false, true);
-        $svc->setPrices($piece, '3.00', '2.50');
-        (new StockService())->adjust($p, $piece, '40', 'opening', '', '1', TEST_ADMIN_ID);
+        $p = make_product('Nakhla Double Apple', 'g', $cat);
+        $kg = $svc->addUnit($p, 'kg', '1000', false, true);
+        $svc->setPrices($kg, '30.00', '28.00');
+        $box = $svc->addUnit($p, 'Box', '10000', false, false);
+        $svc->setPrices($box, '280.00', '');
+        (new StockService())->adjust($p, $kg, '4', 'opening', '', '1', TEST_ADMIN_ID);
         $out = dirname(__DIR__) . '/storage/exports/test-products-sheet.xlsx';
         @unlink($out);
         exec(sprintf('"%s" "%s" "%s" 2>&1', PHP_BINARY, dirname(__DIR__) . '/bin/product-sheet.php', $out), $lines, $rc);   // RETAIL_POS_ENV=test is inherited
@@ -31,27 +33,30 @@ return [
 
         $zip = new ZipArchive();
         assert_same(true, $zip->open($out), 'it is a zip');
-        foreach (['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml',
-                  'xl/worksheets/sheet1.xml', 'xl/worksheets/sheet2.xml', 'xl/worksheets/sheet3.xml', 'xl/worksheets/sheet4.xml', 'xl/worksheets/sheet5.xml'] as $part) {
+        foreach (['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/worksheets/sheet1.xml'] as $part) {
             $xml = $zip->getFromName($part);
             assert_true($xml !== false, $part . ' is in the zip');
             assert_true(simplexml_load_string($xml) !== false, $part . ' is well-formed XML');
         }
+        assert_true($zip->getFromName('xl/worksheets/sheet2.xml') === false, 'there is no second sheet');
         $workbook = (string) $zip->getFromName('xl/workbook.xml');
-        foreach (['How to fill', 'Products', 'Units', 'Already in the system', 'Lists'] as $name) {
-            assert_contains('name="' . $name . '"', $workbook);
+        assert_same(1, substr_count($workbook, '<sheet '), 'one tab');
+        assert_contains('name="Products"', $workbook);
+
+        $sheet = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
+        assert_contains('Units the system has', $sheet);
+        foreach (array_keys(ProductService::UNIT_TYPES) as $unit) {
+            assert_contains('>' . $unit . '<', $sheet, 'every unit type the system accepts is listed: ' . $unit);
         }
-        $already = (string) $zip->getFromName('xl/worksheets/sheet4.xml');
-        assert_contains('Nakhla Mint', $already, 'the existing product is listed');
-        assert_contains('Piece = 1 piece (retail $3.00, wholesale $2.50)', $already, 'with its unit and prices');
-        assert_contains('40 Piece', $already, 'and its shop stock in its own unit');
-        $products = (string) $zip->getFromName('xl/worksheets/sheet2.xml');
-        assert_contains('<dataValidation type="list"', $products, 'dropdowns for category, base unit and yes/no');
-        assert_contains('Stock now in Shop', $products);
-        assert_contains('Stock now in Warehouse', $products);
-        $lists = (string) $zip->getFromName('xl/worksheets/sheet5.xml');
-        assert_contains('piece', $lists);
-        assert_contains('Tobacco', $lists, 'the test category sits in the dropdown list');
+        assert_contains('you write it: Box of 6 = 6, Box 10kg = 10000', $sheet, 'and how a sized unit is written');
+        assert_contains('>Tobacco<', $sheet, 'the categories too');
+        assert_not_contains('Nakhla Double Apple', $sheet, 'no existing product on the sheet');
+        assert_not_contains('28.00', $sheet, 'nor its prices');
+        assert_contains('<dataValidation type="list"', $sheet, 'dropdowns for category, unit name, base unit and yes/no');
+        assert_contains('&quot;piece,g,ml&quot;', $sheet);
+        assert_contains('Stock now in Shop', $sheet);
+        assert_contains('Stock now in Warehouse', $sheet);
+        assert_contains('Other units it is also sold in', $sheet);
         $zip->close();
         unlink($out);
     },
