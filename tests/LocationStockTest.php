@@ -112,11 +112,44 @@ return [
         assert_contains('TRF-', $page);
         assert_contains('weekend refill', $page);
         $locs = $c->get('locations')->body;
-        assert_contains('tills sell here', $locs);
-        assert_contains('deliveries arrive here', $locs);
+        assert_contains('Selling takes', $locs);
+        assert_contains('New purchases', $locs);
+        assert_contains('role="switch"', $locs, 'on/off is a switch, not an icon');
+        // the two jobs are picked with radios, and every action travels in a hidden field (2026-11-09):
+        // the "submit once" guard disables buttons, so a button's own value never reached the server
+        assert_contains('name="sale_location_id"', $locs);
+        assert_contains('name="receive_location_id"', $locs);
+        assert_contains('name="do" value="rename"', $locs);
+        assert_contains('name="do" value="delete"', $locs);
         $r = $c->post('locations/store', ['name' => 'Second warehouse', 'type' => 'warehouse']);
         assert_same(302, $r->status, $r->body);
         assert_contains('Second warehouse', $c->get('locations')->body);
+        $second = (int) Database::pdo()->query("SELECT id FROM locations WHERE name = 'Second warehouse'")->fetchColumn();
+        $r = $c->post('locations/update', ['id' => $second, 'do' => 'rename', 'name' => 'Nabatieh store']);
+        assert_same(302, $r->status, $r->body);
+        assert_contains('Nabatieh store', $c->get('locations')->body);
+        // both jobs are saved together, exactly one of each
+        $r = $c->post('locations/update', ['do' => 'defaults', 'sale_location_id' => $s['shop'], 'receive_location_id' => $second]);
+        assert_same(302, $r->status, $r->body);
+        assert_same([$s['shop'], $second, 1, 1], [
+            (int) Database::pdo()->query('SELECT id FROM locations WHERE is_default_sale = 1')->fetchColumn(),
+            (int) Database::pdo()->query('SELECT id FROM locations WHERE is_default_receive = 1')->fetchColumn(),
+            (int) Database::pdo()->query('SELECT COUNT(*) FROM locations WHERE is_default_sale = 1')->fetchColumn(),
+            (int) Database::pdo()->query('SELECT COUNT(*) FROM locations WHERE is_default_receive = 1')->fetchColumn(),
+        ]);
+        // the trash: a place still holding a job stays, an unused one goes for good
+        $c->post('locations/update', ['id' => $second, 'do' => 'delete']);
+        assert_contains('still in use', $c->get('locations')->body);
+        $c->post('locations/update', ['do' => 'defaults', 'sale_location_id' => $s['shop'], 'receive_location_id' => $s['wh']]);
+        $r = $c->post('locations/update', ['id' => $second, 'do' => 'delete']);
+        assert_same(302, $r->status, $r->body);
+        assert_contains('Nabatieh store deleted.', $c->get('locations')->body);
+        assert_same(0, (int) Database::pdo()->query("SELECT COUNT(*) FROM locations WHERE id = {$second}")->fetchColumn(), 'the unused place is gone');
+        // the Shop holds stock and does both jobs: neither the trash nor switching off takes it away
+        $c->post('locations/update', ['id' => $s['shop'], 'do' => 'deactivate']);
+        $page = $c->get('locations')->body;
+        assert_contains('still in use', $page);
+        assert_contains('Shop', $page);
         // the movements page names the place, and the per-product box sums the places
         $stock = $c->get('stock', ['product_id' => $s['p']])->body;
         assert_contains('Stock by place', $stock);

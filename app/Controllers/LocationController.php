@@ -37,21 +37,40 @@ final class LocationController extends Controller
     public function update(): void
     {
         $id = $this->inputInt('id');
+        $do = $this->input('do');
         $locations = new Location();
+        $message = 'Location updated.';
         try {
-            match ($this->input('do')) {
-                'rename' => $locations->rename($id, $this->input('name')),
-                'default_sale' => $locations->setDefault($id, 'sale'),
-                'default_receive' => $locations->setDefault($id, 'receive'),
-                'activate' => $locations->setActive($id, true),
-                'deactivate' => $locations->setActive($id, false),
-                default => throw new \DomainException('Unknown action.'),
-            };
+            switch ($do) {
+                case 'defaults':   // the two radio columns, saved together (2026-11-09)
+                    $locations->setDefaults($this->inputInt('sale_location_id'), $this->inputInt('receive_location_id'));
+                    $sale = $locations->defaultSale();
+                    $receive = $locations->defaultReceive();
+                    $message = 'Saved: the tills sell from ' . $sale['name'] . ', deliveries arrive at ' . $receive['name'] . '.';
+                    break;
+                case 'rename':
+                    $locations->rename($id, $this->input('name'));
+                    $message = 'Renamed.';
+                    break;
+                case 'activate':
+                    $locations->setActive($id, true);
+                    $message = 'Switched on.';
+                    break;
+                case 'deactivate':
+                    $locations->setActive($id, false);
+                    $message = 'Switched off: it stays out of the lists and keeps its history.';
+                    break;
+                case 'delete':
+                    $message = $locations->remove($id) . ' deleted.';
+                    break;
+                default:
+                    throw new \DomainException('Unknown action.');
+            }
         } catch (\DomainException $e) {
             $this->failBack('locations', [], ['form' => $e->getMessage()]);
         }
-        Audit::log('location.updated', 'location', $id, ['do' => $this->input('do'), 'name' => trim($this->input('name'))]);
-        Flash::set('success', 'Location updated.');
+        Audit::log('location.' . $do, 'location', $id, ['name' => trim($this->input('name')), 'result' => $message]);
+        Flash::set('success', $message);
         redirect('locations');
     }
 }
