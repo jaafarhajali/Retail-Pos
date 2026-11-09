@@ -23,12 +23,12 @@ final class RegisterController extends Controller
             'registers' => $registers,
             'current'   => RegisterDevice::current(),
             'inUse'     => $inUse,
-            'locations' => array_values(array_filter((new \App\Models\Location())->all(true), static fn (array $l): bool => $l['type'] === 'shop')),
+            'locations' => (new \App\Models\Location())->all(true),
             'defaultSaleId' => (int) (new \App\Models\Location())->defaultSale()['id'],
         ], 'Registers');
     }
 
-    /** Which shop floor this till sells from (2026-11-09); empty follows the default sale floor. */
+    /** Which place this till sells from (2026-11-09); empty follows the place ticked on Locations. */
     public function setLocation(): void
     {
         $id = $this->inputInt('id');
@@ -36,8 +36,8 @@ final class RegisterController extends Controller
         $location = null;
         if ($locationId > 0) {
             $location = (new \App\Models\Location())->find($locationId);
-            if ($location === null || (int) $location['is_active'] !== 1 || $location['type'] !== 'shop') {
-                $this->failBack('registers', [], ['form' => 'A register can only sell from an active shop.']);
+            if ($location === null || (int) $location['is_active'] !== 1) {
+                $this->failBack('registers', [], ['form' => 'A register can only sell from a place that is switched on.']);
             }
         }
         \App\Core\Database::pdo()->prepare('UPDATE registers SET location_id = ? WHERE id = ?')->execute([$locationId > 0 ? $locationId : null, $id]);

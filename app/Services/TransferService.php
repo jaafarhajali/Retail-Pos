@@ -44,14 +44,19 @@ final class TransferService
             if ($base <= 0) {
                 throw new \DomainException('Quantities must be above zero.');
             }
+            $product = (new \App\Models\Product())->find((int) $unit['product_id']);
             $moves[] = ['product_id' => (int) $unit['product_id'], 'base' => $base, 'base_unit' => $unit['base_unit'],
-                        'name' => $unit['product_name'], 'qty' => $qtyText, 'unit' => $unit['name']];
+                        'name' => $unit['product_name'], 'qty' => $qtyText, 'unit' => $unit['name'],
+                        'min' => $product['min_stock_base'] === null ? 0 : (int) $product['min_stock_base'],
+                        'units' => (new \App\Models\ProductUnit())->forProducts([(int) $unit['product_id']])[(int) $unit['product_id']] ?? []];
         }
         if ($moves === []) {
             throw new \DomainException('Add at least one item to move.');
         }
 
-        return Database::transaction(function () use ($locations, $from, $to, $moves, $note, $userId): array {
+        $warnings = [];
+
+        return Database::transaction(function () use ($locations, $from, $to, $moves, $note, $userId, &$warnings): array {
             $no = Counter::format('TRF-', Counter::next('transfer'));
             Database::pdo()->prepare('INSERT INTO transfers (transfer_no, from_location_id, to_location_id, note, user_id) VALUES (?, ?, ?, ?, ?)')
                 ->execute([$no, (int) $from['id'], (int) $to['id'], trim($note) ?: null, $userId]);
@@ -64,13 +69,19 @@ final class TransferService
                 }
                 $stock->move($m['product_id'], -$m['base'], 'transfer', $no . ' → ' . $to['name'], null, 'transfer', $id, $userId, null, (int) $from['id']);
                 $stock->move($m['product_id'], $m['base'], 'transfer', $no . ' ← ' . $from['name'], null, 'transfer', $id, $userId, null, (int) $to['id']);
+                // the move is allowed, but say it out loud when the source drops under its low-stock level (Aya, 2026-11-09)
+                $left = $locations->stockAt($m['product_id'], (int) $from['id']);
+                if ($m['min'] > 0 && $left < $m['min']) {
+                    $warnings[] = $m['name'] . ': ' . $from['name'] . ' is left with ' . Quantity::format($left, $m['units'], $m['base_unit'])
+                        . ', under its low-stock level of ' . Quantity::format($m['min'], $m['units'], $m['base_unit']) . '.';
+                }
             }
             Audit::log('stock.transfer', 'transfer', $id, [
                 'transfer_no' => $no, 'from' => $from['name'], 'to' => $to['name'],
                 'items' => array_map(static fn (array $m): string => $m['qty'] . ' ' . $m['unit'] . ' ' . $m['name'], $moves),
             ]);
 
-            return ['id' => $id, 'transfer_no' => $no, 'lines' => count($moves)];
+            return ['id' => $id, 'transfer_no' => $no, 'lines' => count($moves), 'warnings' => $warnings];
         });
     }
 

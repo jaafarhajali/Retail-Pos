@@ -18,16 +18,23 @@ foreach ($locations as $l) {
       <?= csrf_field() ?><input type="hidden" name="do" value="defaults">
     </form>
     <div class="card"><div class="table-responsive"><table class="table align-middle loc-table">
+      <?php // the name is edited where the name is, so the row fits without sideways scrolling (Aya, 2026-11-09) ?>
       <thead><tr>
-        <th>Place</th><th class="text-end">Products with stock</th>
+        <th>Place</th><th class="text-end">Products<br>with stock</th>
         <th class="text-center">Selling takes<br>stock from here</th>
         <th class="text-center">New purchases<br>land here</th>
-        <th class="text-end">Rename</th><th class="text-center">On / off</th><th></th>
+        <th class="text-center">On / off</th><th></th>
       </tr></thead>
       <tbody><?php foreach ($locations as $l): $id = (int) $l['id']; $on = (int) $l['is_active'] === 1; $held = (int) ($stocked[$id] ?? 0); ?>
         <tr class="<?= $on ? '' : 'table-secondary' ?>">
-          <td dir="auto"><?= e($l['name']) ?>
-            <span class="cell-sub"><?= $l['type'] === 'shop' ? 'Shop' : 'Warehouse' ?><?= $on ? '' : ' · switched off' ?></span></td>
+          <td>
+            <form method="post" action="<?= url('locations/update') ?>" class="d-inline-flex gap-1">
+              <?= csrf_field() ?><input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="do" value="rename">
+              <input class="form-control form-control-sm" style="max-width: 9rem" name="name" dir="auto" value="<?= e($l['name']) ?>" aria-label="Name of <?= e($l['name']) ?>">
+              <button class="btn btn-sm btn-outline-secondary" type="submit">Rename</button>
+            </form>
+            <span class="cell-sub"><?= $l['type'] === 'shop' ? 'Shop' : 'Warehouse' ?><?= $on ? '' : ' · switched off' ?></span>
+          </td>
           <td class="text-end"><?= $held ?></td>
           <td class="text-center">
             <?php if ($on): ?>
@@ -38,13 +45,6 @@ foreach ($locations as $l) {
             <?php if ($on): ?>
               <input class="form-check-input" type="radio" form="defaults-form" name="receive_location_id" value="<?= $id ?>" <?= $id === $receiveId ? 'checked' : '' ?> aria-label="New purchases land at <?= e($l['name']) ?>">
             <?php else: ?><span class="text-muted">—</span><?php endif; ?>
-          </td>
-          <td class="text-end">
-            <form method="post" action="<?= url('locations/update') ?>" class="d-inline-flex gap-1">
-              <?= csrf_field() ?><input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="do" value="rename">
-              <input class="form-control form-control-sm" style="max-width: 10rem" name="name" dir="auto" value="<?= e($l['name']) ?>" aria-label="Name of <?= e($l['name']) ?>">
-              <button class="btn btn-sm btn-outline-secondary" type="submit">Rename</button>
-            </form>
           </td>
           <td class="text-center">
             <?php // a real on/off switch, not an icon (Aya, 2026-11-09): off hides the place and keeps its history ?>
@@ -68,12 +68,15 @@ foreach ($locations as $l) {
     </table></div>
     <div class="card-body border-top d-flex flex-wrap gap-2 align-items-center">
       <button class="btn btn-primary" type="submit" form="defaults-form"><i class="bi bi-check2"></i> Save the two choices</button>
-      <span class="text-muted">Pick one place in each of the two middle columns, then save.</span>
+      <span class="text-muted">One place in each of the two middle columns — a sale has to leave one place, and a delivery has to land in one.
+        Selling from <b>two</b> places at once? Give each till its own place on the <a href="<?= url('registers') ?>">Registers</a> page.</span>
     </div></div>
     <p class="form-text mt-2">
       <b>Selling takes stock from here</b> — when a cashier sells a box, the box leaves <em>this</em> place, and the till screen
-      shows <em>this</em> place's numbers. It is the shop shelf, so normally the Shop.
-      A single register can be pointed at another place on the <a href="<?= url('registers') ?>">Registers</a> page.<br>
+      shows <em>this</em> place's numbers. It is the shop shelf, so normally the Shop. Only one place can be ticked, because a
+      sold box has to come out of one place — but a till can be sent to <em>another</em> place on the
+      <a href="<?= url('registers') ?>">Registers</a> page, which is how two shops sell at the same time. This tick is the place
+      used by every till that was not sent anywhere.<br>
       <b>New purchases land here</b> — when the supplier delivers and you record the purchase, the goods go into <em>this</em>
       place unless the purchase's "Deliver to" box says another one. It is where deliveries are unloaded, so normally the Warehouse.<br>
       Between the two, stock moves only through <a href="<?= url('transfers') ?>">Transfers</a>: the warehouse receives, you carry

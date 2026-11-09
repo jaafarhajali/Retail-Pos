@@ -11,11 +11,12 @@
     <?php if ($canAdjust): ?><a class="btn btn-primary filters-end" href="<?= url('stock/adjust', $filters['product_id'] ? ['product_id' => $filters['product_id']] : []) ?>"><i class="bi bi-plus-slash-minus"></i> Adjust stock</a><?php endif; ?>
   </div>
 </form>
-<?php if ($byPlace !== null): ?>
+<?php if ($byPlace !== null && $placeOf !== null): ?>
+  <?php $say = static fn (int $base): string => \App\Services\Quantity::format($base, $placeUnits, $placeOf['base_unit']); ?>
   <div class="alert alert-light border d-flex flex-wrap gap-3 align-items-center">
     <b>Stock by place:</b>
-    <?php foreach ($byPlace as $place => $qty): ?><span dir="auto"><?= e($place) ?> <b><?= number_format($qty) ?></b></span><?php endforeach; ?>
-    <span class="text-muted">(total <?= number_format(array_sum($byPlace)) ?>)</span>
+    <?php foreach ($byPlace as $place => $qty): ?><span dir="auto"><?= e($place) ?> <b><?= e($say($qty)) ?></b></span><?php endforeach; ?>
+    <span class="text-muted">(total <?= e($say((int) array_sum($byPlace))) ?>)</span>
     <a class="ms-auto" href="<?= url('transfers') ?>">Move between places</a>
   </div>
 <?php endif; ?>

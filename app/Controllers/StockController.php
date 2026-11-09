@@ -27,8 +27,10 @@ final class StockController extends Controller
             'pg' => (new StockMovement())->search($filters, max(1, $this->queryInt('page', 1))), 'filters' => $filters,
             'products' => (new Product())->forPrint(), 'types' => (new StockMovement())->typesUsed(),   // only what really happened, in real words (2026-10-22)
             'showCost' => Gate::allows('product.view_cost'), 'canAdjust' => Gate::allows('stock.adjust'),
-            // where this product sits right now (2026-11-09): Shop 7 · Warehouse 40
+            // where this product sits right now (2026-11-09), in its own units: Shop 11 Box 10kg + 200 g
             'byPlace' => $filters['product_id'] > 0 ? (new \App\Models\Location())->stockOf($filters['product_id']) : null,
+            'placeOf' => $filters['product_id'] > 0 ? (new Product())->find($filters['product_id']) : null,
+            'placeUnits' => $filters['product_id'] > 0 ? (new ProductUnit())->forProducts([$filters['product_id']])[$filters['product_id']] ?? [] : [],
         ], 'Stock movements');
     }
 

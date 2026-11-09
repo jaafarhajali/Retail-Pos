@@ -71,6 +71,30 @@ return [
         assert_same(30, $at($s['p'], $s['wh']), 'the refused transfer moved nothing');
     },
 
+    // 2026-11-09 (Aya): "if the product is below the low stock let the transfer be done but warn, if out of stock don't let it"
+    'a transfer under the low-stock level is allowed with a warning; more than there is, is refused' => function () use ($setup, $at): void {
+        $s = $setup();
+        (new ProductService())->setMinStock($s['p'], '5', $s['u']);   // low-stock level: 5 Piece
+        (new StockService())->adjust($s['p'], $s['u'], '10', 'opening', '', '1', TEST_ADMIN_ID);
+        $transfers = new TransferService();
+        // 7 of 10 away: allowed, and it says the shop is left under its level
+        $r = $transfers->create($s['shop'], $s['wh'], [['product_id' => $s['p'], 'unit_id' => $s['u'], 'qty' => '7']], '', TEST_ADMIN_ID);
+        assert_same([3, 7], [$at($s['p'], $s['shop']), $at($s['p'], $s['wh'])], 'the move went through');
+        assert_same(1, count($r['warnings']));
+        assert_contains('under its low-stock level', $r['warnings'][0]);
+        assert_contains('Shop is left with 3 Piece', $r['warnings'][0]);
+        // what is not there cannot go: nothing moves and no transfer is recorded
+        $before = (int) Database::pdo()->query('SELECT COUNT(*) FROM transfers')->fetchColumn();
+        $e = assert_throws(DomainException::class, fn () => $transfers->create($s['shop'], $s['wh'], [['product_id' => $s['p'], 'unit_id' => $s['u'], 'qty' => '4']], '', TEST_ADMIN_ID));
+        assert_contains('cannot take more than what is there', $e->getMessage());
+        assert_same([3, 7], [$at($s['p'], $s['shop']), $at($s['p'], $s['wh'])], 'the refused move changed nothing');
+        assert_same($before, (int) Database::pdo()->query('SELECT COUNT(*) FROM transfers')->fetchColumn());
+        // a quiet transfer says nothing
+        (new StockService())->adjust($s['p'], $s['u'], '50', 'adjustment', 'restock', '1', TEST_ADMIN_ID);
+        $r = $transfers->create($s['shop'], $s['wh'], [['product_id' => $s['p'], 'unit_id' => $s['u'], 'qty' => '1']], '', TEST_ADMIN_ID);
+        assert_same([], $r['warnings']);
+    },
+
     'the till sells from the shop floor and warns about the SHOP going below zero, not the total' => function () use ($setup, $at): void {
         $s = $setup();
         (new StockService())->adjust($s['p'], $s['u'], '2', 'opening', '', '1', TEST_ADMIN_ID);          // shop: 2
@@ -84,6 +108,43 @@ return [
         ]);
         assert_contains('below zero stock at Shop', implode(' ', $sale['warnings']));
         assert_same([-1, 50], [$at($s['p'], $s['shop']), $at($s['p'], $s['wh'])], 'the warehouse is untouched');
+    },
+
+    // 2026-11-09 (Aya): "many branches selling from many tills but one warehouse, or the other way round"
+    'many branches, one warehouse: each till sells its own branch, the warehouse feeds them all' => function () use ($setup, $at, $total): void {
+        $s = $setup();
+        $locations = new Location();
+        $nabatieh = $locations->create('Nabatieh branch', 'shop');
+        $saida = $locations->create('Saida branch', 'shop');
+        // the whole delivery lands in the one warehouse
+        (new StockService())->adjust($s['p'], $s['u'], '100', 'opening', '', '1', TEST_ADMIN_ID, $s['wh']);
+        $transfers = new TransferService();
+        $transfers->create($s['wh'], $nabatieh, [['product_id' => $s['p'], 'unit_id' => $s['u'], 'qty' => '10']], 'to Nabatieh', TEST_ADMIN_ID);
+        $transfers->create($s['wh'], $saida, [['product_id' => $s['p'], 'unit_id' => $s['u'], 'qty' => '5']], 'to Saida', TEST_ADMIN_ID);
+        // one till per branch
+        $r1 = (new Register())->create('Nabatieh till');
+        $r2 = (new Register())->create('Saida till');
+        Database::pdo()->exec("UPDATE registers SET location_id = {$nabatieh} WHERE id = {$r1}");
+        Database::pdo()->exec("UPDATE registers SET location_id = {$saida} WHERE id = {$r2}");
+        // one cashier per branch: nobody holds two open tills at once
+        $cashier = (new \App\Services\UserService())->create('saida', 'Saida cashier', \App\Models\Role::CASHIER_ID, 'temp-pass-1');
+        $sell = static function (int $register, string $qty, int $by) use ($s): void {
+            $session = (new CashService())->open($register, $by, '100', '0');
+            (new SaleService())->complete([
+                'register_id' => $register, 'session_id' => $session, 'user_id' => $by, 'customer_id' => null, 'price_level' => 'retail',
+                'lines' => [['product_id' => $s['p'], 'unit_id' => $s['u'], 'qty' => $qty]], 'invoice_discount' => '',
+                'payments' => [['method' => 'cash', 'currency' => 'USD', 'amount' => '50']], 'change_currency' => 'USD', 'notes' => '', 'pin' => '',
+            ]);
+        };
+        $sell($r1, '2', TEST_ADMIN_ID);
+        $sell($r2, '1', $cashier);
+        assert_same([8, 4, 85, 0], [$at($s['p'], $nabatieh), $at($s['p'], $saida), $at($s['p'], $s['wh']), $at($s['p'], $s['shop'])],
+            'each branch loses only its own; the warehouse keeps the rest');
+        assert_same(97, $total($s['p']), '100 in, 3 sold');
+        // and the other way round: a second warehouse takes a delivery of its own
+        $second = $locations->create('Saida warehouse', 'warehouse');
+        (new PurchaseService())->create(null, '', date('Y-m-d'), [['product_id' => $s['p'], 'unit_id' => $s['u'], 'qty' => '20', 'unit_cost' => '2']], '', 'outside', '', TEST_ADMIN_ID, '', $second);
+        assert_same([20, 85], [$at($s['p'], $second), $at($s['p'], $s['wh'])], 'the delivery chose its own warehouse');
     },
 
     'a stocktake counts ONE place: confirming the shop count never touches the warehouse' => function () use ($setup, $at): void {
@@ -115,6 +176,7 @@ return [
         assert_contains('Selling takes', $locs);
         assert_contains('New purchases', $locs);
         assert_contains('role="switch"', $locs, 'on/off is a switch, not an icon');
+        assert_contains('Registers', $locs, 'two shops at once: the route to it is named where the question comes up');
         // the two jobs are picked with radios, and every action travels in a hidden field (2026-11-09):
         // the "submit once" guard disables buttons, so a button's own value never reached the server
         assert_contains('name="sale_location_id"', $locs);
@@ -150,9 +212,10 @@ return [
         $page = $c->get('locations')->body;
         assert_contains('still in use', $page);
         assert_contains('Shop', $page);
-        // the movements page names the place, and the per-product box sums the places
+        // the movements page names the place, and the per-product box reads in the product's own units (Aya, 2026-11-09)
         $stock = $c->get('stock', ['product_id' => $s['p']])->body;
         assert_contains('Stock by place', $stock);
         assert_contains('Warehouse', $stock);
+        assert_contains('30 Piece', $stock, 'the quantity carries its unit, not a bare number');
     },
 ];
