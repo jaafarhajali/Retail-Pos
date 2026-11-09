@@ -35,11 +35,12 @@ return [
         assert_contains('daily backup written: ', $line);
         assert_contains('USB copy: off', $line);
         assert_same(1, count(glob(BackupService::dir() . '/*-daily.zip') ?: []));
-        // the zip is named with today's real date, so "done for today" is judged on the real day; the fake day has none yet
-        assert_contains('nothing due', $svc->serviceTick(time() + 3600 * 24), 'nothing more today once a daily zip exists for the real date');
+        // the zip is named with today's real date, so "done for today" is judged on the real day: a later tick TODAY, past the set
+        // time, finds it and does nothing. (Not "tomorrow at this hour": after 21:30 that is a new day with a backup rightly due — 2026-11-09.)
+        assert_contains('nothing due', $svc->serviceTick((int) strtotime('today 23:59:30')), 'nothing more today once a daily zip exists for the real date');
     },
 
-    'the script runs one tick with --once and logs it; the Backups page says "service" when the installer set it' => function (): void {
+    'the script runs one tick with --once and logs it; the Backups page says "service" when the installer set it' => function () use ($clean): void {
         $log = STORAGE_PATH . '/logs/backup-service.log';
         @unlink($log);
         exec('"' . PHP_BINARY . '" "' . BASE_PATH . '/bin/backup-service.php" --once 2>&1', $out, $rc);
@@ -48,6 +49,8 @@ return [
         assert_true(is_file($log), 'the log exists');
         assert_contains('daily backup at 21:30', (string) file_get_contents($log));
 
+        // run after 21:30 the tick above really makes today's backup; the page below is about a shop where none ran yet
+        $clean();
         (new Setting())->setMany(['backup_runner' => 'service']);
         Settings::flush();
         assert_same('service', BackupService::runner());
