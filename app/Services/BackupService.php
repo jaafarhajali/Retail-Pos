@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Core\Database;
 use App\Core\Settings;
 use App\Models\Setting;
 
@@ -282,7 +283,10 @@ final class BackupService
         }
         $php = str_replace('/', '\\', PHP_BINARY);
         if (str_ends_with(strtolower($php), 'php-cgi.exe') || str_contains(strtolower($php), 'httpd')) {
-            $php = dirname($php) . '\\php.exe';   // called from the web server: the task must run the command-line php
+            $php = str_replace('/', '\\', PHP_BINDIR) . '\\php.exe';   // called from the web server: the task must run the command-line php (PHP's own folder, not Apache's)
+        }
+        if (!is_file($php)) {
+            return 'php.exe was not found at ' . $php . '; create the task by hand with bin/install-backup-tasks.php.';
         }
         foreach (self::taskCommands($php, str_replace('/', '\\', BASE_PATH . '/bin/backup.php')) as $cmd) {
             exec($cmd . ' 2>&1', $out, $rc);
@@ -300,6 +304,11 @@ final class BackupService
      */
     public function serviceTick(?int $now = null): string
     {
+        // The service process lives for days (bin/backup-service.php): without this it would keep the settings it read at boot
+        // (a time, a USB folder or a Google Drive connected since would go unseen) and a MySQL connection the server drops after
+        // its idle timeout ("server has gone away" on the first write of the night). Found in the review of 2026-11-10.
+        Settings::flush();
+        Database::disconnect();
         $kind = self::autoKind($now);
         if ($kind === null) {
             $retry = $this->retryDrive();

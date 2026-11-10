@@ -90,7 +90,13 @@ function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
   if (CurPageID = ShopPage.ID) and not IsUpdate then begin
-    if Length(ShopPage.Values[1]) < 8 then begin
+    if WizardSilent then begin
+      { /VERYSILENT never shows the page, yet Setup still passes through it: the command line stands in for the fields }
+      if Length(ExpandConstant('{param:AdminPassword|}')) < 8 then begin
+        Log('Silent install: /AdminPassword=... with at least 8 characters is required.');
+        Result := False;
+      end;
+    end else if Length(ShopPage.Values[1]) < 8 then begin
       MsgBox('The administrator password needs at least 8 characters.', mbError, MB_OK);
       Result := False;
     end else if ShopPage.Values[1] <> ShopPage.Values[2] then begin
@@ -111,6 +117,23 @@ function GetPass(Param: String): String;
 begin
   Result := ShopPage.Values[1];
   if Result = '' then Result := ExpandConstant('{param:AdminPassword|}');
+end;
+
+{ Before any file is replaced on an update: the three services hold httpd.exe, mysqld.exe, the PHP dlls and the backup
+  wrapper, so Setup would stop at the first "file in use" (found 2026-11-10). Stopped here with plain PowerShell, not
+  with the installed post-install.ps1, which may be an older version. post-install.ps1 starts them again afterwards. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Code: Integer;
+  Cmd: String;
+begin
+  Result := '';
+  if not IsUpdate then Exit;
+  WizardForm.StatusLabel.Caption := 'Stopping the services for the update...';
+  Cmd := '-NoProfile -ExecutionPolicy Bypass -Command "foreach ($n in @(''{#Product}Backup'', ''{#Product}Web'', ''{#Product}DB'')) { $s = Get-Service $n -ErrorAction SilentlyContinue; if ($s -and $s.Status -ne ''Stopped'') { Stop-Service $n -Force; $s.WaitForStatus(''Stopped'', ''00:01:30'') } }; exit 0"';
+  if not Exec('powershell.exe', Cmd, '', SW_HIDE, ewWaitUntilTerminated, Code) then Code := -1;
+  if Code <> 0 then
+    Result := 'The services of the installed program could not be stopped (code ' + IntToStr(Code) + '). Stop them in Windows Services and run the setup again.';
 end;
 
 { After the files are copied: the services, the database and the administrator, by post-install.ps1.

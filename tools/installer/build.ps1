@@ -28,7 +28,7 @@ New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 $tar = "$env:TEMP\$Product-app.tar"
 & git -C $Repo archive --format=tar --output="$tar" HEAD ':!tests' ':!docs' ':!tools' ':!.gitignore' ':!.editorconfig' ':!README.md' ':!CLAUDE.md' ':!.agents' ':!skills-lock.json' ':!bin/seed-demo.php' ':!bin/seed-factory.php' ':!bin/reset-data.php'
 if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
-& tar -xf $tar -C "$Stage\app"
+& "$env:SystemRoot\System32\tar.exe" -xf $tar -C "$Stage\app"
 Remove-Item $tar
 Copy-Item "$Repo\VERSION" "$Stage\app\VERSION" -Force
 $appFiles = (Get-ChildItem "$Stage\app" -Recurse -File | Measure-Object).Count
