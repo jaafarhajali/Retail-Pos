@@ -2,11 +2,11 @@
 /**
  * php bin/product-sheet.php [path.xlsx]
  *
- * Builds the Excel sheet the owner fills in to hand over his products (Aya, 2026-11-09; one tab, nothing
- * from the catalogue on it and as easy as possible, 2026-11-10): five short steps, every unit the system has
- * (Piece, Dozen, kg … and the named ones in use: Pack of 10, Box 10kg) with a plain meaning — a dropdown that
- * still accepts a new word, which tells us which unit to add —, two grey example lines, then 200 yellow lines in plain words. No prices and no quantities:
- * filling the list may take him a month and they would be stale; he sets them in the system afterwards. Aya types it in.
+ * Builds the Excel sheet the owner fills in to hand over his products (Aya, 2026-11-09; reworked 2026-11-10 until it
+ * mirrors the Add-product screen): one tab, nothing from the catalogue on it, no prices and no quantities (he sets those
+ * in the system afterwards). Six short steps, the same choices as the screen — How is it sold? (by piece / weight /
+ * volume), Sold as (ProductService::UNIT_TYPES) and what a Pack / Box … holds, any number — three grey example lines,
+ * then 200 yellow lines. Aya types it in.
  *
  * Written without any library: an .xlsx is a zip of XML parts, and PHP's ZipArchive is enough.
  * Default output: storage/exports/products-to-fill-YYYY-MM-DD.xlsx
@@ -15,7 +15,6 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
-use App\Core\Database;
 use App\Services\ProductService;
 
 $out = $argv[1] ?? dirname(__DIR__) . '/storage/exports/products-to-fill-' . date('Y-m-d') . '.xlsx';
@@ -24,37 +23,26 @@ if (!is_dir(dirname($out))) {
 }
 $shopName = (string) (setting('shop_name', APP_NAME));
 
-// ---- every unit the system has, with a plain meaning -----------------------------------------
-// The six measures the system always knows, then every named unit in use on a product (Pack of 10, Box 10kg …).
-$meaning = static function (string $base, int $factor): string {
-    if ($base === 'piece') {
-        return $factor === 1 ? 'one piece' : $factor . ' pieces';
-    }
-    if ($base === 'g') {
-        return $factor === 1 ? 'one gram' : ($factor % 1000 === 0 ? ($factor / 1000) . ' kg' : $factor . ' g');
-    }
-
-    return $factor === 1 ? 'one millilitre' : ($factor % 1000 === 0 ? ($factor / 1000) . ' litre' : $factor . ' ml');
-};
-$unitRows = [];
-foreach (ProductService::UNIT_TYPES as $name => $def) {
-    if ($def['factor'] !== null) {
-        $unitRows[$name] = $meaning($def['bases'][0], (int) $def['factor']);
-    }
-}
-$inUse = Database::pdo()->query(
-    'SELECT u.name, p.base_unit, u.factor FROM product_units u JOIN products p ON p.id = u.product_id
-     WHERE p.is_active = 1 GROUP BY u.name, p.base_unit, u.factor ORDER BY p.base_unit, u.factor, u.name'
-)->fetchAll();
-foreach ($inUse as $u) {
-    $unitRows[$u['name']] ??= $meaning($u['base_unit'], (int) $u['factor']);
-}
+// ---- the same choices as the Add-product screen --------------------------------------------
+// "How is it sold?" (by piece / weight / volume), then "Sold as" from ProductService::UNIT_TYPES, then what a Pack / Box … holds.
+$soldAs = implode(',', array_keys(ProductService::UNIT_TYPES));   // Piece,Dozen,g,kg,ml,L,Pack,Box,Bag,Roll,Bottle
+$guide = [
+    ['By piece',  'Piece',                          'one piece'],
+    ['By piece',  'Dozen',                          '12 pieces'],
+    ['By piece',  'Pack, Box, Bag, Roll, Bottle',   'you write how many pieces it holds in column E: 5 pieces, 6 pieces, 20 pieces …'],
+    ['By weight', 'g',                              'one gram'],
+    ['By weight', 'kg',                             'one kilo'],
+    ['By weight', 'Pack, Box, Bag, Roll, Bottle',   'you write the weight it holds in column E: 250 g, 1 kg, 10 kg …'],
+    ['By volume', 'ml',                             'one millilitre'],
+    ['By volume', 'L',                              'one litre'],
+    ['By volume', 'Pack, Box, Bag, Roll, Bottle',   'you write the volume it holds in column E: 100 ml, 1 L …'],
+];
 
 // ---- the one sheet ---------------------------------------------------------------------------
 // A cell is a plain value (style 0) or [value, styleIndex]. Styles (see styles.xml below):
 // 0 normal · 1 header · 2 example (grey italic) · 3 fill-in (yellow, bordered) · 4 wrapped text · 5 bold · 6 bordered
 $FILL_ROWS = 200;
-$COLS = 7;
+$COLS = 9;
 $rows = [];
 $heights = [];
 $merge = [];
@@ -64,36 +52,40 @@ $last = static function () use (&$rows): int {   // the row number of the last r
 $text = static function (string $s, int $style = 4) use (&$rows, &$heights, &$merge): void {
     $rows[] = [[$s, $style]];
     $r = count($rows);
-    $merge[] = "A{$r}:G{$r}";
+    $merge[] = "A{$r}:I{$r}";
     if ($style === 4) {
-        $heights[$r] = 15 * (int) ceil(mb_strlen($s) / 150) + 4;
+        $heights[$r] = 15 * (int) ceil(mb_strlen($s) / 170) + 4;
     }
 };
 
 $text($shopName . ' — my products', 5);
 $rows[] = [''];
-$text("1. Write one line per product you sell, in the yellow cells. The two grey lines show how.");
-$text("2. Unit: in column C choose the unit you sell this product in — click the cell and a small arrow opens the list. The list 'Units in the system' below shows what each one means. If you sell the same product in more than one unit (charcoal by the box and by the kilo), put the others in columns D and E.");
-$text("3. If your unit is not in the list, just write it with its size: Box of 6, Pack of 20, Box 5kg, Bottle 100ml. We will add it.");
-$text("4. No prices and no quantities here: you will put them in the system yourself, product by product, once everything is in. This file is only the list of what you sell.");
-$text("5. When you finish, send the file back.");
+$text("1. Write one line per product you sell, in the yellow cells. The three grey lines show how. The questions are the same as on the Add product screen of the system.");
+$text("2. Column C — How is it sold? By piece (tins, hoses, bowls, cans), By weight (charcoal or tobacco that you weigh) or By volume (liquids that you pour).");
+$text("3. Column D — Sold as: click the cell, a small arrow opens the list. Piece, Dozen, g, kg, ml, L are complete by themselves. For Pack, Box, Bag, Roll or Bottle write in column E what it holds — a pack can hold any number: 5 pieces, 6 pieces, 250 g, 10 kg, 100 ml.");
+$text("4. If you also sell the same product another way (charcoal by the box AND by the kilo), put the second way in columns F and G.");
+$text("5. No prices and no quantities here: you will put them in the system yourself, product by product, once everything is in. This file is only the list of what you sell.");
+$text("6. When you finish, send the file back.");
 $rows[] = [''];
 
-$text('Units in the system (what you can choose in columns C, D and E):', 5);
-$rows[] = [['Unit', 1], ['Meaning', 1]];
-$listTop = $last() + 1;
-foreach ($unitRows as $name => $what) {
-    $rows[] = [[$name, 6], [$what, 6]];
+$text('The choices (the same as in the system):', 5);
+$rows[] = [['How is it sold?', 1], ['Sold as', 1], ['What it is / what you write in Holds', 1]];
+foreach ($guide as [$how, $as, $what]) {
+    $rows[] = [[$how, 6], [$as, 6], [$what, 6]];
 }
-$unitList = '$A$' . $listTop . ':$A$' . $last();
 $rows[] = [''];
 
 $text('My products', 5);
-$head = ['Product name *', 'Category (anything: m3asal, fa7em, vape …)', 'Unit *', 'Unit 2 (if sold in another unit too)', 'Unit 3', 'Barcode (if you have it)', 'Notes'];
+$head = [
+    'Product name *', 'Category (anything: m3asal, fa7em, vape …)', 'How is it sold? *', 'Sold as *',
+    'Holds (only for Pack / Box / Bag / Roll / Bottle: 5 pieces, 10 kg, 100 ml …)',
+    'Also sold as (a second way, if any)', 'Holds (for that second way)', 'Barcode (if you have it)', 'Notes',
+];
 $rows[] = array_map(static fn (string $h): array => [$h, 1], $head);
-$heights[$last()] = 48;
-$rows[] = [['Nakhla Mint 50g', 2], ['m3asal', 2], ['Piece', 2], ['', 2], ['', 2], ['6291100000012', 2], ['example', 2]];
-$rows[] = [['Fahem 2.5cm', 2], ['fa7em', 2], ['Box 10kg', 2], ['kg', 2], ['', 2], ['', 2], ['example', 2]];
+$heights[$last()] = 62;
+$rows[] = [['Nakhla Mint 50g', 2], ['m3asal', 2], ['By piece', 2], ['Piece', 2], ['', 2], ['', 2], ['', 2], ['6291100000012', 2], ['example', 2]];
+$rows[] = [['Hose Classic', 2], ['accessories', 2], ['By piece', 2], ['Pack', 2], ['5 pieces', 2], ['Piece', 2], ['', 2], ['', 2], ['example: sold by the pack of 5 and one by one', 2]];
+$rows[] = [['Fahem 2.5cm', 2], ['fa7em', 2], ['By weight', 2], ['Box', 2], ['10 kg', 2], ['kg', 2], ['', 2], ['', 2], ['example: sold by the box and by the kilo', 2]];
 $firstFill = $last() + 1;
 for ($i = 0; $i < $FILL_ROWS; $i++) {
     $rows[] = array_fill(0, $COLS, ['', 3]);
@@ -105,10 +97,11 @@ $sheet = [
     'rows' => $rows,
     'heights' => $heights,
     'merge' => $merge,
-    'widths' => [1 => 32, 2 => 30, 3 => 20, 4 => 30, 5 => 20, 6 => 22, 7 => 30],
+    'widths' => [1 => 30, 2 => 28, 3 => 18, 4 => 16, 5 => 40, 6 => 24, 7 => 26, 8 => 20, 9 => 40],
     'active' => 'A' . $firstFill,
     'validations' => [
-        ['sqref' => "C{$firstFill}:E{$lastFill}", 'list' => $unitList, 'strict' => false],
+        ['sqref' => "C{$firstFill}:C{$lastFill}", 'list' => '"By piece,By weight,By volume"', 'strict' => true, 'error' => 'Choose By piece, By weight or By volume.'],
+        ['sqref' => "D{$firstFill}:D{$lastFill} F{$firstFill}:F{$lastFill}", 'list' => '"' . $soldAs . '"', 'strict' => false],
     ],
 ];
 
@@ -242,4 +235,4 @@ $zip->addFromString('xl/styles.xml', $styles);
 $zip->close();
 
 echo 'Written: ', $out, PHP_EOL;
-echo '  one sheet: ', count($unitRows), ' units to pick from, ', $FILL_ROWS, ' empty lines to fill; nothing from the catalogue.', PHP_EOL;
+echo '  one sheet, the same choices as the Add product screen, ', $FILL_ROWS, ' empty lines to fill; nothing from the catalogue.', PHP_EOL;
