@@ -16,14 +16,15 @@ return [
         Auth::login(TEST_ADMIN_ID);
     },
 
-    'one sheet, products only: the ways to sell are there to pick from; no catalogue, no price and no stock columns' => function (): void {
+    'one sheet, products only: every unit of the system to pick from; no catalogue, no price and no stock columns' => function (): void {
         $svc = new ProductService();
         $cat = (new \App\Models\Category())->create('Tobacco', '#6c757d', 1);
         $p = make_product('Nakhla Double Apple', 'g', $cat);
         $kg = $svc->addUnit($p, 'kg', '1000', false, true);
         $svc->setPrices($kg, '30.00', '28.00');
-        $box = $svc->addUnit($p, 'Box', '10000', false, false);
-        $svc->setPrices($box, '280.00', '');
+        $svc->addUnit($p, 'Box', '10000', false, false);          // named "Box 10kg"
+        $p2 = make_product('Coal Tabs', 'piece', $cat);
+        $svc->addUnit($p2, 'Pack', '10', false, true);            // named "Pack of 10"
         (new StockService())->adjust($p, $kg, '4', 'opening', '', '1', TEST_ADMIN_ID);
         $out = dirname(__DIR__) . '/storage/exports/test-products-sheet.xlsx';
         @unlink($out);
@@ -44,23 +45,26 @@ return [
         assert_contains('name="Products"', $workbook);
 
         $sheet = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
-        assert_contains('How you can sell something (column C)', $sheet);
-        foreach (array_keys(ProductService::UNIT_TYPES) as $unit) {
-            assert_contains('>' . $unit . '<', $sheet, 'every way the system can sell is listed: ' . $unit);
+        assert_contains('Units in the system', $sheet);
+        foreach (['Piece' => 'one piece', 'Dozen' => '12 pieces', 'g' => 'one gram', 'kg' => '1 kg', 'ml' => 'one millilitre', 'L' => '1 litre',
+                  'Box 10kg' => '10 kg', 'Pack of 10' => '10 pieces'] as $unit => $what) {
+            assert_contains('>' . $unit . '</t></is></c><c r="B', $sheet, 'the unit is listed: ' . $unit);
+            assert_contains('>' . $what . '<', $sheet, 'with its meaning: ' . $what);
         }
-        assert_contains('write what is inside it in column D', $sheet, 'and what to do for a Box, Pack …');
         assert_not_contains('Tobacco', $sheet, 'no category of the system on the sheet');
         assert_not_contains('Nakhla Double Apple', $sheet, 'no existing product on the sheet');
+        assert_not_contains('Coal Tabs', $sheet);
         assert_not_contains('28.00', $sheet, 'nor its prices');
-        assert_same(1, substr_count($sheet, '<dataValidation '), 'one dropdown only: how you sell it');
-        // the layout is fixed: title, blank, 4 steps, blank, units heading + header + 11 ways to sell, blank,
-        // "My products", header, 2 examples, then the 200 yellow lines (rows 26-225). Excel refused "B1:B0" on 2026-11-10.
-        assert_contains('sqref="C26:C225"', $sheet, 'the dropdown covers exactly the yellow lines');
-        assert_contains('<formula1>$A$10:$A$20</formula1>', $sheet, 'and points at the 11 listed ways to sell');
-        assert_contains('<selection activeCell="A26"', $sheet, 'the cursor starts on the first yellow line');
-        assert_contains('Also sold as (other units)', $sheet);
+        assert_same(1, substr_count($sheet, '<dataValidation '), 'one dropdown, on the three unit columns');
+        // the layout is fixed: title, blank, 5 steps, blank, units heading + header + 8 units (6 measures + Box 10kg + Pack of 10),
+        // blank, "My products", header, 2 examples, then the 200 yellow lines (rows 24-223). Excel refused "B1:B0" on 2026-11-10.
+        assert_contains('sqref="C24:E223"', $sheet, 'the dropdown covers exactly the yellow unit cells');
+        assert_contains('<formula1>$A$11:$A$18</formula1>', $sheet, 'and points at the 8 listed units');
+        assert_contains('<selection activeCell="A24"', $sheet, 'the cursor starts on the first yellow line');
+        assert_contains('>Unit *<', $sheet);
+        assert_contains('Unit 2 (if sold in another unit too)', $sheet);
         assert_contains('Barcode (if you have it)', $sheet);
-        foreach (['Retail price', 'Wholesale price', 'Cost $', 'How many', 'Warn me'] as $gone) {
+        foreach (['Retail price', 'Wholesale price', 'Cost $', 'How many', 'Warn me', 'what is inside?'] as $gone) {
             assert_not_contains($gone, $sheet, 'no ' . $gone . ' column: he sets prices and quantities in the system later');
         }
         $zip->close();
