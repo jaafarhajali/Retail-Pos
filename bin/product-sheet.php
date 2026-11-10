@@ -5,7 +5,8 @@
  * Builds the Excel sheet the owner fills in to hand over his products (Aya, 2026-11-09; one tab, nothing
  * from the catalogue on it and as easy as possible, 2026-11-10): five short steps, the eleven ways the
  * system can sell something (Piece, kg, Box … — a dropdown that still accepts a new word, which tells us
- * which unit to add), two grey example lines, then 200 yellow lines in plain words. Aya types it into the system.
+ * which unit to add), two grey example lines, then 200 yellow lines in plain words. No prices and no quantities:
+ * filling the list may take him a month and they would be stale; he sets them in the system afterwards. Aya types it in.
  *
  * Written without any library: an .xlsx is a zip of XML parts, and PHP's ZipArchive is enough.
  * Default output: storage/exports/products-to-fill-YYYY-MM-DD.xlsx
@@ -21,7 +22,6 @@ $out = $argv[1] ?? dirname(__DIR__) . '/storage/exports/products-to-fill-' . dat
 if (!is_dir(dirname($out))) {
     mkdir(dirname($out), 0777, true);
 }
-$pdo = Database::pdo();
 $shopName = (string) (setting('shop_name', APP_NAME));
 
 // ---- the ways the system can sell something (ProductService::UNIT_TYPES) ---------------------
@@ -32,16 +32,12 @@ $unitRows = [];
 foreach (array_keys(ProductService::UNIT_TYPES) as $name) {
     $unitRows[] = [$name, $meaning[$name] ?? 'write what is inside it in column D: 10 pieces, 250 g, 10 kg, 100 ml …'];
 }
-$shop = $pdo->query('SELECT name FROM locations WHERE is_default_sale = 1 AND is_active = 1')->fetchColumn();
-$warehouse = $pdo->query('SELECT name FROM locations WHERE is_default_receive = 1 AND is_active = 1')->fetchColumn();
-$shopLabel = is_string($shop) && $shop !== '' ? $shop : 'Shop';
-$warehouseLabel = is_string($warehouse) && $warehouse !== '' ? $warehouse : 'Warehouse';
 
 // ---- the one sheet ---------------------------------------------------------------------------
 // A cell is a plain value (style 0) or [value, styleIndex]. Styles (see styles.xml below):
 // 0 normal · 1 header · 2 example (grey italic) · 3 fill-in (yellow, bordered) · 4 wrapped text · 5 bold · 6 bordered
 $FILL_ROWS = 200;
-$COLS = 13;
+$COLS = 7;
 $rows = [];
 $heights = [];
 $merge = [];
@@ -52,9 +48,9 @@ $last = static function () use (&$rows): int {   // the row number of the last r
 $text = static function (string $s, int $style = 4) use (&$rows, &$heights, &$merge): void {
     $rows[] = [[$s, $style]];
     $r = count($rows);
-    $merge[] = "A{$r}:M{$r}";
+    $merge[] = "A{$r}:G{$r}";
     if ($style === 4) {
-        $heights[$r] = 15 * (int) ceil(mb_strlen($s) / 200) + 4;
+        $heights[$r] = 15 * (int) ceil(mb_strlen($s) / 150) + 4;
     }
 };
 
@@ -62,9 +58,8 @@ $text($shopName . ' — my products', 5);
 $rows[] = [''];
 $text("1. Write one line per product you sell, in the yellow cells. The two grey lines show how. Only the columns with a * are needed.");
 $text("2. Column C: how you sell it — choose from the list (Piece, kg, Box …). If it is a Pack, Box, Bag, Roll or Bottle, write in column D what is inside it, for example 10 pieces, 250 g, 10 kg or 100 ml.");
-$text("3. Prices are in dollars, for one of what you wrote in column C. Cost is what you pay for it.");
-$text("4. Stock: how many of it you have today in the " . $shopLabel . " and in the " . $warehouseLabel . ". Leave empty if none.");
-$text("5. When you finish, send the file back. Nothing changes by itself — it is entered afterwards and checked with you.");
+$text("3. No prices and no quantities here: you will put them in the system yourself, product by product, once everything is in. This file is only the list of what you sell.");
+$text("4. When you finish, send the file back.");
 $rows[] = [''];
 
 $text('How you can sell something (column C):', 5);
@@ -79,14 +74,12 @@ $rows[] = [''];
 $text('My products', 5);
 $head = [
     'Product name *', 'Category (anything: m3asal, fa7em, vape …)', 'How do you sell it? *', 'If Pack / Box / Bag / Roll / Bottle: what is inside?',
-    'Retail price $ *', 'Wholesale price $', 'Cost $ (what you pay)', 'Barcode',
-    'How many in the ' . $shopLabel . ' now', 'How many in the ' . $warehouseLabel . ' now', 'Warn me when fewer than',
-    'Also sold as (other units and their prices)', 'Notes',
+    'Also sold as (other units)', 'Barcode (if you have it)', 'Notes',
 ];
 $rows[] = array_map(static fn (string $h): array => [$h, 1], $head);
 $heights[$last()] = 48;
-$rows[] = [['Nakhla Mint 50g', 2], ['m3asal', 2], ['Piece', 2], ['', 2], [3, 2], [2.5, 2], [2, 2], ['6291100000012', 2], [40, 2], [100, 2], [10, 2], ['', 2], ['example', 2]];
-$rows[] = [['Fahem 2.5cm', 2], ['fa7em', 2], ['Box', 2], ['10 kg', 2], [34, 2], [32, 2], [28, 2], ['', 2], [7, 2], [40, 2], [2, 2], ['kg: 4 retail, 3.8 wholesale', 2], ['example', 2]];
+$rows[] = [['Nakhla Mint 50g', 2], ['m3asal', 2], ['Piece', 2], ['', 2], ['', 2], ['6291100000012', 2], ['example', 2]];
+$rows[] = [['Fahem 2.5cm', 2], ['fa7em', 2], ['Box', 2], ['10 kg', 2], ['kg', 2], ['', 2], ['example', 2]];
 $firstFill = $last() + 1;
 for ($i = 0; $i < $FILL_ROWS; $i++) {
     $rows[] = array_fill(0, $COLS, ['', 3]);
@@ -98,7 +91,7 @@ $sheet = [
     'rows' => $rows,
     'heights' => $heights,
     'merge' => $merge,
-    'widths' => [1 => 30, 2 => 26, 3 => 18, 4 => 32, 5 => 13, 6 => 15, 7 => 16, 8 => 18, 9 => 16, 10 => 20, 11 => 14, 12 => 38, 13 => 30],
+    'widths' => [1 => 32, 2 => 30, 3 => 20, 4 => 40, 5 => 28, 6 => 20, 7 => 30],
     'active' => 'A' . $firstFill,
     'validations' => [
         ['sqref' => "C{$firstFill}:C{$lastFill}", 'list' => $unitList, 'strict' => false],
